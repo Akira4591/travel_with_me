@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>五一北京行程</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./css/app.css">
+</head>
+
+<body>
+  <div class="sidebar">
+    <div class="header">
+      <div class="header-top">
+        <h1 id="trip-title">🎒 五一北京行程</h1>
+        <button type="button" class="share-trip-btn" id="share-trip-btn">分享路线</button>
+      </div>
+      <p id="trip-subtitle">点击下方行程卡片，右侧地图将自动飞跃至对应地点 📍</p>
+    </div>
+    <div class="tabs-container" id="tabs-container"></div>
+    <div class="itinerary-list" id="itinerary-container"></div>
+  </div>
+
+  <div class="map-container">
+    <div id="map"></div>
+    <div class="status-panel" id="status-panel">正在加载地图...</div>
+  </div>
+
+  <script type="module" src="./js/main.js"></script>
+</body>
+</html>
