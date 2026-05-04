@@ -11,6 +11,7 @@
 
 import { initialTrip } from './data/trip.js';
 import { AppConfig } from './config.js';
+import { addDaysISO, isISODate, todayISO } from './utils.js';
 
 // ─── 内部状态（不直接导出） ─────────────────────────────
 
@@ -119,23 +120,35 @@ export function removeLocation(locationId) {
 
 export function addDay(day = {}) {
   const id = day.id || generateDayId();
+  const date = day.date || nextDayISO(trip);
+  if (dateExists(date)) return null;
+
   trip.days.push({
     id,
-    date: day.date || `第 ${trip.days.length + 1} 天`,
+    date,
     title: day.title || '新的一天',
     events: Array.isArray(day.events) ? structuredClone(day.events) : []
   });
+  sortDaysByDate();
 
   emit('trip:changed', { kind: 'day:added', dayId: id });
   return id;
 }
 
+export function nextDayISO(t = trip) {
+  const dates = t.days.map(day => day.date).filter(isISODate).sort();
+  const last = dates[dates.length - 1];
+  return last ? addDaysISO(last, 1) : todayISO();
+}
+
 export function updateDay(dayId, patch) {
   const day = trip.days.find(item => item.id === dayId);
   if (!day) return false;
+  if (patch.date != null && patch.date !== day.date && dateExists(patch.date, dayId)) return false;
 
   if (patch.date != null) day.date = patch.date;
   if (patch.title != null) day.title = patch.title;
+  sortDaysByDate();
 
   emit('trip:changed', { kind: 'day:updated', dayId });
   return true;
@@ -247,6 +260,7 @@ export function reorderEventInDay(dayId, eventId, targetEventId) {
 
 export function replaceTrip(newTrip) {
   trip = structuredClone(newTrip);
+  sortDaysByDate();
   emit('trip:replaced', { trip });
 }
 
@@ -290,6 +304,21 @@ function uniqueLocationIds(events) {
 
 function isLocationReferenced(locationId) {
   return trip.days.some(day => day.events.some(event => event.locationId === locationId));
+}
+
+function dateExists(date, exceptDayId = null) {
+  return isISODate(date) && trip.days.some(day => day.id !== exceptDayId && day.date === date);
+}
+
+function sortDaysByDate() {
+  trip.days.sort((a, b) => {
+    const aISO = isISODate(a.date);
+    const bISO = isISODate(b.date);
+    if (aISO && bISO) return a.date.localeCompare(b.date);
+    if (aISO) return -1;
+    if (bISO) return 1;
+    return String(a.date || '').localeCompare(String(b.date || ''));
+  });
 }
 
 // ─── appState 读 ─────────────────────────────────────

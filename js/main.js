@@ -15,7 +15,7 @@ import {
 import {
   getAppState, getTrip, getDay, getLocation, setActiveDayId, setAMap,
   updateLocationCoords, updateLocation, removeLocation,
-  addDay, updateDay, removeDay,
+  addDay, updateDay, removeDay, nextDayISO,
   addLocation, addEventToDay, updateEventInDay, removeEventFromDay,
   moveEventInDay, reorderEventInDay, replaceTrip, on
 } from './state.js';
@@ -36,7 +36,7 @@ import { openEventEditorModal } from './render/event-editor-modal.js?v=20260504-
 import { openDayEditorModal } from './render/day-editor-modal.js';
 import { openShareModal } from './render/share-modal.js';
 import { buildShareURL, copyText, readSharedTripFromURL } from './share.js';
-import { sleep } from './utils.js';
+import { sleep, formatDateCN } from './utils.js';
 
 // ─── boot ──────────────────────────────────────────────
 
@@ -95,15 +95,22 @@ function getItineraryHandlers() {
 }
 
 function openCreateDayFlow() {
-  const trip = getTrip();
   openDayEditorModal({
     mode: 'create',
     day: {
-      date: `第 ${trip.days.length + 1} 天`,
+      date: nextDayISO(),
       title: '新的一天'
     },
+    disabledDates: getTrip().days.map(day => day.date),
     handlers: {
-      onCreate: (patch) => addDay(patch)
+      onCreate: (patch) => {
+        const dayId = addDay(patch);
+        if (!dayId) {
+          setStatus('这个日期已经有行程，请选择其他日期。');
+          return false;
+        }
+        return true;
+      }
     }
   });
 }
@@ -116,8 +123,13 @@ function openEditDayFlow(dayId) {
     mode: 'edit',
     day,
     canDelete: getTrip().days.length > 1,
+    disabledDates: getTrip().days.filter(item => item.id !== dayId).map(item => item.date),
     handlers: {
-      onSave: (_day, patch) => updateDay(dayId, patch),
+      onSave: (_day, patch) => {
+        const ok = updateDay(dayId, patch);
+        if (!ok) setStatus('这个日期已经有行程，请选择其他日期。');
+        return ok;
+      },
       onDelete: () => deleteDayFlow(dayId)
     }
   });
@@ -131,7 +143,7 @@ function deleteDayFlow(dayId) {
     return;
   }
 
-  const ok = window.confirm(`删除“${day.date} · ${day.title}”？这一天里的日程也会一起删除。`);
+  const ok = window.confirm(`删除“${formatDateCN(day.date)} · ${day.title}”？这一天里的日程也会一起删除。`);
   if (!ok) return;
 
   removeDay(dayId);
@@ -310,12 +322,12 @@ function scheduleRoutePlanning(day) {
   const segments = buildRouteSegments(day);
   if (!segments.length) {
     resetRouteCards();
-    setStatus(`${day.date} 还没有路线。添加至少两个地点后会自动规划路线。`);
+    setStatus(`${formatDateCN(day.date)} 还没有路线。添加至少两个地点后会自动规划路线。`);
     return;
   }
 
   segments.forEach(setRouteCardLoading);
-  setStatus(`${day.date}：正在规划 ${segments.length} 段路线...`);
+  setStatus(`${formatDateCN(day.date)}：正在规划 ${segments.length} 段路线...`);
 
   state.routePlanningTimer = setTimeout(() => {
     planRoutesForDay(day, segments, serial);
@@ -347,7 +359,7 @@ async function planRoutesForDay(day, segments, serial) {
   }
 
   if (serial !== state.routePlanningSerial) return;
-  setStatus(`${day.date} 已完成：${success} 段真实路线，${estimated} 段估算路线，${failed} 段失败。`);
+  setStatus(`${formatDateCN(day.date)} 已完成：${success} 段真实路线，${estimated} 段估算路线，${failed} 段失败。`);
 }
 
 async function searchSegment(segment, serial) {

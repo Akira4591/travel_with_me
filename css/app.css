@@ -791,6 +791,197 @@ body {
   align-items: center;
 }
 
+.date-picker {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+}
+
+.date-picker-trigger {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 10px 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-strong);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.4;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  text-align: left;
+}
+
+.date-picker-trigger:hover {
+  background: #fbfaf6;
+  border-color: var(--line-strong);
+}
+
+.date-picker-trigger:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(201, 95, 74, 0.12);
+}
+
+.date-picker-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.date-picker-caret {
+  color: var(--muted-2);
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.date-picker-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 20;
+  width: min(288px, calc(100vw - 64px));
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-strong);
+  box-shadow: 0 14px 38px rgba(38, 31, 24, 0.16);
+  padding: 10px;
+}
+
+.date-picker-head {
+  display: grid;
+  grid-template-columns: 30px 1fr 30px;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.date-picker-month {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.date-picker-nav {
+  width: 30px;
+  height: 30px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.date-picker-nav:hover {
+  border-color: var(--line);
+  background: #f4eee6;
+  color: var(--text);
+}
+
+.date-picker-weekdays,
+.date-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.date-picker-weekdays {
+  margin-bottom: 4px;
+}
+
+.date-picker-weekdays span {
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted-2);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.date-picker-day {
+  aspect-ratio: 1;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.date-picker-day:hover {
+  background: #f4eee6;
+}
+
+.date-picker-day.muted {
+  color: var(--muted-2);
+}
+
+.date-picker-day.today {
+  border-color: var(--line-strong);
+}
+
+.date-picker-day.selected {
+  background: var(--text);
+  color: var(--surface);
+  border-color: var(--text);
+}
+
+.date-picker-day.disabled,
+.date-picker-day:disabled {
+  color: #c6bdb3;
+  background: transparent;
+  border-color: transparent;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
+.date-picker-day.disabled:hover,
+.date-picker-day:disabled:hover {
+  background: transparent;
+}
+
+.date-picker-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 8px;
+  margin-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.date-picker-today {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.date-picker-today:hover {
+  background: #f4eee6;
+  color: var(--text);
+}
+
+.date-picker-today:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .modal-action-spacer {
   flex: 1;
 }
@@ -855,10 +1046,22 @@ body {
 }
 
 .editor-modal { max-width: 560px; }
-.day-editor-modal { max-width: 520px; }
+.day-editor-modal {
+  max-width: 520px;
+  min-height: auto;
+  transition: min-height 0.16s ease;
+}
+
+.day-editor-modal.date-picker-expanded {
+  min-height: min(620px, calc(100vh - 32px));
+}
 
 .editor-form,
 .day-editor-form { gap: 10px; }
+
+.day-editor-modal.date-picker-expanded .day-editor-form {
+  min-height: 470px;
+}
 
 .editor-section-title {
   font-size: 13px;

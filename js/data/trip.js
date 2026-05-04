@@ -99,7 +99,7 @@ export const initialTrip = {
   days: [
     {
       id: 'day-1',
-      date: '5月1日',
+      date: '2026-05-01',
       title: '接站与安顿',
       events: [
         { id: 'd1-e1', title: '男朋友抵达北京南站', locationId: 'station',     icon: 'train', routeToNext: { mode: 'transit'  } },
@@ -109,7 +109,7 @@ export const initialTrip = {
     },
     {
       id: 'day-2',
-      date: '5月2日',
+      date: '2026-05-02',
       title: '吃喝与逛校园',
       events: [
         { id: 'd2-e0', title: '从酒店出发',         locationId: 'hotel',       icon: 'hotel', routeToNext: { mode: 'driving' } },
@@ -122,7 +122,7 @@ export const initialTrip = {
     },
     {
       id: 'day-3',
-      date: '5月3日',
+      date: '2026-05-03',
       title: '朝阳水岸休闲',
       events: [
         { id: 'd3-e0', title: '从酒店出发',         locationId: 'hotel',        icon: 'hotel', routeToNext: { mode: 'transit'  } },
@@ -135,7 +135,7 @@ export const initialTrip = {
     },
     {
       id: 'day-4',
-      date: '5月4日',
+      date: '2026-05-04',
       title: '踏青与送站',
       events: [
         { id: 'd4-e0', title: '从酒店出发',     locationId: 'hotel',     icon: 'hotel', routeToNext: { mode: 'driving' } },

@@ -11,7 +11,7 @@
 import { AppConfig } from '../config.js';
 import {
   toNumber, calculateDistance, cleanText,
-  getTransportLabel, getTransportIcon
+  getTransportLabel, getTransportIcon, sleep
 } from '../utils.js';
 
 // ─── 创建路线服务 ──────────────────────────────────────
@@ -46,7 +46,21 @@ export function createRouteService(AMap, map, mode) {
 // ─── 真正搜路线 ────────────────────────────────────────
 
 // segment: { fromLngLat, toLngLat, mode }
-export function searchRoute(AMap, service, segment) {
+export async function searchRoute(AMap, service, segment) {
+  const maxAttempts = 3;
+  let lastResult = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    lastResult = await searchRouteOnce(AMap, service, segment);
+    if (lastResult.ok) return lastResult;
+    if (attempt < maxAttempts) await sleep(450 * attempt);
+  }
+
+  console.warn('路线规划失败，使用估算兜底：', segment, lastResult?.status, lastResult?.raw);
+  return buildEstimatedResult(segment);
+}
+
+function searchRouteOnce(AMap, service, segment) {
   const origin = new AMap.LngLat(Number(segment.fromLngLat[0]), Number(segment.fromLngLat[1]));
   const destination = new AMap.LngLat(Number(segment.toLngLat[0]), Number(segment.toLngLat[1]));
 
@@ -60,8 +74,7 @@ export function searchRoute(AMap, service, segment) {
           paths
         });
       } else {
-        console.warn('路线规划失败，使用估算兜底：', segment, status, result);
-        resolve(buildEstimatedResult(segment));
+        resolve({ ok: false, status, raw: result });
       }
     };
 
@@ -73,8 +86,7 @@ export function searchRoute(AMap, service, segment) {
         service.search(origin, destination, callback);
       }
     } catch (error) {
-      console.warn('路线规划调用异常，使用估算兜底：', segment, error);
-      resolve(buildEstimatedResult(segment));
+      resolve({ ok: false, status: 'exception', raw: error });
     }
   });
 }

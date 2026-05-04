@@ -12,7 +12,7 @@ import {
 } from '../state.js';
 import {
   escapeHTML, formatDistance, formatDuration,
-  getTransportLabel
+  getTransportLabel, formatDateCN
 } from '../utils.js';
 import { getIconIdForEvent, renderIconSVG } from './icons.js';
 
@@ -40,13 +40,15 @@ export function renderTabs(handlers) {
 
   tabs.appendChild(createTabButton('all', '全部', handlers));
   trip.days.forEach(day => {
-    tabs.appendChild(createTabButton(day.id, day.date, handlers));
+    tabs.appendChild(createTabButton(day.id, formatDateCN(day.date), handlers));
   });
 
   const addDayBtn = document.createElement('button');
   addDayBtn.type = 'button';
   addDayBtn.className = 'tab-btn tab-add-day-btn';
-  addDayBtn.textContent = '+ 新建一天';
+  addDayBtn.textContent = '+';
+  addDayBtn.title = '新建一天';
+  addDayBtn.setAttribute('aria-label', '新建一天');
   addDayBtn.addEventListener('click', () => handlers.onAddDay?.());
   tabs.appendChild(addDayBtn);
 }
@@ -98,7 +100,7 @@ export function renderItinerary(handlers) {
     dayGroup.dataset.dayId = day.id;
     dayGroup.innerHTML = `
       <div class="day-title">
-        <span>${escapeHTML(day.date)} · ${escapeHTML(day.title)}</span>
+        <span>${escapeHTML(formatDateCN(day.date))} · ${escapeHTML(day.title)}</span>
         <div class="day-title-actions">
           <button type="button" class="day-edit-btn" title="编辑日期">···</button>
           <button type="button" class="day-add-btn">+ 添加地点</button>

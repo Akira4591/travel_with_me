@@ -2,17 +2,18 @@
 // 编辑 / 新建 day 级信息：日期文案和当天标题。
 
 import { escapeHTML } from '../utils.js';
+import { bindDatePicker, createDatePickerHTML } from './date-picker.js';
 
 let modalEl = null;
 let currentHandlers = null;
 
-export function openDayEditorModal({ day = null, mode = 'edit', canDelete = true, handlers }) {
+export function openDayEditorModal({ day = null, mode = 'edit', canDelete = true, disabledDates = [], handlers }) {
   closeDayEditorModal();
   currentHandlers = handlers;
-  modalEl = createModal(day, mode, canDelete);
+  modalEl = createModal(day, mode, canDelete, disabledDates);
   document.body.appendChild(modalEl);
   requestAnimationFrame(() => {
-    modalEl?.querySelector('.day-date-input')?.focus();
+    modalEl?.querySelector('.date-picker-trigger')?.focus();
   });
 }
 
@@ -23,7 +24,7 @@ export function closeDayEditorModal() {
   currentHandlers = null;
 }
 
-function createModal(day, mode, canDelete) {
+function createModal(day, mode, canDelete, disabledDates) {
   const isCreate = mode === 'create';
   const root = document.createElement('div');
   root.className = 'modal-overlay';
@@ -36,7 +37,7 @@ function createModal(day, mode, canDelete) {
       <form class="modal-body day-editor-form">
         <div class="modal-form-row">
           <label>日期</label>
-          <input type="text" class="day-date-input" placeholder="例如：5月5日" required value="${escapeHTML(day?.date || '')}" />
+          ${createDatePickerHTML(day?.date || '', { disabledDates })}
         </div>
         <div class="modal-form-row">
           <label>标题</label>
@@ -52,6 +53,7 @@ function createModal(day, mode, canDelete) {
     </div>
   `;
 
+  bindDatePicker(root);
   bindEvents(root, day, mode);
   return root;
 }
@@ -81,11 +83,10 @@ function bindEvents(root, day, mode) {
     };
     if (!patch.date || !patch.title) return;
 
-    if (mode === 'create') {
-      currentHandlers?.onCreate?.(patch);
-    } else {
-      currentHandlers?.onSave?.(day, patch);
-    }
+    const ok = mode === 'create'
+      ? currentHandlers?.onCreate?.(patch)
+      : currentHandlers?.onSave?.(day, patch);
+    if (ok === false) return;
     closeDayEditorModal();
   });
 }
