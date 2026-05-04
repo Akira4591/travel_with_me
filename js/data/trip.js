@@ -114,7 +114,7 @@ export const initialTrip = {
       events: [
         { id: 'd2-e0', title: '从酒店出发',         locationId: 'hotel',       icon: 'hotel', routeToNext: { mode: 'driving' } },
         { id: 'd2-e1', title: '紫光园吃午饭',       locationId: 'ziguangyuan', icon: 'food', routeToNext: { mode: 'driving' } },
-        { id: 'd2-e2', title: '春风在书店撸猫',     locationId: 'bookstore',   icon: 'book', routeToNext: { mode: 'driving' } },
+        { id: 'd2-e2', title: '春风在书店撸猫',     locationId: 'bookstore',   icon: 'shop', routeToNext: { mode: 'driving' } },
         { id: 'd2-e3', title: '人大通州校区转转',   locationId: 'ruc',         icon: 'school', routeToNext: { mode: 'driving' } },
         { id: 'd2-e4', title: '万象汇吃晚餐',       locationId: 'wanxianghui', icon: 'food', routeToNext: { mode: 'driving' } },
         { id: 'd2-e5', title: '回酒店休息',         locationId: 'hotel',       icon: 'hotel' }
