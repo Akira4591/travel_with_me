@@ -2,9 +2,12 @@
 // 加载高德 JS API 2.0 的薄封装
 //
 // 为什么单独抽一个文件：
-//   - securityJsCode 必须在 loader.js 之前注入到 window
+//   - _AMapSecurityConfig 必须在 loader.js 之前注入到 window
 //   - 整个应用只允许 load 一次，多次 load 会报错 → 单例
 //   - 失败时给上层一个统一的错误形态
+//
+// 安全密钥（jscode）严禁出现在前端：通过 serviceHost 让 SDK 把 Web 服务请求
+// 打到同源 BFF（server/index.js），由 BFF 从环境变量取出 jscode 后转发到高德。
 
 import { AppConfig } from '../config.js';
 
@@ -14,9 +17,9 @@ export function loadAMap() {
   if (loadPromise) return loadPromise;
 
   loadPromise = new Promise((resolve, reject) => {
-    // 注入安全密钥（必须在 loader.js 之前）
+    // 把 SDK 的 Web 服务请求重定向到本应用的 BFF（必须在 loader.js 之前注入）
     window._AMapSecurityConfig = {
-      securityJsCode: AppConfig.amapSecurityCode
+      serviceHost: `${location.origin}/_AMapService`
     };
 
     // 动态加载 loader.js（如果还没加载）
