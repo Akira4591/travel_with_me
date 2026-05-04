@@ -49,6 +49,13 @@ app.all(`${PROXY_PREFIX}/*`, async (c) => {
       'accept': c.req.header('accept') || '*/*'
     }
   };
+  // 高德通过 Referer 头校验域名白名单（appname 参数不算数）。
+  // 不透传 Referer 时所有 Web 服务请求会被 AMap 拒绝（INVALID_USER_DOMAIN / 10006）。
+  const referer = c.req.header('referer');
+  if (referer) init.headers['referer'] = referer;
+  const origin = c.req.header('origin');
+  if (origin) init.headers['origin'] = origin;
+
   if (c.req.method !== 'GET' && c.req.method !== 'HEAD') {
     init.body = await c.req.arrayBuffer();
     const ct = c.req.header('content-type');
