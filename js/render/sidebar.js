@@ -12,15 +12,22 @@ import {
 } from '../state.js';
 import {
   escapeHTML, formatDistance, formatDuration,
-  getTransportLabel, getTransportIcon
+  getTransportLabel
 } from '../utils.js';
+import { getIconIdForEvent, renderIconSVG } from './icons.js';
 
 // ─── 静态部分（标题副标题） ─────────────────────────────
 
 export function renderHeader() {
   const trip = getTrip();
-  document.getElementById('trip-title').textContent = trip.title;
-  document.getElementById('trip-subtitle').textContent = trip.subtitle;
+  document.getElementById('trip-title').textContent = cleanHeaderText(trip.title);
+  document.getElementById('trip-subtitle').textContent = cleanHeaderText(trip.subtitle);
+}
+
+function cleanHeaderText(value) {
+  return String(value || '')
+    .replace(/^(🎒|馃帓)\s*/u, '')
+    .replace(/\s*(📍|馃搷)\s*$/u, '');
 }
 
 // ─── Tabs ─────────────────────────────────────────────
@@ -53,9 +60,15 @@ export function updateActiveTab(dayId) {
 }
 
 export function updateVisibleDayGroups(dayId) {
+  const container = document.getElementById('itinerary-container');
+  if (container) container.scrollTop = 0;
+
   document.querySelectorAll('.day-group').forEach(group => {
     group.style.display =
       dayId === 'all' || group.dataset.dayId === dayId ? 'block' : 'none';
+  });
+  document.querySelectorAll('.route-card').forEach(card => {
+    card.hidden = dayId === 'all';
   });
 }
 
@@ -112,12 +125,12 @@ function createEventCard(day, event, eventIndex, handlers) {
   card.dataset.locationId = event.locationId;
   card.dataset.eventId = event.id;
   card.dataset.dayId = day.id;
+  const iconHTML = renderIconSVG(getIconIdForEvent(event, loc));
   card.innerHTML = `
     <button type="button" class="drag-handle" draggable="true" aria-label="拖动排序" title="拖动排序">⋮⋮</button>
-    <div class="card-icon">${escapeHTML(event.icon || '📍')}</div>
+    <div class="card-icon" aria-hidden="true">${iconHTML}</div>
     <div class="card-content">
       <div class="card-header">
-        <span class="time-badge">${escapeHTML(event.time || '')}</span>
         <span class="event-desc">${escapeHTML(event.title || '')}</span>
       </div>
       <div class="location-info">
@@ -128,11 +141,11 @@ function createEventCard(day, event, eventIndex, handlers) {
         <span>${escapeHTML(loc.name)}</span>
       </div>
       <div class="card-actions">
-        <button type="button" class="event-action-btn" data-action="edit">编辑</button>
-        <button type="button" class="event-action-btn" data-action="add-after">后面添加</button>
-        <button type="button" class="event-action-btn" data-action="move-up" ${eventIndex === 0 ? 'disabled' : ''}>上移</button>
-        <button type="button" class="event-action-btn" data-action="move-down" ${eventIndex === day.events.length - 1 ? 'disabled' : ''}>下移</button>
-        <button type="button" class="event-action-btn danger" data-action="delete">删除</button>
+        <button type="button" class="event-action-btn" data-action="edit" title="编辑">···</button>
+        <button type="button" class="event-action-btn" data-action="add-after" title="后面添加">+</button>
+        <button type="button" class="event-action-btn" data-action="move-up" title="上移" ${eventIndex === 0 ? 'disabled' : ''}>↑</button>
+        <button type="button" class="event-action-btn" data-action="move-down" title="下移" ${eventIndex === day.events.length - 1 ? 'disabled' : ''}>↓</button>
+        <button type="button" class="event-action-btn danger" data-action="delete" title="删除">−</button>
       </div>
     </div>
   `;
@@ -226,13 +239,11 @@ function createRouteCard(segment, handlers) {
 function renderRouteIdleHTML(segment) {
   return `
     <div class="route-card-main">
-      <div class="route-icon">↳</div>
       <div class="route-body">
         <div class="route-title">
-          <span>${escapeHTML(segment.fromName)} → ${escapeHTML(segment.toName)}</span>
           <span class="route-mode">${escapeHTML(getTransportLabel(segment.mode))}</span>
         </div>
-        <div class="route-placeholder">选择这一天后自动加载距离、预计用时和路线。</div>
+        <div class="route-placeholder">选择当天后加载距离、用时和路线。</div>
       </div>
     </div>
   `;
@@ -247,10 +258,8 @@ export function setRouteCardLoading(segment) {
   card.style.setProperty('--route-color', segment.color);
   card.innerHTML = `
     <div class="route-card-main">
-      <div class="route-icon">${escapeHTML(getTransportIcon(segment.mode))}</div>
       <div class="route-body">
         <div class="route-title">
-          <span>${escapeHTML(segment.fromName)} → ${escapeHTML(segment.toName)}</span>
           <span class="route-mode">${escapeHTML(getTransportLabel(segment.mode))}</span>
         </div>
         <div class="route-placeholder">正在规划路线...</div>
@@ -274,10 +283,8 @@ export function updateRouteCardError(segment, message) {
   card.style.setProperty('--route-color', segment.color);
   card.innerHTML = `
     <div class="route-card-main">
-      <div class="route-icon">!</div>
       <div class="route-body">
         <div class="route-title">
-          <span>${escapeHTML(segment.fromName)} → ${escapeHTML(segment.toName)}</span>
           <span class="route-mode">${escapeHTML(getTransportLabel(segment.mode))}</span>
         </div>
         <div class="route-placeholder">${escapeHTML(message)}</div>
@@ -292,15 +299,13 @@ function renderRouteCardResult(segment, detail, statusClass) {
   card.className = `route-card ${statusClass}`;
   card.style.setProperty('--route-color', segment.color);
 
-  const meta = `${escapeHTML(detail.label)} · 约 ${formatDistance(detail.distance)} · 预计 ${formatDuration(detail.duration)}`;
+  const meta = `约 ${formatDistance(detail.distance)} · 预计 ${formatDuration(detail.duration)}`;
   const steps = detail.mode === 'transit' ? detail.steps : [];
 
   card.innerHTML = `
     <div class="route-card-main">
-      <div class="route-icon">${escapeHTML(detail.icon)}</div>
       <div class="route-body">
         <div class="route-title">
-          <span>${escapeHTML(segment.fromName)} → ${escapeHTML(segment.toName)}</span>
           <span class="route-mode">${escapeHTML(detail.label)}</span>
         </div>
         <div class="route-meta">${meta}</div>

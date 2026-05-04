@@ -1,4 +1,5 @@
 .playwright-mcp/
+.claude/
 *.log
 trip-app-step1-verified.png
 trip-app-tabs-fixed.png

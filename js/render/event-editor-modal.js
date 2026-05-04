@@ -1,9 +1,12 @@
 // js/render/event-editor-modal.js
-// 编辑行程事件：时间/标题/图标 + 手动校准地点，或通过 POI 搜索替换为新地点
+// 编辑行程事件：标题 + 手动校准地点，或通过 POI 搜索替换为新地点
 //
 // 这个模块只负责 UI 和表单收集，不直接读写 state。
 
 import { escapeHTML } from '../utils.js';
+import {
+  bindIconPicker, getIconIdForEvent, inferIconId, renderIconPickerHTML
+} from './icons.js';
 
 let modalEl = null;
 let currentHandlers = null;
@@ -36,41 +39,36 @@ function createModal(event, location) {
       </div>
       <form class="modal-body editor-form">
         <div class="modal-form-row">
-          <label>时间</label>
-          <input type="text" class="editor-time-input" placeholder="早上 / 下午 / 19:30" value="${escapeHTML(event.time || '')}" />
-        </div>
-        <div class="modal-form-row">
           <label>标题</label>
           <input type="text" class="editor-title-input" placeholder="在这里做什么" required value="${escapeHTML(event.title || '')}" />
         </div>
-        <div class="modal-form-row">
+        <div class="modal-form-row icon-form-row">
           <label>图标</label>
-          <input type="text" class="editor-icon-input" placeholder="📍" maxlength="4" value="${escapeHTML(event.icon || '📍')}" />
+          ${renderIconPickerHTML(getIconIdForEvent(event, location))}
         </div>
 
-        <div class="editor-section-title">地点</div>
-        <div class="modal-search-row">
-          <input type="text" class="editor-search-input" placeholder="搜索新地点" />
-          <button type="button" class="editor-search-btn">搜索</button>
+        <div class="editor-section-title">搜索新地点</div>
+        <div class="editor-search-panel">
+          <div class="editor-search-copy">只能通过搜索结果替换地点；下方地点信息仅供确认。</div>
+          <div class="editor-search-box">
+            <svg class="editor-search-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z"></path>
+            </svg>
+            <input type="text" class="editor-search-input" placeholder="搜索新地点" />
+            <button type="button" class="editor-search-btn">搜索</button>
+          </div>
         </div>
         <div class="modal-results editor-results" data-state="idle"></div>
 
-        <div class="modal-form-row">
-          <label>名称</label>
-          <input type="text" class="editor-location-name" required value="${escapeHTML(location.name || '')}" />
-        </div>
-        <div class="modal-form-row">
-          <label>地址</label>
-          <input type="text" class="editor-location-addr" value="${escapeHTML(location.addr || location.query || '')}" />
-        </div>
-        <div class="editor-coords-row">
-          <div class="modal-form-row">
-            <label>经度</label>
-            <input type="number" step="0.000001" class="editor-location-lng" required value="${escapeHTML(location.lnglat?.[0] || '')}" />
+        <div class="editor-location-card">
+          <div>
+            <div class="editor-location-label">当前地点</div>
+            <div class="editor-location-name">${escapeHTML(location.name || '')}</div>
+            <div class="editor-location-addr">${escapeHTML(location.addr || location.query || '地址未提供')}</div>
           </div>
-          <div class="modal-form-row">
-            <label>纬度</label>
-            <input type="number" step="0.000001" class="editor-location-lat" required value="${escapeHTML(location.lnglat?.[1] || '')}" />
+          <div class="editor-location-coords">
+            <span>经度 ${escapeHTML(location.lnglat?.[0] || '')}</span>
+            <span>纬度 ${escapeHTML(location.lnglat?.[1] || '')}</span>
           </div>
         </div>
 
@@ -90,11 +88,10 @@ function bindEvents(root) {
   const form = root.querySelector('.editor-form');
   const searchInput = root.querySelector('.editor-search-input');
   const resultsEl = root.querySelector('.editor-results');
-  const nameInput = root.querySelector('.editor-location-name');
-  const addrInput = root.querySelector('.editor-location-addr');
-  const lngInput = root.querySelector('.editor-location-lng');
-  const latInput = root.querySelector('.editor-location-lat');
+  const locationCard = root.querySelector('.editor-location-card');
+  const iconPicker = bindIconPicker(root, root.querySelector('.icon-picker-btn.active')?.dataset.iconId || 'pin');
   let selectedPlace = null;
+  let selectedLocation = readLocationFromCard(locationCard);
 
   const doSearch = async () => {
     const keyword = searchInput.value.trim();
@@ -110,10 +107,14 @@ function bindEvents(root) {
       }
       renderResults(resultsEl, places, (place) => {
         selectedPlace = place;
-        nameInput.value = place.name || '';
-        addrInput.value = place.addr || place.city || '';
-        lngInput.value = place.lnglat?.[0] || '';
-        latInput.value = place.lnglat?.[1] || '';
+        selectedLocation = {
+          name: place.name || '',
+          query: place.name || '',
+          addr: place.addr || place.city || '',
+          lnglat: place.lnglat || []
+        };
+        iconPicker.setValue(inferIconId(`${place.name || ''} ${place.addr || ''}`));
+        renderLocationCard(locationCard, selectedLocation, '已选择地点');
       });
     } catch (err) {
       console.error('搜索地点失败：', err);
@@ -129,10 +130,6 @@ function bindEvents(root) {
     }
   });
 
-  [nameInput, addrInput, lngInput, latInput].forEach(input => {
-    input.addEventListener('input', () => { selectedPlace = null; });
-  });
-
   root.querySelector('.modal-close').addEventListener('click', closeEventEditorModal);
   root.querySelector('.modal-cancel').addEventListener('click', closeEventEditorModal);
   root.addEventListener('click', (e) => {
@@ -146,26 +143,51 @@ function bindEvents(root) {
     e.preventDefault();
     if (!currentHandlers?.onConfirm) return;
 
-    const lng = Number(lngInput.value);
-    const lat = Number(latInput.value);
+    const lng = Number(selectedLocation.lnglat?.[0]);
+    const lat = Number(selectedLocation.lnglat?.[1]);
     if (!Number.isFinite(lng) || !Number.isFinite(lat)) return;
 
     currentHandlers.onConfirm({
       event: {
-        time: root.querySelector('.editor-time-input').value.trim(),
         title: root.querySelector('.editor-title-input').value.trim(),
-        icon: root.querySelector('.editor-icon-input').value.trim() || '📍'
+        icon: iconPicker.getValue()
       },
       location: {
-        name: nameInput.value.trim(),
-        query: nameInput.value.trim(),
-        addr: addrInput.value.trim(),
+        name: selectedLocation.name,
+        query: selectedLocation.query || selectedLocation.name,
+        addr: selectedLocation.addr,
         lnglat: [lng, lat]
       },
       selectedPlace
     });
     closeEventEditorModal();
   });
+}
+
+function readLocationFromCard(card) {
+  return {
+    name: card.querySelector('.editor-location-name')?.textContent.trim() || '',
+    query: card.querySelector('.editor-location-name')?.textContent.trim() || '',
+    addr: card.querySelector('.editor-location-addr')?.textContent.trim() || '',
+    lnglat: Array.from(card.querySelectorAll('.editor-location-coords span')).map(item => {
+      const match = item.textContent.match(/(-?\d+(?:\.\d+)?)/);
+      return match ? Number(match[1]) : '';
+    })
+  };
+}
+
+function renderLocationCard(card, location, label) {
+  card.innerHTML = `
+    <div>
+      <div class="editor-location-label">${escapeHTML(label)}</div>
+      <div class="editor-location-name">${escapeHTML(location.name || '')}</div>
+      <div class="editor-location-addr">${escapeHTML(location.addr || location.query || '地址未提供')}</div>
+    </div>
+    <div class="editor-location-coords">
+      <span>经度 ${escapeHTML(location.lnglat?.[0] || '')}</span>
+      <span>纬度 ${escapeHTML(location.lnglat?.[1] || '')}</span>
+    </div>
+  `;
 }
 
 function setResultsState(resultsEl, state, html) {

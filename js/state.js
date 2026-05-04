@@ -124,9 +124,8 @@ export function addEventToDay(dayId, event, options = {}) {
   const id = event.id || generateEventId(dayId);
   const newEvent = {
     id,
-    time: event.time || '',
     title: event.title || '',
-    icon: event.icon || '📍',
+    ...(event.icon ? { icon: event.icon } : {}),
     locationId: event.locationId,
     ...(event.routeToNext ? { routeToNext: event.routeToNext } : {})
   };
@@ -145,7 +144,6 @@ export function updateEventInDay(dayId, eventId, patch) {
   const event = day.events.find(item => item.id === eventId);
   if (!event) return false;
 
-  if (patch.time != null) event.time = patch.time;
   if (patch.title != null) event.title = patch.title;
   if (patch.icon != null) event.icon = patch.icon;
   if (patch.locationId != null) event.locationId = patch.locationId;

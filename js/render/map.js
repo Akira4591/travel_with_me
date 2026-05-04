@@ -50,12 +50,12 @@ export function createOrUpdateMarker(locationId, lnglat) {
 
   const content = document.createElement('div');
   content.className = 'custom-marker';
-  content.innerHTML = '📍';
+  content.innerHTML = '<span></span>';
 
   const marker = new state.AMap.Marker({
     position: lnglat,
     content,
-    offset: new state.AMap.Pixel(-15, -15)
+    offset: new state.AMap.Pixel(-14, -14)
   });
   marker.on('click', () => openInfoWindow(locationId));
 

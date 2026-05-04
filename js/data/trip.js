@@ -13,8 +13,8 @@
 //   - 最后一个 event 不需要 routeToNext
 
 export const initialTrip = {
-  title: '🎒 五一北京行程',
-  subtitle: '点击下方行程卡片，右侧地图将自动飞跃至对应地点 📍',
+  title: '五一北京行程',
+  subtitle: '点击下方行程卡片，右侧地图将自动飞跃至对应地点',
   city: '北京',
 
   locations: {
@@ -102,9 +102,9 @@ export const initialTrip = {
       date: '5月1日',
       title: '接站与安顿',
       events: [
-        { id: 'd1-e1', time: '下午', title: '男朋友抵达北京南站', locationId: 'station',     icon: '🚄', routeToNext: { mode: 'transit'  } },
-        { id: 'd1-e2', time: '下午', title: '前往酒店放行李',     locationId: 'hotel',       icon: '🏨', routeToNext: { mode: 'driving'  } },
-        { id: 'd1-e3', time: '晚上', title: '吃寿司郎',           locationId: 'wanxianghui', icon: '🍣' }
+        { id: 'd1-e1', title: '男朋友抵达北京南站', locationId: 'station',     icon: 'train', routeToNext: { mode: 'transit'  } },
+        { id: 'd1-e2', title: '前往酒店放行李',     locationId: 'hotel',       icon: 'hotel', routeToNext: { mode: 'driving'  } },
+        { id: 'd1-e3', title: '吃寿司郎',           locationId: 'wanxianghui', icon: 'food' }
       ]
     },
     {
@@ -112,12 +112,12 @@ export const initialTrip = {
       date: '5月2日',
       title: '吃喝与逛校园',
       events: [
-        { id: 'd2-e0', time: '上午', title: '从酒店出发',         locationId: 'hotel',       icon: '🏨', routeToNext: { mode: 'driving' } },
-        { id: 'd2-e1', time: '中午', title: '紫光园吃午饭',       locationId: 'ziguangyuan', icon: '🦆', routeToNext: { mode: 'driving' } },
-        { id: 'd2-e2', time: '下午', title: '春风在书店撸猫',     locationId: 'bookstore',   icon: '🐱', routeToNext: { mode: 'driving' } },
-        { id: 'd2-e3', time: '下午', title: '人大通州校区转转',   locationId: 'ruc',         icon: '🎓', routeToNext: { mode: 'driving' } },
-        { id: 'd2-e4', time: '晚上', title: '万象汇吃晚餐',       locationId: 'wanxianghui', icon: '🍽️', routeToNext: { mode: 'driving' } },
-        { id: 'd2-e5', time: '晚上', title: '回酒店休息',         locationId: 'hotel',       icon: '🏨' }
+        { id: 'd2-e0', title: '从酒店出发',         locationId: 'hotel',       icon: 'hotel', routeToNext: { mode: 'driving' } },
+        { id: 'd2-e1', title: '紫光园吃午饭',       locationId: 'ziguangyuan', icon: 'food', routeToNext: { mode: 'driving' } },
+        { id: 'd2-e2', title: '春风在书店撸猫',     locationId: 'bookstore',   icon: 'book', routeToNext: { mode: 'driving' } },
+        { id: 'd2-e3', title: '人大通州校区转转',   locationId: 'ruc',         icon: 'school', routeToNext: { mode: 'driving' } },
+        { id: 'd2-e4', title: '万象汇吃晚餐',       locationId: 'wanxianghui', icon: 'food', routeToNext: { mode: 'driving' } },
+        { id: 'd2-e5', title: '回酒店休息',         locationId: 'hotel',       icon: 'hotel' }
       ]
     },
     {
@@ -125,12 +125,12 @@ export const initialTrip = {
       date: '5月3日',
       title: '朝阳水岸休闲',
       events: [
-        { id: 'd3-e0', time: '早上', title: '从酒店出发',         locationId: 'hotel',        icon: '🏨', routeToNext: { mode: 'transit'  } },
-        { id: 'd3-e1', time: '早上', title: '亮马河漫步',         locationId: 'liangmahe',    icon: '🌊', routeToNext: { mode: 'walking'  } },
-        { id: 'd3-e2', time: '中午', title: '蓝色港湾午餐',       locationId: 'solana',       icon: '🍔', routeToNext: { mode: 'walking'  } },
-        { id: 'd3-e3', time: '下午', title: '逛商场 + 朝阳公园',  locationId: 'chaoyangpark', icon: '🌳', routeToNext: { mode: 'walking'  } },
-        { id: 'd3-e4', time: '晚上', title: '蓝色港湾晚餐',       locationId: 'solana',       icon: '🍷', routeToNext: { mode: 'transit'  } },
-        { id: 'd3-e5', time: '晚上', title: '回酒店休息',         locationId: 'hotel',        icon: '🏨' }
+        { id: 'd3-e0', title: '从酒店出发',         locationId: 'hotel',        icon: 'hotel', routeToNext: { mode: 'transit'  } },
+        { id: 'd3-e1', title: '亮马河漫步',         locationId: 'liangmahe',    icon: 'park', routeToNext: { mode: 'walking'  } },
+        { id: 'd3-e2', title: '蓝色港湾午餐',       locationId: 'solana',       icon: 'food', routeToNext: { mode: 'walking'  } },
+        { id: 'd3-e3', title: '逛商场 + 朝阳公园',  locationId: 'chaoyangpark', icon: 'park', routeToNext: { mode: 'walking'  } },
+        { id: 'd3-e4', title: '蓝色港湾晚餐',       locationId: 'solana',       icon: 'food', routeToNext: { mode: 'transit'  } },
+        { id: 'd3-e5', title: '回酒店休息',         locationId: 'hotel',        icon: 'hotel' }
       ]
     },
     {
@@ -138,9 +138,9 @@ export const initialTrip = {
       date: '5月4日',
       title: '踏青与送站',
       events: [
-        { id: 'd4-e0', time: '早上', title: '从酒店出发',     locationId: 'hotel',     icon: '🏨', routeToNext: { mode: 'driving' } },
-        { id: 'd4-e1', time: '早上', title: '大运河森林公园', locationId: 'canalpark', icon: '🚲', routeToNext: { mode: 'transit' } },
-        { id: 'd4-e2', time: '下午', title: '送男朋友回上海', locationId: 'station',   icon: '👋' }
+        { id: 'd4-e0', title: '从酒店出发',     locationId: 'hotel',     icon: 'hotel', routeToNext: { mode: 'driving' } },
+        { id: 'd4-e1', title: '大运河森林公园', locationId: 'canalpark', icon: 'park', routeToNext: { mode: 'transit' } },
+        { id: 'd4-e2', title: '送男朋友回上海', locationId: 'station',   icon: 'train' }
       ]
     }
   ]

@@ -30,8 +30,8 @@ import {
   updateRouteCardError, resetRouteCards, setStatus,
   buildRouteSegments
 } from './render/sidebar.js';
-import { openSearchModal } from './render/search-modal.js';
-import { openEventEditorModal } from './render/event-editor-modal.js';
+import { openSearchModal } from './render/search-modal.js?v=20260504-ui4';
+import { openEventEditorModal } from './render/event-editor-modal.js?v=20260504-ui4';
 import { openShareModal } from './render/share-modal.js';
 import { buildShareURL, copyText, readSharedTripFromURL } from './share.js';
 import { sleep } from './utils.js';
@@ -126,7 +126,6 @@ function openAddLocationFlow(options = {}) {
         lnglat: place.lnglat
       });
       addEventToDay(targetDayId, {
-        time: event.time,
         title: event.title,
         icon: event.icon,
         locationId
