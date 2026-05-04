@@ -130,6 +130,10 @@ body {
 
 .tab-btn:hover { background: #f0ebe3; color: var(--text); }
 .tab-btn.active { background: var(--text); color: #fffdf8; border-color: var(--text); }
+.tab-add-day-btn {
+  border-color: var(--line);
+  background: var(--surface-strong);
+}
 
 .itinerary-list {
   flex: 1;
@@ -217,7 +221,15 @@ body {
   box-shadow: 0 1px 0 var(--surface);
 }
 
-.day-add-btn {
+.day-title-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.day-add-btn,
+.day-edit-btn {
   padding: 5px 10px;
   border-radius: 8px;
   font-size: 12px;
@@ -231,7 +243,15 @@ body {
   flex-shrink: 0;
 }
 
-.day-add-btn:hover {
+.day-edit-btn {
+  width: 30px;
+  padding: 5px 0;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.day-add-btn:hover,
+.day-edit-btn:hover {
   background: var(--accent-soft);
   color: var(--accent-dark);
   border-color: #e7b5a6;
@@ -682,25 +702,6 @@ body {
   padding-top: 14px;
 }
 
-.modal-event-summary {
-  background: #fef2f2;
-  border: 1px solid #fee2e2;
-  border-radius: 10px;
-  padding: 10px 12px;
-}
-
-.modal-summary-name {
-  font-size: 13px;
-  font-weight: 700;
-  color: #ef4444;
-  margin-bottom: 2px;
-}
-
-.modal-summary-addr {
-  font-size: 12px;
-  color: #6b7280;
-}
-
 .modal-form-row {
   display: flex;
   align-items: center;
@@ -786,8 +787,17 @@ body {
   margin-top: 4px;
 }
 
+.day-editor-actions {
+  align-items: center;
+}
+
+.modal-action-spacer {
+  flex: 1;
+}
+
 .modal-cancel,
-.modal-submit {
+.modal-submit,
+.modal-danger {
   padding: 8px 18px;
   border-radius: 10px;
   font-size: 13px;
@@ -813,6 +823,16 @@ body {
 
 .modal-submit:hover { background: var(--accent-dark); }
 
+.modal-danger {
+  background: #fff7f5;
+  border: 1px solid #e5b0a3;
+  color: #a94938;
+}
+
+.modal-danger:hover {
+  background: #fbede7;
+}
+
 .share-modal { max-width: 620px; }
 
 .share-url-input {
@@ -835,8 +855,10 @@ body {
 }
 
 .editor-modal { max-width: 560px; }
+.day-editor-modal { max-width: 520px; }
 
-.editor-form { gap: 10px; }
+.editor-form,
+.day-editor-form { gap: 10px; }
 
 .editor-section-title {
   font-size: 13px;

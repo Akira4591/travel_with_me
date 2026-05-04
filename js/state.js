@@ -117,6 +117,53 @@ export function removeLocation(locationId) {
   return true;
 }
 
+export function addDay(day = {}) {
+  const id = day.id || generateDayId();
+  trip.days.push({
+    id,
+    date: day.date || `第 ${trip.days.length + 1} 天`,
+    title: day.title || '新的一天',
+    events: Array.isArray(day.events) ? structuredClone(day.events) : []
+  });
+
+  emit('trip:changed', { kind: 'day:added', dayId: id });
+  return id;
+}
+
+export function updateDay(dayId, patch) {
+  const day = trip.days.find(item => item.id === dayId);
+  if (!day) return false;
+
+  if (patch.date != null) day.date = patch.date;
+  if (patch.title != null) day.title = patch.title;
+
+  emit('trip:changed', { kind: 'day:updated', dayId });
+  return true;
+}
+
+export function removeDay(dayId) {
+  if (trip.days.length <= 1) return null;
+
+  const index = trip.days.findIndex(day => day.id === dayId);
+  if (index < 0) return null;
+
+  const [removedDay] = trip.days.splice(index, 1);
+  const removedLocationIds = [];
+  uniqueLocationIds(removedDay.events).forEach(locationId => {
+    if (!isLocationReferenced(locationId)) {
+      delete trip.locations[locationId];
+      removedLocationIds.push(locationId);
+    }
+  });
+
+  emit('trip:changed', {
+    kind: 'day:removed',
+    dayId,
+    removedLocationIds
+  });
+  return removedDay;
+}
+
 export function addEventToDay(dayId, event, options = {}) {
   const day = trip.days.find(d => d.id === dayId);
   if (!day) return null;
@@ -231,6 +278,18 @@ function generateLocationId() {
 
 function generateEventId(dayId) {
   return `${dayId}-e-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4).toString(36)}`;
+}
+
+function generateDayId() {
+  return `day-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4).toString(36)}`;
+}
+
+function uniqueLocationIds(events) {
+  return Array.from(new Set(events.map(event => event.locationId).filter(Boolean)));
+}
+
+function isLocationReferenced(locationId) {
+  return trip.days.some(day => day.events.some(event => event.locationId === locationId));
 }
 
 // ─── appState 读 ─────────────────────────────────────

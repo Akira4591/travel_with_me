@@ -55,7 +55,6 @@ function createModal() {
           <div class="modal-hint">输入关键词后点击"搜索"，从下方结果中选一个地点</div>
         </div>
         <form class="modal-event-form" hidden>
-          <div class="modal-event-summary"></div>
           <div class="modal-form-row">
             <label>标题</label>
             <input type="text" class="modal-event-title" placeholder="在这里做什么" required />
@@ -82,7 +81,6 @@ function bindEvents(root) {
   const searchBtn = root.querySelector('.modal-search-btn');
   const resultsEl = root.querySelector('.modal-results');
   const form = root.querySelector('.modal-event-form');
-  const summary = root.querySelector('.modal-event-summary');
   const titleInput = form.querySelector('.modal-event-title');
   const iconPicker = bindIconPicker(form, 'pin');
 
@@ -106,10 +104,6 @@ function bindEvents(root) {
       renderResults(resultsEl, places, (place) => {
         selected = place;
         iconPicker.setValue(inferIconId(`${place.name || ''} ${place.addr || ''}`));
-        summary.innerHTML = `
-          <div class="modal-summary-name">已选：${escapeHTML(place.name)}</div>
-          <div class="modal-summary-addr">${escapeHTML(place.addr || place.city)}</div>
-        `;
         form.hidden = false;
         titleInput.focus();
       });

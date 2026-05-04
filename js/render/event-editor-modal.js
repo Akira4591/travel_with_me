@@ -47,9 +47,9 @@ function createModal(event, location) {
           ${renderIconPickerHTML(getIconIdForEvent(event, location))}
         </div>
 
-        <div class="editor-section-title">搜索新地点</div>
+        <div class="editor-section-title">更新地点信息</div>
         <div class="editor-search-panel">
-          <div class="editor-search-copy">只能通过搜索结果替换地点；下方地点信息仅供确认。</div>
+          <div class="editor-search-copy">请输入新的地点</div>
           <div class="editor-search-box">
             <svg class="editor-search-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z"></path>

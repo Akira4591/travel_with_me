@@ -42,6 +42,13 @@ export function renderTabs(handlers) {
   trip.days.forEach(day => {
     tabs.appendChild(createTabButton(day.id, day.date, handlers));
   });
+
+  const addDayBtn = document.createElement('button');
+  addDayBtn.type = 'button';
+  addDayBtn.className = 'tab-btn tab-add-day-btn';
+  addDayBtn.textContent = '+ 新建一天';
+  addDayBtn.addEventListener('click', () => handlers.onAddDay?.());
+  tabs.appendChild(addDayBtn);
 }
 
 function createTabButton(dayId, label, handlers) {
@@ -70,6 +77,9 @@ export function updateVisibleDayGroups(dayId) {
   document.querySelectorAll('.route-card').forEach(card => {
     card.hidden = dayId === 'all';
   });
+  document.querySelectorAll('.day-add-btn').forEach(btn => {
+    btn.hidden = dayId === 'all';
+  });
 }
 
 // ─── 行程主体 ────────────────────────────────────────────
@@ -89,10 +99,17 @@ export function renderItinerary(handlers) {
     dayGroup.innerHTML = `
       <div class="day-title">
         <span>${escapeHTML(day.date)} · ${escapeHTML(day.title)}</span>
-        <button type="button" class="day-add-btn">+ 添加地点</button>
+        <div class="day-title-actions">
+          <button type="button" class="day-edit-btn" title="编辑日期">···</button>
+          <button type="button" class="day-add-btn">+ 添加地点</button>
+        </div>
       </div>
       <div class="event-container"></div>
     `;
+
+    dayGroup.querySelector('.day-edit-btn').addEventListener('click', () => {
+      handlers.onEditDay?.(day.id);
+    });
 
     dayGroup.querySelector('.day-add-btn').addEventListener('click', () => {
       handlers.onAddLocation?.(day.id);

@@ -15,6 +15,7 @@ import {
 import {
   getAppState, getTrip, getDay, getLocation, setActiveDayId, setAMap,
   updateLocationCoords, updateLocation, removeLocation,
+  addDay, updateDay, removeDay,
   addLocation, addEventToDay, updateEventInDay, removeEventFromDay,
   moveEventInDay, reorderEventInDay, replaceTrip, on
 } from './state.js';
@@ -30,8 +31,9 @@ import {
   updateRouteCardError, resetRouteCards, setStatus,
   buildRouteSegments
 } from './render/sidebar.js';
-import { openSearchModal } from './render/search-modal.js?v=20260504-ui4';
-import { openEventEditorModal } from './render/event-editor-modal.js?v=20260504-ui4';
+import { openSearchModal } from './render/search-modal.js?v=20260504-ui5';
+import { openEventEditorModal } from './render/event-editor-modal.js?v=20260504-ui5';
+import { openDayEditorModal } from './render/day-editor-modal.js';
 import { openShareModal } from './render/share-modal.js';
 import { buildShareURL, copyText, readSharedTripFromURL } from './share.js';
 import { sleep } from './utils.js';
@@ -72,7 +74,8 @@ async function boot() {
 
 function renderAll() {
   renderTabs({
-    onSelectDay: (dayId) => selectDay(dayId, { fitView: true, planRoutes: true })
+    onSelectDay: (dayId) => selectDay(dayId, { fitView: true, planRoutes: true }),
+    onAddDay: openCreateDayFlow
   });
   renderItinerary(getItineraryHandlers());
 }
@@ -81,6 +84,7 @@ function getItineraryHandlers() {
   return {
     onEventClick: (event) => focusLocation(event.locationId),
     onRouteClick: (segment) => fitSegment(segment),
+    onEditDay: openEditDayFlow,
     onEditEvent: openEditEventFlow,
     onAddLocation: (dayId) => openAddLocationFlow({ dayId }),
     onAddAfterEvent: (dayId, eventId) => openAddLocationFlow({ dayId, afterEventId: eventId }),
@@ -88,6 +92,49 @@ function getItineraryHandlers() {
     onReorderEvent: reorderEventInDay,
     onDeleteEvent: deleteEventFlow
   };
+}
+
+function openCreateDayFlow() {
+  const trip = getTrip();
+  openDayEditorModal({
+    mode: 'create',
+    day: {
+      date: `第 ${trip.days.length + 1} 天`,
+      title: '新的一天'
+    },
+    handlers: {
+      onCreate: (patch) => addDay(patch)
+    }
+  });
+}
+
+function openEditDayFlow(dayId) {
+  const day = getDay(dayId);
+  if (!day) return;
+
+  openDayEditorModal({
+    mode: 'edit',
+    day,
+    canDelete: getTrip().days.length > 1,
+    handlers: {
+      onSave: (_day, patch) => updateDay(dayId, patch),
+      onDelete: () => deleteDayFlow(dayId)
+    }
+  });
+}
+
+function deleteDayFlow(dayId) {
+  const day = getDay(dayId);
+  if (!day) return;
+  if (getTrip().days.length <= 1) {
+    setStatus('至少需要保留一天行程。');
+    return;
+  }
+
+  const ok = window.confirm(`删除“${day.date} · ${day.title}”？这一天里的日程也会一起删除。`);
+  if (!ok) return;
+
+  removeDay(dayId);
 }
 
 function bindShareButton() {
@@ -197,20 +244,39 @@ function handleTripChanged(payload) {
     removeMarker(payload.locationId);
   }
 
+  if (payload.kind === 'day:removed') {
+    payload.removedLocationIds?.forEach(removeMarker);
+  }
+
   // 编辑型变更统一重新渲染行程，再按当前视图刷新 marker 和路线。
+  renderTabs({
+    onSelectDay: (dayId) => selectDay(dayId, { fitView: true, planRoutes: true }),
+    onAddDay: openCreateDayFlow
+  });
   renderItinerary(getItineraryHandlers());
-  const activeId = getAppState().activeDayId;
+  const activeId = getNextActiveDayId(payload);
   selectDay(activeId, { fitView: true, planRoutes: activeId !== 'all' });
 }
 
 function handleTripReplaced() {
   renderHeader();
   renderTabs({
-    onSelectDay: (dayId) => selectDay(dayId, { fitView: true, planRoutes: true })
+    onSelectDay: (dayId) => selectDay(dayId, { fitView: true, planRoutes: true }),
+    onAddDay: openCreateDayFlow
   });
   renderItinerary(getItineraryHandlers());
   createAllMarkers();
   selectDay('all', { fitView: true, planRoutes: false });
+}
+
+function getNextActiveDayId(payload) {
+  if (payload.kind === 'day:added') return payload.dayId;
+
+  const activeId = getAppState().activeDayId;
+  if (activeId === 'all') return 'all';
+  if (getDay(activeId)) return activeId;
+
+  return getTrip().days[0]?.id || 'all';
 }
 
 // ─── selectDay：切换日期 ────────────────────────────────
@@ -242,6 +308,12 @@ function scheduleRoutePlanning(day) {
 
   const serial = ++state.routePlanningSerial;
   const segments = buildRouteSegments(day);
+  if (!segments.length) {
+    resetRouteCards();
+    setStatus(`${day.date} 还没有路线。添加至少两个地点后会自动规划路线。`);
+    return;
+  }
+
   segments.forEach(setRouteCardLoading);
   setStatus(`${day.date}：正在规划 ${segments.length} 段路线...`);
 
