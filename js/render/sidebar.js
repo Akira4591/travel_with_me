@@ -20,7 +20,7 @@ import { getIconIdForEvent, renderIconSVG } from './icons.js';
 
 export function renderHeader() {
   const trip = getTrip();
-  document.getElementById('trip-title').textContent = cleanHeaderText(trip.title);
+  document.getElementById('trip-title-text').textContent = cleanHeaderText(trip.title);
   document.getElementById('trip-subtitle').textContent = cleanHeaderText(trip.subtitle);
 }
 

@@ -118,6 +118,23 @@ export function removeLocation(locationId) {
   return true;
 }
 
+export function updateTripMeta(patch) {
+  if (patch.title != null) trip.title = patch.title;
+  if (patch.subtitle != null) trip.subtitle = patch.subtitle;
+  if (patch.city != null) trip.city = patch.city;
+  emit('trip:changed', { kind: 'trip:updated' });
+}
+
+export function createEmptyTrip(title) {
+  replaceTrip({
+    title,
+    subtitle: '点击下方行程卡片，右侧地图将自动飞跃至对应地点',
+    city: AppConfig.cityName,
+    locations: {},
+    days: []
+  });
+}
+
 export function addDay(day = {}) {
   const id = day.id || generateDayId();
   const date = day.date || nextDayISO(trip);

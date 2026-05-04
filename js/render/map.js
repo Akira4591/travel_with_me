@@ -75,6 +75,15 @@ export function removeMarker(locationId) {
   state.markerList = state.markerList.filter(item => item !== marker);
 }
 
+export function clearAllMarkers() {
+  const state = getAppState();
+  state.markerList.forEach(marker => {
+    try { state.map.remove(marker); } catch (err) { console.warn('移除 Marker 失败：', err); }
+  });
+  state.markers.clear();
+  state.markerList = [];
+}
+
 // ─── 显示哪些 marker（按当前选中的日期） ──────────────────
 
 export function showMarkersForDay(dayId) {

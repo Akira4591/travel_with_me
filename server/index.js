@@ -25,6 +25,7 @@ const JSCODE = process.env.AMAP_JSCODE;
 const PORT = Number(process.env.PORT) || 8080;
 const UPSTREAM = 'https://restapi.amap.com';
 const PROXY_PREFIX = '/_AMapService';
+const TILE_PREFIX = '/_AMapTile';
 
 if (!JSCODE) {
   console.warn('[trip-app] AMAP_JSCODE 未设置：高德 Web 服务请求会被拒绝。请检查 .env 或部署环境变量。');
@@ -77,6 +78,50 @@ app.all(`${PROXY_PREFIX}/*`, async (c) => {
     if (k === 'content-encoding' || k === 'content-length' || k === 'transfer-encoding') return;
     headers.set(key, value);
   });
+  return new Response(body, { status: upstreamResp.status, headers });
+});
+
+// ─── 高德底图瓦片代理 ────────────────────────────────────
+// 分享长图需要把地图瓦片画进 canvas；浏览器直接加载跨域瓦片会污染 canvas。
+app.get(TILE_PREFIX, async (c) => {
+  const x = Number(c.req.query('x'));
+  const y = Number(c.req.query('y'));
+  const z = Number(c.req.query('z'));
+  if (!Number.isInteger(x) || !Number.isInteger(y) || !Number.isInteger(z)) {
+    return c.text('Bad tile params', 400);
+  }
+
+  const host = `https://webrd0${Math.abs(x + y) % 4 + 1}.is.autonavi.com`;
+  const upstream = new URL('/appmaptile', host);
+  upstream.searchParams.set('lang', 'zh_cn');
+  upstream.searchParams.set('size', '1');
+  upstream.searchParams.set('scale', '1');
+  upstream.searchParams.set('style', '8');
+  upstream.searchParams.set('x', String(x));
+  upstream.searchParams.set('y', String(y));
+  upstream.searchParams.set('z', String(z));
+
+  let upstreamResp;
+  try {
+    upstreamResp = await fetch(upstream, {
+      headers: {
+        'user-agent': c.req.header('user-agent') || 'trip-app-bff',
+        'accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
+      }
+    });
+  } catch (err) {
+    console.error('[trip-app] 瓦片请求失败：', err);
+    return c.text('Tile upstream failed', 502);
+  }
+
+  const body = await upstreamResp.arrayBuffer();
+  const headers = new Headers();
+  upstreamResp.headers.forEach((value, key) => {
+    const k = key.toLowerCase();
+    if (k === 'content-encoding' || k === 'content-length' || k === 'transfer-encoding') return;
+    headers.set(key, value);
+  });
+  headers.set('cache-control', 'public, max-age=86400');
   return new Response(body, { status: upstreamResp.status, headers });
 });
 

@@ -15,12 +15,13 @@ import {
 import {
   getAppState, getTrip, getDay, getLocation, setActiveDayId, setAMap,
   updateLocationCoords, updateLocation, removeLocation,
+  updateTripMeta, createEmptyTrip,
   addDay, updateDay, removeDay, nextDayISO,
   addLocation, addEventToDay, updateEventInDay, removeEventFromDay,
   moveEventInDay, reorderEventInDay, replaceTrip, on
 } from './state.js';
 import {
-  initMap, createAllMarkers, createOrUpdateMarker, removeMarker,
+  initMap, createAllMarkers, createOrUpdateMarker, removeMarker, clearAllMarkers,
   showMarkersForDay, fitMarkers, fitSegment, focusLocation,
   drawRoutePaths, clearRouteOverlays
 } from './render/map.js';
@@ -34,8 +35,10 @@ import {
 import { openSearchModal } from './render/search-modal.js?v=20260504-ui5';
 import { openEventEditorModal } from './render/event-editor-modal.js?v=20260504-ui5';
 import { openDayEditorModal } from './render/day-editor-modal.js';
+import { openTripModal } from './render/trip-modal.js';
 import { openShareModal } from './render/share-modal.js';
-import { buildShareURL, copyText, readSharedTripFromURL } from './share.js';
+import { readSharedTripFromURL } from './share.js';
+import { buildTripShareImage, dataURLToBlob } from './share-image.js';
 import { sleep, formatDateCN } from './utils.js';
 
 // ─── boot ──────────────────────────────────────────────
@@ -48,6 +51,7 @@ async function boot() {
 
   renderHeader();
   setStatus('正在加载高德地图 JS API 2.0...');
+  bindTripButtons();
   bindShareButton();
 
   // 订阅 trip 变更：编辑模式下任何 mutator 都会触发，UI 自动重渲
@@ -92,6 +96,33 @@ function getItineraryHandlers() {
     onReorderEvent: reorderEventInDay,
     onDeleteEvent: deleteEventFlow
   };
+}
+
+function bindTripButtons() {
+  document.getElementById('edit-trip-title-btn')?.addEventListener('click', () => {
+    openTripModal({
+      mode: 'edit',
+      title: getTrip().title,
+      handlers: {
+        onSave: (title) => {
+          updateTripMeta({ title });
+          setStatus('旅行标题已更新。');
+        }
+      }
+    });
+  });
+
+  document.getElementById('new-trip-btn')?.addEventListener('click', () => {
+    openTripModal({
+      mode: 'create',
+      handlers: {
+        onCreate: (title) => {
+          createEmptyTrip(title);
+          setStatus('已新建空白旅行路线。先新建一天，再添加地点。');
+        }
+      }
+    });
+  });
 }
 
 function openCreateDayFlow() {
@@ -150,18 +181,49 @@ function deleteDayFlow(dayId) {
 }
 
 function bindShareButton() {
-  document.getElementById('share-trip-btn')?.addEventListener('click', () => {
-    const url = buildShareURL(getTrip());
-    openShareModal({
-      url,
-      handlers: {
-        onCopy: async (text) => {
-          const ok = await copyText(text);
-          setStatus(ok ? '分享链接已复制。' : '复制失败，请手动复制弹窗里的链接。');
+  document.getElementById('share-trip-btn')?.addEventListener('click', async () => {
+    setStatus('正在生成分享长图...');
+    try {
+      const image = await buildTripShareImage(getTrip());
+      openShareModal({
+        imageUrl: image.dataURL,
+        filename: image.filename,
+        handlers: {
+          onDownload: downloadShareImage,
+          onCopyImage: copyShareImage
         }
-      }
-    });
+      });
+      setStatus('分享长图已生成。');
+    } catch (error) {
+      console.error('生成分享长图失败：', error);
+      setStatus('分享长图生成失败，请稍后再试。');
+    }
   });
+}
+
+function downloadShareImage(imageUrl, filename) {
+  const link = document.createElement('a');
+  link.href = imageUrl;
+  link.download = filename || 'trip-share.png';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
+async function copyShareImage(imageUrl) {
+  if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') {
+    setStatus('当前浏览器不支持直接复制图片，请使用“下载长图”。');
+    return;
+  }
+  try {
+    await navigator.clipboard.write([
+      new ClipboardItem({ 'image/png': dataURLToBlob(imageUrl) })
+    ]);
+    setStatus('分享长图已复制。');
+  } catch (error) {
+    console.warn('复制图片失败：', error);
+    setStatus('复制图片失败，请使用“下载长图”。');
+  }
 }
 
 // ─── 添加地点流程 ───────────────────────────────────────
@@ -247,6 +309,10 @@ function countLocationReferences(locationId) {
 function handleTripChanged(payload) {
   if (!payload) return;
 
+  if (payload.kind === 'trip:updated') {
+    renderHeader();
+  }
+
   if (payload.kind === 'location:added' || payload.kind === 'location:updated') {
     const loc = getLocation(payload.locationId);
     createOrUpdateMarker(payload.locationId, loc.lnglat);
@@ -277,6 +343,8 @@ function handleTripReplaced() {
     onAddDay: openCreateDayFlow
   });
   renderItinerary(getItineraryHandlers());
+  clearAllRoutes();
+  clearAllMarkers();
   createAllMarkers();
   selectDay('all', { fitView: true, planRoutes: false });
 }
