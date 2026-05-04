@@ -112,7 +112,9 @@ export function safeClearService(service) {
 
 function isRouteSearchSuccess(status, result, mode) {
   if (status !== 'complete' || !result) return false;
-  if (result.info && result.info !== 'OK') return false;
+  // AMap SDK 在不同接口里返回的 info 大小写不一致（驾车/步行小写 'ok'，
+  // 地理编码大写 'OK'），统一按大小写不敏感比较。
+  if (result.info && result.info.toUpperCase() !== 'OK') return false;
   if (mode === 'transit') return Boolean(result.plans?.length);
   return Boolean(result.routes?.length);
 }
