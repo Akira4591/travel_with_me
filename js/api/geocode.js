@@ -61,7 +61,9 @@ export function searchPlaces(AMap, keyword, options = {}) {
           id: poi.id,
           name: String(poi.name || ''),
           addr: String(poi.address || ''),
-          city: String(poi.cityname || poi.adname || ''),
+          province: String(poi.pname || ''),
+          city: String(poi.cityname || ''),
+          district: String(poi.adname || ''),
           type: String(poi.type || ''),
           lnglat: poi.location
             ? [Number(poi.location.lng), Number(poi.location.lat)]
@@ -71,6 +73,60 @@ export function searchPlaces(AMap, keyword, options = {}) {
       resolve(places);
     });
   });
+}
+
+// 逆地理编码：根据 [lng, lat] 反查"省市区 + 详细地址"。
+// 用在已有地点（来自 trip.locations）只存了名称没存地址、但有坐标的场景，
+// 比 POI 搜索拿到的 address 更可信。
+export function reverseGeocode(AMap, lnglat) {
+  return new Promise(resolve => {
+    if (!AMap || !Array.isArray(lnglat) || lnglat.length < 2) {
+      resolve(null);
+      return;
+    }
+    const lng = Number(lnglat[0]);
+    const lat = Number(lnglat[1]);
+    if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+      resolve(null);
+      return;
+    }
+    const geocoder = new AMap.Geocoder({ city: AppConfig.cityCode });
+
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (!settled) { settled = true; resolve(null); }
+    }, QUERY_TIMEOUT_MS);
+
+    geocoder.getAddress([lng, lat], (status, result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      const r = result?.regeocode;
+      if (status === 'complete' && (result?.info || '').toUpperCase() === 'OK' && r) {
+        const c = r.addressComponent || {};
+        resolve({
+          formatted: String(r.formattedAddress || '').trim(),
+          province: String(c.province || '').trim(),
+          city: String(c.city || c.province || '').trim(),
+          district: String(c.district || '').trim()
+        });
+      } else {
+        resolve(null);
+      }
+    });
+  });
+}
+
+// 把 POI / 逆地理结果合成一个用于显示的"详细地址"，
+// 多用于 POI 没填 address 时的兜底。
+export function buildDisplayAddress(parts = {}) {
+  const formatted = String(parts.formatted || parts.addr || '').trim();
+  if (formatted) return formatted;
+  const composed = [parts.province, parts.city, parts.district]
+    .map(value => String(value || '').trim())
+    .filter(Boolean)
+    .join('');
+  return composed;
 }
 
 // ─── 内部实现 ──────────────────────────────────────────

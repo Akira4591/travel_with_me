@@ -10,6 +10,7 @@
 
 import { escapeHTML } from '../utils.js';
 import { bindIconPicker, inferIconId, renderIconPickerHTML } from './icons.js';
+import { TIME_SLOT_OPTIONS, normalizeTimeSlot } from '../time-slots.js';
 
 let modalEl = null;
 let currentHandlers = null;
@@ -63,6 +64,14 @@ function createModal() {
             <label>图标</label>
             ${renderIconPickerHTML('pin')}
           </div>
+          <div class="modal-form-row time-form-row">
+            <label>时间</label>
+            ${renderTimeSlotPickerHTML('')}
+          </div>
+          <div class="modal-form-row note-form-row">
+            <label>备注</label>
+            <textarea class="modal-event-note" placeholder="请输入备注信息，例如预约时间、注意事项、同行人安排"></textarea>
+          </div>
           <div class="modal-actions">
             <button type="button" class="modal-cancel">取消</button>
             <button type="submit" class="modal-submit">添加到行程</button>
@@ -83,6 +92,7 @@ function bindEvents(root) {
   const form = root.querySelector('.modal-event-form');
   const titleInput = form.querySelector('.modal-event-title');
   const iconPicker = bindIconPicker(form, 'pin');
+  const timeSlotPicker = bindTimeSlotPicker(form);
 
   let selected = null;
 
@@ -140,11 +150,41 @@ function bindEvents(root) {
       place: selected,
       event: {
         title,
-        icon: iconPicker.getValue()
+        icon: iconPicker.getValue(),
+        timeSlot: timeSlotPicker.getValue(),
+        note: form.querySelector('.modal-event-note').value.trim()
       }
     });
     closeSearchModal();
   });
+}
+
+function renderTimeSlotPickerHTML(value) {
+  const selected = normalizeTimeSlot(value);
+  return `
+    <div class="time-slot-picker" role="radiogroup" aria-label="选择时间">
+      ${TIME_SLOT_OPTIONS.map(option => `
+        <button type="button" class="time-slot-btn ${option.id === selected ? 'active' : ''}" data-time-slot="${option.id}" role="radio" aria-checked="${option.id === selected}">
+          ${escapeHTML(option.label)}
+        </button>
+      `).join('')}
+    </div>
+  `;
+}
+
+function bindTimeSlotPicker(root) {
+  let value = normalizeTimeSlot(root.querySelector('.time-slot-btn.active')?.dataset.timeSlot || '');
+  root.querySelectorAll('.time-slot-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      value = normalizeTimeSlot(button.dataset.timeSlot || '');
+      root.querySelectorAll('.time-slot-btn').forEach(item => {
+        const active = item === button;
+        item.classList.toggle('active', active);
+        item.setAttribute('aria-checked', String(active));
+      });
+    });
+  });
+  return { getValue: () => value };
 }
 
 function setResultsState(resultsEl, state, html) {

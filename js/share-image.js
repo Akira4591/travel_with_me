@@ -8,8 +8,9 @@
 //   4) 地图走真实瓦片（/_AMapTile 同源代理避免 canvas 跨域污染），叠暖色滤镜与降饱和
 
 import { AppConfig } from './config.js';
-import { formatDateCN, isISODate } from './utils.js';
+import { formatDateCN, getTransportIcon, getTransportLabel, isISODate } from './utils.js';
 import { getIconPaths } from './render/icons.js';
+import { getTimeSlotLabel, normalizeTimeSlot } from './time-slots.js';
 
 // ─── 度量常数 ─────────────────────────────────────────
 // 所有数字以 mockup 的 "logical px" 为基准，最后乘 SCALE 得到画布像素。
@@ -56,6 +57,24 @@ const FONT_SC = '"Noto Sans SC", "Microsoft YaHei", sans-serif';
 const FONT_LATIN = 'Inter, "Noto Sans SC", sans-serif';
 const FONT_MONO = '"JetBrains Mono", Consolas, monospace';
 
+// 路线块（事件之间）按交通方式着色，整体偏柔和米色 + 软色调，避免抢戏。
+const ROUTE_MODE_COLORS = {
+  driving: { bg: '#FCEFD3', border: '#E5C56B', ink: '#7C5410' },
+  walking: { bg: '#E1ECDD', border: '#A3C2A1', ink: '#3F6841' },
+  transit: { bg: '#DDE6F2', border: '#A4BBD8', ink: '#3D5A7C' },
+  riding:  { bg: '#FFE9E1', border: '#E0A595', ink: '#9A4528' }
+};
+
+const ROUTE_BLOCK_H = L(28);
+const INTER_ELEM_GAP = L(8);
+
+const EVENT_TITLE_FONT_SIZE = 12.4;
+const EVENT_TITLE_LINE_HEIGHT = 1.25;
+const EVENT_LOCATION_FONT_SIZE = 10.4;
+const EVENT_LOCATION_LINE_HEIGHT = 1.34;
+const EVENT_NOTE_FONT_SIZE = 10;
+const EVENT_NOTE_LINE_HEIGHT = 1.4;
+
 // 品牌 logo（折叠地图样式）— 仅本文件用，不放进 icons.js（那是行程图标语义集合）
 const TRAVELER_LOGO_PATHS =
   '<path d="M9 4 3 6v14l6-2"/>' +
@@ -64,7 +83,8 @@ const TRAVELER_LOGO_PATHS =
 
 // ─── 入口 ─────────────────────────────────────────────
 
-export async function buildTripShareImage(trip) {
+export async function buildTripShareImage(trip, options = {}) {
+  const includeRoutes = !!options.includeRoutes;
   const orderedDays = [...(trip.days || [])].sort(compareDays);
   const locations = collectTripLocations(trip);
   const totalStops = orderedDays.reduce((sum, day) => sum + (day.events?.length || 0), 0);
@@ -73,7 +93,7 @@ export async function buildTripShareImage(trip) {
   // 测量
   const measureCanvas = document.createElement('canvas');
   const mctx = measureCanvas.getContext('2d');
-  const layout = measureLayout(mctx, trip, orderedDays);
+  const layout = measureLayout(mctx, trip, orderedDays, { includeRoutes });
 
   const totalH = PAGE_PAD_TOP + layout.cardHeight + PAGE_PAD_BOTTOM;
 
@@ -111,7 +131,9 @@ export function dataURLToBlob(dataURL) {
 
 // ─── 度量 ─────────────────────────────────────────────
 
-function measureLayout(ctx, trip, days) {
+function measureLayout(ctx, trip, days, opts = {}) {
+  const includeRoutes = !!opts.includeRoutes;
+
   // 卡片内的固定高度（按各 section 分别累加）
   const brand = L(18) + L(14);                          // logo 高 18 + mb 14
   const title = L(26 * 1.2) + L(6) + L(12 * 1.2) + L(14); // h1 + gap + sub + mb 14
@@ -122,11 +144,23 @@ function measureLayout(ctx, trip, days) {
   let daysHeight = 0;
   const dayHeights = days.map((day, idx) => {
     const headH = L(24) + L(10);    // badge 高 + mb 10
-    const itemHeights = (day.events || []).map(event => measureItemHeight(ctx, trip, event));
-    const itemsTotal = itemHeights.reduce((s, h) => s + h, 0) + Math.max(0, itemHeights.length - 1) * L(8);
+    const events = day.events || [];
+    const itemHeights = events.map(event => measureItemHeight(ctx, trip, event));
+
+    // 元素流：事件 + （可选）路线块，按发生顺序排
+    const elements = [];
+    events.forEach((event, i) => {
+      elements.push({ kind: 'event', height: itemHeights[i], event });
+      if (i < events.length - 1 && includeRoutes && event.routeToNext) {
+        elements.push({ kind: 'route', height: ROUTE_BLOCK_H, event });
+      }
+    });
+
+    const itemsTotal = elements.reduce((s, e) => s + e.height, 0)
+      + Math.max(0, elements.length - 1) * INTER_ELEM_GAP;
     const dayH = headH + itemsTotal;
     daysHeight += dayH + (idx > 0 ? L(22) : 0); // 第二天起 mt 22
-    return { headH, itemHeights, total: dayH };
+    return { headH, itemHeights, elements, total: dayH };
   });
 
   const summary = L(26) + L(110); // mt 26 + 高度
@@ -145,14 +179,29 @@ function measureItemHeight(ctx, trip, event) {
                 - L(12) * 2               // item 卡左右内边距
                 - L(30) - L(10);          // icon 30 + 与文本间隙 10
 
-  const titleLines = wrapText(ctx, event.title || loc.name || '未命名地点', innerW, `600 ${L(13.5)}px ${FONT_SC}`);
-  const locText = loc.name || loc.addr || '地点待定';
-  const locLines = wrapText(ctx, locText, innerW, `400 ${L(11.5)}px ${FONT_SC}`).slice(0, 2);
+  // 时间 badge 占一段宽度，挤压标题首行可用宽度
+  const timeSlot = normalizeTimeSlot(event.timeSlot);
+  const showTimeBadge = !!timeSlot;
+  let badgeFullW = 0;
+  if (showTimeBadge) {
+    ctx.font = `500 ${L(10)}px ${FONT_SC}`;
+    badgeFullW = ctx.measureText(getTimeSlotLabel(timeSlot)).width + L(12) /* 6+6 padding */ + L(6) /* 与标题的间距 */;
+  }
+  const titleAvailableW = innerW - badgeFullW;
 
-  const titleH = titleLines.length * L(13.5 * 1.3);
-  const gap = L(4);
-  const locH = locLines.length * L(11.5 * 1.4);
-  const contentH = titleH + gap + locH;
+  const titleLines = wrapText(ctx, event.title || loc.name || '未命名地点', titleAvailableW, `600 ${L(EVENT_TITLE_FONT_SIZE)}px ${FONT_SC}`);
+  const locText = loc.name || loc.addr || '地点待定';
+  const locLines = wrapText(ctx, locText, innerW, `400 ${L(EVENT_LOCATION_FONT_SIZE)}px ${FONT_SC}`).slice(0, 2);
+
+  const note = String(event.note || '').trim();
+  const noteLines = note ? wrapText(ctx, note, innerW, `400 ${L(EVENT_NOTE_FONT_SIZE)}px ${FONT_SC}`).slice(0, 2) : [];
+
+  const titleH = titleLines.length * L(EVENT_TITLE_FONT_SIZE * EVENT_TITLE_LINE_HEIGHT);
+  const locH = locLines.length * L(EVENT_LOCATION_FONT_SIZE * EVENT_LOCATION_LINE_HEIGHT);
+  const noteH = noteLines.length * L(EVENT_NOTE_FONT_SIZE * EVENT_NOTE_LINE_HEIGHT);
+  const gap1 = L(3.5);
+  const gap2 = noteLines.length ? L(4) : 0;
+  const contentH = titleH + gap1 + locH + gap2 + noteH;
 
   // icon-row 是 flex align-items: center，卡高 = max(content, icon=30) + 上下 padding
   return Math.max(contentH, L(30)) + padV * 2;
@@ -336,10 +385,10 @@ async function drawMap(ctx, locations, viewport, y) {
   ctx.fillStyle = 'rgba(180, 165, 140, 0.10)'; // 略偏暖灰，进一步降饱和
   ctx.fillRect(x, y, CONTENT_W, MAP_H);
 
-  // 编号标记
-  locations.forEach((loc, index) => {
+  // 地点标记：只表达位置，不显示序号；行程序号留给下方时间轴承担。
+  locations.forEach(loc => {
     const point = projectToMap(loc.lnglat, viewport, x, y);
-    drawMapMarker(ctx, point.x, point.y, index + 1);
+    drawMapMarker(ctx, point.x, point.y);
   });
 
   ctx.restore();
@@ -374,8 +423,8 @@ function drawMapFallbackGrid(ctx, x, y) {
   }
 }
 
-function drawMapMarker(ctx, x, y, index) {
-  const r = L(7.5);
+function drawMapMarker(ctx, x, y) {
+  const r = L(6.8);
   ctx.save();
   ctx.shadowColor = 'rgba(38, 31, 24, 0.22)';
   ctx.shadowBlur = L(4);
@@ -390,12 +439,6 @@ function drawMapMarker(ctx, x, y, index) {
   ctx.lineWidth = L(1.5);
   ctx.strokeStyle = '#ffffff';
   ctx.stroke();
-
-  ctx.fillStyle = '#ffffff';
-  ctx.font = `700 ${L(index >= 10 ? 8 : 9)}px ${FONT_LATIN}`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(String(index), x, y + L(0.4));
   ctx.restore();
 
   ctx.textAlign = 'left';
@@ -436,21 +479,34 @@ async function drawDays(ctx, trip, days, startY, layout) {
       return;
     }
 
-    const itemHeights = layout.dayHeights[dayIdx].itemHeights;
+    const elements = layout.dayHeights[dayIdx].elements;
     const timelineX = CONTENT_X + L(8); // 虚线/节点中心
 
-    // 算虚线起止：第一个 item 节点中心到最后一个 item 节点中心
-    const firstNodeY = y + itemHeights[0] / 2;
-    const lastNodeY = y + sumWithGaps(itemHeights, L(8)) - itemHeights[itemHeights.length - 1] / 2;
-    if (day.events.length > 1) drawDashedLine(ctx, timelineX, firstNodeY, lastNodeY);
+    // 第一遍：算每个 event 节点的 y 位置（路线块也占行但没有节点）
+    let cursorY = y;
+    const eventCenters = [];
+    elements.forEach((el, i) => {
+      if (el.kind === 'event') eventCenters.push(cursorY + el.height / 2);
+      cursorY += el.height;
+      if (i < elements.length - 1) cursorY += INTER_ELEM_GAP;
+    });
+    // 虚线从第一个事件节点中心拉到最后一个事件节点中心，
+    // 中间穿过所有路线块（路线块在 X 方向偏右，不会与虚线视觉重叠）
+    if (eventCenters.length > 1) {
+      drawDashedLine(ctx, timelineX, eventCenters[0], eventCenters[eventCenters.length - 1]);
+    }
 
-    day.events.forEach((event, eventIdx) => {
-      const itemH = itemHeights[eventIdx];
-      drawTimelineNode(ctx, timelineX, y + itemH / 2, globalIndex);
-      drawEventCard(ctx, trip, event, CONTENT_X + L(26), y, itemH, iconCache);
-      y += itemH;
-      if (eventIdx < day.events.length - 1) y += L(8);
-      globalIndex += 1;
+    // 第二遍：实际渲染
+    elements.forEach((el, i) => {
+      if (el.kind === 'event') {
+        drawTimelineNode(ctx, timelineX, y + el.height / 2, globalIndex);
+        drawEventCard(ctx, trip, el.event, CONTENT_X + L(26), y, el.height, iconCache);
+        globalIndex += 1;
+      } else if (el.kind === 'route') {
+        drawRouteBlock(ctx, el.event.routeToNext?.mode, CONTENT_X + L(26), y, el.height);
+      }
+      y += el.height;
+      if (i < elements.length - 1) y += INTER_ELEM_GAP;
     });
   });
 
@@ -588,33 +644,113 @@ function drawEventCard(ctx, trip, event, x, y, h, iconCache) {
   const textX = iconBoxX + iconBoxSize + L(10);
   const textRight = x + cardW - padX;
   const textW = textRight - textX;
-  const padV = L(10);
 
-  const titleLines = wrapText(ctx, event.title || loc.name || '未命名地点', textW, `600 ${L(13.5)}px ${FONT_SC}`);
+  // 时间 badge（首行右侧），存在时挤压标题首行可用宽度
+  const timeSlot = normalizeTimeSlot(event.timeSlot);
+  const showTimeBadge = !!timeSlot;
+  const badgePadX = L(6);
+  let badgeW = 0;
+  let badgeLabel = '';
+  if (showTimeBadge) {
+    badgeLabel = getTimeSlotLabel(timeSlot);
+    ctx.font = `500 ${L(10)}px ${FONT_SC}`;
+    badgeW = ctx.measureText(badgeLabel).width + badgePadX * 2;
+  }
+  const titleAvailableW = textW - (showTimeBadge ? badgeW + L(6) : 0);
+
+  const titleLines = wrapText(ctx, event.title || loc.name || '未命名地点', titleAvailableW, `600 ${L(EVENT_TITLE_FONT_SIZE)}px ${FONT_SC}`);
   const locText = loc.name || loc.addr || '地点待定';
-  const locLines = wrapText(ctx, locText, textW, `400 ${L(11.5)}px ${FONT_SC}`).slice(0, 2);
+  const locLines = wrapText(ctx, locText, textW, `400 ${L(EVENT_LOCATION_FONT_SIZE)}px ${FONT_SC}`).slice(0, 2);
 
-  const titleLineH = L(13.5 * 1.3);
-  const locLineH = L(11.5 * 1.4);
-  const contentH = titleLines.length * titleLineH + L(4) + locLines.length * locLineH;
-  let textY = y + (h - contentH) / 2;
+  const note = String(event.note || '').trim();
+  const noteLines = note ? wrapText(ctx, note, textW, `400 ${L(EVENT_NOTE_FONT_SIZE)}px ${FONT_SC}`).slice(0, 2) : [];
 
+  const titleLineH = L(EVENT_TITLE_FONT_SIZE * EVENT_TITLE_LINE_HEIGHT);
+  const locLineH = L(EVENT_LOCATION_FONT_SIZE * EVENT_LOCATION_LINE_HEIGHT);
+  const noteLineH = L(EVENT_NOTE_FONT_SIZE * EVENT_NOTE_LINE_HEIGHT);
+  const titleH = titleLines.length * titleLineH;
+  const locH = locLines.length * locLineH;
+  const noteH = noteLines.length * noteLineH;
+  const gap1 = L(3.5);
+  const gap2 = noteLines.length ? L(4) : 0;
+  const contentH = titleH + gap1 + locH + gap2 + noteH;
+  let textY = y + (h - contentH) / 2 + L(0.6);
+
+  // 标题
   ctx.fillStyle = COLORS.ink;
-  ctx.font = `600 ${L(13.5)}px ${FONT_SC}`;
+  ctx.font = `600 ${L(EVENT_TITLE_FONT_SIZE)}px ${FONT_SC}`;
   ctx.textBaseline = 'top';
-  titleLines.forEach(line => {
-    ctx.fillText(line, textX, textY);
-    textY += titleLineH;
+  ctx.textAlign = 'left';
+  titleLines.forEach((line, idx) => {
+    ctx.fillText(line, textX, textY + idx * titleLineH);
   });
 
-  textY += L(4);
+  // 时间 badge：右对齐于第一行 title 的垂直中线
+  if (showTimeBadge) {
+    const badgeH = L(18);
+    const badgeY = textY + (titleLineH - badgeH) / 2;
+    const badgeX = textRight - badgeW;
+    roundRect(ctx, badgeX, badgeY, badgeW, badgeH, badgeH / 2);
+    ctx.fillStyle = COLORS.bg2;
+    ctx.fill();
+    ctx.strokeStyle = COLORS.line;
+    ctx.lineWidth = L(1);
+    ctx.stroke();
+    ctx.fillStyle = COLORS.ink2;
+    ctx.font = `500 ${L(10)}px ${FONT_SC}`;
+    ctx.textBaseline = 'middle';
+    ctx.fillText(badgeLabel, badgeX + badgePadX, badgeY + badgeH / 2);
+    ctx.textBaseline = 'top';
+  }
+
+  textY += titleH + gap1;
+
+  // 地点
   ctx.fillStyle = COLORS.ink3;
-  ctx.font = `400 ${L(11.5)}px ${FONT_SC}`;
-  locLines.forEach(line => {
-    ctx.fillText(line, textX, textY);
-    textY += locLineH;
+  ctx.font = `400 ${L(EVENT_LOCATION_FONT_SIZE)}px ${FONT_SC}`;
+  locLines.forEach((line, idx) => {
+    ctx.fillText(line, textX, textY + idx * locLineH);
   });
+  textY += locH;
 
+  // 备注（弱化色，最多 2 行）
+  if (noteLines.length) {
+    textY += gap2;
+    ctx.fillStyle = COLORS.ink4;
+    ctx.font = `400 ${L(EVENT_NOTE_FONT_SIZE)}px ${FONT_SC}`;
+    noteLines.forEach((line, idx) => {
+      ctx.fillText(line, textX, textY + idx * noteLineH);
+    });
+  }
+
+  ctx.textBaseline = 'alphabetic';
+}
+
+// 路线块：事件之间的小胶囊，仅在 includeRoutes=true 时画。
+// 位置 x 与事件卡同列（CONTENT_X + L(26)），高度居中放在 ROUTE_BLOCK_H 行内。
+function drawRouteBlock(ctx, mode, x, y, h) {
+  const colors = ROUTE_MODE_COLORS[mode] || ROUTE_MODE_COLORS.driving;
+  const padX = L(10);
+  const text = `${getTransportIcon(mode)} ${getTransportLabel(mode)}`;
+
+  ctx.font = `500 ${L(11)}px ${FONT_SC}`;
+  const textW = ctx.measureText(text).width;
+  const chipW = textW + padX * 2;
+  const chipH = L(22);
+  const chipX = x;
+  const chipY = y + (h - chipH) / 2;
+
+  roundRect(ctx, chipX, chipY, chipW, chipH, chipH / 2);
+  ctx.fillStyle = colors.bg;
+  ctx.fill();
+  ctx.strokeStyle = colors.border;
+  ctx.lineWidth = L(1);
+  ctx.stroke();
+
+  ctx.fillStyle = colors.ink;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  ctx.fillText(text, chipX + padX, chipY + chipH / 2);
   ctx.textBaseline = 'alphabetic';
 }
 
@@ -749,11 +885,16 @@ function getMapViewport(locations, width, height) {
   const maxLat = Math.max(...lats);
   const center = [(minLng + maxLng) / 2, (minLat + maxLat) / 2];
 
+  // lngLatToPixel 使用地图瓦片的逻辑像素坐标；canvas 本身按 SCALE 上采样。
+  // 因此视野适配必须用逻辑尺寸，否则会把可用宽高放大 SCALE 倍，导致 zoom 过大并裁掉边缘地点。
+  const fitWidth = Math.max(1, width / SCALE - 60);
+  const fitHeight = Math.max(1, height / SCALE - 60);
+
   let zoom = 16;
   for (; zoom >= 4; zoom -= 1) {
     const nw = lngLatToPixel([minLng, maxLat], zoom);
     const se = lngLatToPixel([maxLng, minLat], zoom);
-    if (Math.abs(se.x - nw.x) <= width - L(60) && Math.abs(se.y - nw.y) <= height - L(60)) break;
+    if (Math.abs(se.x - nw.x) <= fitWidth && Math.abs(se.y - nw.y) <= fitHeight) break;
   }
   return { center, zoom, width, height };
 }

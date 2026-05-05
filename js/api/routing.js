@@ -13,6 +13,7 @@ import {
   toNumber, calculateDistance, cleanText,
   getTransportLabel, getTransportIcon, sleep
 } from '../utils.js';
+import { getRouteDisplayLabel } from '../route-config.js';
 
 // ─── 创建路线服务 ──────────────────────────────────────
 
@@ -104,7 +105,7 @@ export function buildEstimatedResult(segment) {
     estimated: true,
     detail: {
       mode: segment.mode,
-      label: `${getTransportLabel(segment.mode)}（估算）`,
+      label: `${getRouteDisplayLabel(segment.routeToNext || segment)}（估算）`,
       icon: getTransportIcon(segment.mode),
       distance,
       duration,
@@ -165,7 +166,7 @@ function extractTransitDetail(segment, result) {
 
   return {
     mode: segment.mode,
-    label: getTransportLabel(segment.mode),
+    label: getRouteDisplayLabel(segment.routeToNext || segment),
     icon: getTransportIcon(segment.mode),
     distance: toNumber(plan.distance || result.distance),
     duration: toNumber(plan.time || plan.duration || result.time || result.duration),
@@ -177,7 +178,7 @@ function extractSimpleRouteDetail(segment, result) {
   const route = result?.routes?.[0] || {};
   return {
     mode: segment.mode,
-    label: getTransportLabel(segment.mode),
+    label: getRouteDisplayLabel(segment.routeToNext || segment),
     icon: getTransportIcon(segment.mode),
     distance: toNumber(route.distance || result.distance),
     duration: toNumber(route.time || route.duration || result.time || result.duration),

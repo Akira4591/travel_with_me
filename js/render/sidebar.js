@@ -8,20 +8,29 @@
 
 import { AppConfig } from '../config.js';
 import {
-  getTrip, getLocation, getAppState, getRouteCard
+  getTrip, getLocation, getAppState, getRouteCard, hasActiveTrip
 } from '../state.js';
 import {
   escapeHTML, formatDistance, formatDuration,
   getTransportLabel, formatDateCN
 } from '../utils.js';
 import { getIconIdForEvent, renderIconSVG } from './icons.js';
+import { getTimeSlotLabel, normalizeTimeSlot } from '../time-slots.js';
+import { getRouteDisplayLabel, normalizeRouteToNext } from '../route-config.js';
 
 // ─── 静态部分（标题副标题） ─────────────────────────────
 
 export function renderHeader() {
   const trip = getTrip();
-  document.getElementById('trip-title-text').textContent = cleanHeaderText(trip.title);
-  document.getElementById('trip-subtitle').textContent = cleanHeaderText(trip.subtitle);
+  const titleEl = document.getElementById('trip-title-text');
+  const subtitleEl = document.getElementById('trip-subtitle');
+  if (!hasActiveTrip()) {
+    if (titleEl) titleEl.textContent = '还没有行程';
+    if (subtitleEl) subtitleEl.textContent = '点击左上角 + 号新建行程';
+    return;
+  }
+  if (titleEl) titleEl.textContent = cleanHeaderText(trip.title);
+  if (subtitleEl) subtitleEl.textContent = cleanHeaderText(trip.subtitle);
 }
 
 function cleanHeaderText(value) {
@@ -37,8 +46,9 @@ export function renderTabs(handlers) {
   const tabs = document.getElementById('tabs-container');
   const trip = getTrip();
   tabs.innerHTML = '';
+  if (!hasActiveTrip()) return;
 
-  tabs.appendChild(createTabButton('all', '全部', handlers));
+  tabs.appendChild(createTabButton('all', '全部日期', handlers));
   trip.days.forEach(day => {
     tabs.appendChild(createTabButton(day.id, formatDateCN(day.date), handlers));
   });
@@ -82,6 +92,9 @@ export function updateVisibleDayGroups(dayId) {
   document.querySelectorAll('.day-add-btn').forEach(btn => {
     btn.hidden = dayId === 'all';
   });
+  document.querySelectorAll('.empty-day-state').forEach(state => {
+    state.hidden = dayId === 'all';
+  });
 }
 
 // ─── 行程主体 ────────────────────────────────────────────
@@ -94,17 +107,40 @@ export function renderItinerary(handlers) {
   container.innerHTML = '';
   state.routeCards.clear();
 
+  if (!hasActiveTrip()) {
+    container.innerHTML = `
+      <div class="workspace-empty-state">
+        <button type="button" class="workspace-empty-create" aria-label="新建行程">+</button>
+        <p>点击左上角+号新建行程</p>
+      </div>
+    `;
+    container.querySelector('.workspace-empty-create')?.addEventListener('click', () => {
+      handlers.onCreateTrip?.();
+    });
+    return;
+  }
+
+  if (!trip.days.length) {
+    container.innerHTML = `
+      <div class="trip-empty-days-state">
+        <div class="empty-day-create-icon" aria-hidden="true">+</div>
+        <p>还没有日期，点击上方 + 新建一天</p>
+      </div>
+    `;
+    return;
+  }
+
   trip.days.forEach(day => {
     const dayGroup = document.createElement('section');
     dayGroup.className = 'day-group';
     dayGroup.dataset.dayId = day.id;
     dayGroup.innerHTML = `
       <div class="day-title">
-        <span>${escapeHTML(formatDateCN(day.date))} · ${escapeHTML(day.title)}</span>
-        <div class="day-title-actions">
+        <div class="day-title-main">
+          <span class="day-title-label">${escapeHTML(formatDateCN(day.date))} · ${escapeHTML(day.title)}</span>
           <button type="button" class="day-edit-btn" title="编辑日期">···</button>
-          <button type="button" class="day-add-btn">+ 添加地点</button>
         </div>
+        <button type="button" class="day-add-btn">+ 添加地点</button>
       </div>
       <div class="event-container"></div>
     `;
@@ -119,6 +155,21 @@ export function renderItinerary(handlers) {
 
     const eventsContainer = dayGroup.querySelector('.event-container');
     let routeOrder = 0;
+
+    if (!day.events.length) {
+      eventsContainer.classList.add('event-container-empty');
+      eventsContainer.innerHTML = `
+        <div class="empty-day-state">
+          <button type="button" class="empty-day-create-btn" aria-label="添加第一个地点">+</button>
+          <p>这一天还没有地点，点击添加第一个地点</p>
+        </div>
+      `;
+      eventsContainer.querySelector('.empty-day-create-btn').addEventListener('click', () => {
+        handlers.onAddLocation?.(day.id);
+      });
+      container.appendChild(dayGroup);
+      return;
+    }
 
     day.events.forEach((event, eventIndex) => {
       eventsContainer.appendChild(createEventCard(day, event, eventIndex, handlers));
@@ -144,13 +195,26 @@ function createEventCard(day, event, eventIndex, handlers) {
   card.dataset.locationId = event.locationId;
   card.dataset.eventId = event.id;
   card.dataset.dayId = day.id;
+  card.dataset.timeSlot = normalizeTimeSlot(event.timeSlot);
   const iconHTML = renderIconSVG(getIconIdForEvent(event, loc));
+  const timeSlot = normalizeTimeSlot(event.timeSlot);
+  const timeBadgeHTML = timeSlot
+    ? `<span class="event-time-badge">${escapeHTML(getTimeSlotLabel(timeSlot))}</span>`
+    : '';
+  const addTimeHTML = timeSlot
+    ? ''
+    : '<button type="button" class="event-add-time-btn">+ 添加时间</button>';
+  const noteHTML = event.note
+    ? `<div class="event-note">${escapeHTML(event.note)}</div>`
+    : '';
   card.innerHTML = `
     <button type="button" class="drag-handle" draggable="true" aria-label="拖动排序" title="拖动排序">⋮⋮</button>
     <div class="card-icon" aria-hidden="true">${iconHTML}</div>
     <div class="card-content">
       <div class="card-header">
+        ${timeBadgeHTML}
         <span class="event-desc">${escapeHTML(event.title || '')}</span>
+        ${addTimeHTML}
       </div>
       <div class="location-info">
         <svg class="location-icon" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -159,11 +223,12 @@ function createEventCard(day, event, eventIndex, handlers) {
         </svg>
         <span>${escapeHTML(loc.name)}</span>
       </div>
+      ${noteHTML}
       <div class="card-actions">
         <button type="button" class="event-action-btn" data-action="edit" title="编辑">···</button>
         <button type="button" class="event-action-btn" data-action="add-after" title="后面添加">+</button>
-        <button type="button" class="event-action-btn" data-action="move-up" title="上移" ${eventIndex === 0 ? 'disabled' : ''}>↑</button>
-        <button type="button" class="event-action-btn" data-action="move-down" title="下移" ${eventIndex === day.events.length - 1 ? 'disabled' : ''}>↓</button>
+        <button type="button" class="event-action-btn" data-action="move-up" title="上移" ${canMoveWithinTimeSlot(day, eventIndex, 'up') ? '' : 'disabled'}>↑</button>
+        <button type="button" class="event-action-btn" data-action="move-down" title="下移" ${canMoveWithinTimeSlot(day, eventIndex, 'down') ? '' : 'disabled'}>↓</button>
         <button type="button" class="event-action-btn danger" data-action="delete" title="删除">−</button>
       </div>
     </div>
@@ -176,6 +241,11 @@ function createEventCard(day, event, eventIndex, handlers) {
   });
 
   bindDragEvents(card, day, event, handlers);
+
+  card.querySelector('.event-add-time-btn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    handlers.onEditEvent?.(day.id, event);
+  });
 
   card.querySelector('.card-actions').addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-action]');
@@ -202,9 +272,10 @@ function bindDragEvents(card, day, event, handlers) {
     card.classList.add('dragging');
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', JSON.stringify({
-      dayId: day.id,
-      eventId: event.id
-    }));
+        dayId: day.id,
+        eventId: event.id,
+        timeSlot: normalizeTimeSlot(event.timeSlot)
+      }));
   });
 
   handle.addEventListener('dragend', () => {
@@ -228,8 +299,15 @@ function bindDragEvents(card, day, event, handlers) {
     e.preventDefault();
     e.stopPropagation();
     card.classList.remove('drag-over');
+    if (payload.timeSlot !== normalizeTimeSlot(event.timeSlot)) return;
     handlers.onReorderEvent?.(day.id, payload.eventId, event.id);
   });
+}
+
+function canMoveWithinTimeSlot(day, eventIndex, direction) {
+  const targetIndex = direction === 'up' ? eventIndex - 1 : eventIndex + 1;
+  if (targetIndex < 0 || targetIndex >= day.events.length) return false;
+  return normalizeTimeSlot(day.events[eventIndex]?.timeSlot) === normalizeTimeSlot(day.events[targetIndex]?.timeSlot);
 }
 
 function readDragPayload(e) {
@@ -250,19 +328,29 @@ function createRouteCard(segment, handlers) {
   card.dataset.routeId = segment.id;
   card.style.setProperty('--route-color', segment.color);
   card.innerHTML = renderRouteIdleHTML(segment);
-  card.addEventListener('click', () => handlers.onRouteClick?.(segment));
+  card.addEventListener('click', (e) => {
+    const btn = e.target.closest('.route-edit-btn');
+    if (btn) {
+      e.stopPropagation();
+      handlers.onEditRoute?.(segment);
+      return;
+    }
+    handlers.onRouteClick?.(segment);
+  });
   state.routeCards.set(segment.id, card);
   return card;
 }
 
 function renderRouteIdleHTML(segment) {
+  const label = getRouteDisplayLabel(segment.routeToNext);
   return `
     <div class="route-card-main">
       <div class="route-body">
         <div class="route-title">
-          <span class="route-mode">${escapeHTML(getTransportLabel(segment.mode))}</span>
+          <span class="route-mode">${escapeHTML(label)}</span>
         </div>
         <div class="route-placeholder">选择当天后加载距离、用时和路线。</div>
+        <button type="button" class="route-edit-btn" title="编辑路线">编辑</button>
       </div>
     </div>
   `;
@@ -279,9 +367,10 @@ export function setRouteCardLoading(segment) {
     <div class="route-card-main">
       <div class="route-body">
         <div class="route-title">
-          <span class="route-mode">${escapeHTML(getTransportLabel(segment.mode))}</span>
+          <span class="route-mode">${escapeHTML(getRouteDisplayLabel(segment.routeToNext))}</span>
         </div>
         <div class="route-placeholder">正在规划路线...</div>
+        <button type="button" class="route-edit-btn" title="编辑路线">编辑</button>
       </div>
     </div>
   `;
@@ -304,9 +393,10 @@ export function updateRouteCardError(segment, message) {
     <div class="route-card-main">
       <div class="route-body">
         <div class="route-title">
-          <span class="route-mode">${escapeHTML(getTransportLabel(segment.mode))}</span>
+          <span class="route-mode">${escapeHTML(getRouteDisplayLabel(segment.routeToNext))}</span>
         </div>
         <div class="route-placeholder">${escapeHTML(message)}</div>
+        <button type="button" class="route-edit-btn" title="编辑路线">编辑</button>
       </div>
     </div>
   `;
@@ -319,7 +409,9 @@ function renderRouteCardResult(segment, detail, statusClass) {
   card.style.setProperty('--route-color', segment.color);
 
   const meta = `约 ${formatDistance(detail.distance)} · 预计 ${formatDuration(detail.duration)}`;
-  const steps = detail.mode === 'transit' ? detail.steps : [];
+  const route = normalizeRouteToNext(segment.routeToNext);
+  const customSteps = route.legs?.map(leg => `${getTransportLabel(leg.mode)}：${leg.label}`) || [];
+  const steps = customSteps.length ? customSteps : (detail.mode === 'transit' ? detail.steps : []);
 
   card.innerHTML = `
     <div class="route-card-main">
@@ -328,6 +420,7 @@ function renderRouteCardResult(segment, detail, statusClass) {
           <span class="route-mode">${escapeHTML(detail.label)}</span>
         </div>
         <div class="route-meta">${meta}</div>
+        <button type="button" class="route-edit-btn" title="编辑路线">编辑</button>
         ${steps.length ? `<ol class="route-steps">${steps.map((step, i) => `
           <li class="route-step"><span class="route-step-index">${i + 1}</span><span>${escapeHTML(step)}</span></li>
         `).join('')}</ol>` : ''}
@@ -382,10 +475,12 @@ export function buildRouteSegments(day) {
 function buildRouteSegment(day, event, nextEvent, eventIndex, routeOrder) {
   const fromLoc = getLocation(event.locationId);
   const toLoc = getLocation(nextEvent.locationId);
-  const mode = event.routeToNext?.mode || 'driving';
+  const routeToNext = normalizeRouteToNext(event.routeToNext);
+  const mode = routeToNext.mode;
   return {
     id: `${day.id}-route-${eventIndex}`,
     dayId: day.id,
+    eventId: event.id,
     fromId: event.locationId,
     toId: nextEvent.locationId,
     fromName: fromLoc.name,
@@ -393,6 +488,7 @@ function buildRouteSegment(day, event, nextEvent, eventIndex, routeOrder) {
     fromLngLat: fromLoc.lnglat,
     toLngLat: toLoc.lnglat,
     mode,
+    routeToNext,
     color: AppConfig.routeColors[routeOrder % AppConfig.routeColors.length]
   };
 }

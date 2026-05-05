@@ -13,7 +13,9 @@ export function createDatePickerHTML(value = todayISO(), options = {}) {
       <input type="hidden" class="day-date-input" required value="${escapeHTML(safeValue)}" />
       <button type="button" class="date-picker-trigger" aria-haspopup="dialog" aria-expanded="false">
         <span class="date-picker-value">${escapeHTML(formatDateFull(safeValue))}</span>
-        <span class="date-picker-caret" aria-hidden="true">⌄</span>
+        <svg class="date-picker-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M6 9l6 6 6-6"/>
+        </svg>
       </button>
       <div class="date-picker-popover" role="dialog" aria-label="选择日期" hidden></div>
     </div>
@@ -28,13 +30,13 @@ export function bindDatePicker(root) {
   const trigger = picker.querySelector('.date-picker-trigger');
   const valueEl = picker.querySelector('.date-picker-value');
   const popover = picker.querySelector('.date-picker-popover');
-  const modal = picker.closest('.day-editor-modal');
   const disabledDates = new Set(
     String(picker.dataset.disabledDates || '').split(',').filter(isISODate)
   );
 
   let selectedISO = normalizeISO(input.value);
   let viewDate = parseISO(selectedISO);
+  let scrollHandler = null;
 
   syncValue();
   renderCalendar();
@@ -74,14 +76,42 @@ export function bindDatePicker(root) {
 
   function open() {
     popover.hidden = false;
-    modal?.classList.add('date-picker-expanded');
     trigger.setAttribute('aria-expanded', 'true');
+    positionPopover();
+    // 跟随 viewport 变化重新定位（窗口缩放、modal 内滚动等）
+    scrollHandler = () => positionPopover();
+    window.addEventListener('resize', scrollHandler);
+    window.addEventListener('scroll', scrollHandler, true);
   }
 
   function close() {
     popover.hidden = true;
-    modal?.classList.remove('date-picker-expanded');
     trigger.setAttribute('aria-expanded', 'false');
+    if (scrollHandler) {
+      window.removeEventListener('resize', scrollHandler);
+      window.removeEventListener('scroll', scrollHandler, true);
+      scrollHandler = null;
+    }
+  }
+
+  function positionPopover() {
+    const rect = trigger.getBoundingClientRect();
+    const popH = popover.offsetHeight || 300;
+    const popW = popover.offsetWidth || 288;
+    const margin = 8;
+    const vh = window.innerHeight;
+    const vw = window.innerWidth;
+
+    // 默认放在 trigger 下方 4px；底部不够就翻到上方
+    let top = rect.bottom + 4;
+    if (top + popH > vh - margin) top = Math.max(margin, rect.top - 4 - popH);
+
+    // 左对齐 trigger，但不能超出视口右边
+    let left = rect.left;
+    if (left + popW > vw - margin) left = Math.max(margin, vw - margin - popW);
+
+    popover.style.top = `${top}px`;
+    popover.style.left = `${left}px`;
   }
 
   function syncValue() {

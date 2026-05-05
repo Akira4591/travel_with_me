@@ -10,30 +10,35 @@
 </head>
 
 <body>
-  <div class="sidebar">
-    <div class="header">
-      <div class="header-top">
-        <div class="title-row">
-          <button type="button" class="trip-title-button" id="edit-trip-title-btn" title="修改旅行标题">
-            <span id="trip-title-text">五一北京行程</span>
-          </button>
+  <div class="workspace-shell">
+    <div class="workspace-tabs" id="workspace-tabs"></div>
+    <div class="app-layout">
+      <div class="sidebar">
+        <div class="header">
+          <div class="header-top">
+            <div class="title-row">
+              <div class="trip-title-display">
+                <span id="trip-title-text">五一北京行程</span>
+              </div>
+            </div>
+            <div class="header-actions">
+              <button type="button" class="share-trip-btn" id="share-trip-btn">分享长图</button>
+            </div>
+          </div>
+          <p id="trip-subtitle">点击下方行程卡片，右侧地图将自动飞跃至对应地点</p>
         </div>
-        <div class="header-actions">
-          <button type="button" class="new-trip-btn" id="new-trip-btn">新建路线</button>
-          <button type="button" class="share-trip-btn" id="share-trip-btn">分享长图</button>
-        </div>
+        <div class="tabs-container" id="tabs-container"></div>
+        <div class="itinerary-list" id="itinerary-container"></div>
       </div>
-      <p id="trip-subtitle">点击下方行程卡片，右侧地图将自动飞跃至对应地点</p>
+
+      <div class="map-container">
+        <div id="map"></div>
+        <div class="map-empty-hint" id="map-empty-hint" hidden>点击左上角 + 号新建行程</div>
+        <div class="status-panel" id="status-panel">正在加载地图...</div>
+      </div>
     </div>
-    <div class="tabs-container" id="tabs-container"></div>
-    <div class="itinerary-list" id="itinerary-container"></div>
   </div>
 
-  <div class="map-container">
-    <div id="map"></div>
-    <div class="status-panel" id="status-panel">正在加载地图...</div>
-  </div>
-
-  <script type="module" src="./js/main.js?v=20260504-share1"></script>
+  <script type="module" src="./js/main.js?v=20260505-workspace1"></script>
 </body>
 </html>

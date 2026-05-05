@@ -8,22 +8,24 @@
 //   3) planRoutes：编排"规划路线 → 画线 → 更新卡片"
 
 import { loadAMap } from './api/amap-loader.js';
-import { createGeocodeServices, resolveLocation, searchPlaces } from './api/geocode.js';
+import { createGeocodeServices, resolveLocation, searchPlaces, reverseGeocode } from './api/geocode.js';
 import {
   createRouteService, searchRoute, buildEstimatedResult, safeClearService
 } from './api/routing.js';
 import {
   getAppState, getTrip, getDay, getLocation, setActiveDayId, setAMap,
   updateLocationCoords, updateLocation, removeLocation,
-  updateTripMeta, createEmptyTrip,
+  initWorkspace, getWorkspace, hasActiveTrip,
+  createTrip, switchTrip, renameTrip, deleteTrip,
   addDay, updateDay, removeDay, nextDayISO,
   addLocation, addEventToDay, updateEventInDay, removeEventFromDay,
-  moveEventInDay, reorderEventInDay, replaceTrip, on
+  moveEventInDay, reorderEventInDay, updateRouteToNext, on
 } from './state.js';
 import {
   initMap, createAllMarkers, createOrUpdateMarker, removeMarker, clearAllMarkers,
+  pruneMarkersToLocationIds, showEmptyMapView,
   showMarkersForDay, fitMarkers, fitSegment, focusLocation,
-  drawRoutePaths, clearRouteOverlays
+  drawRoutePaths, clearRouteOverlays, highlightSegment
 } from './render/map.js';
 import {
   renderHeader, renderTabs, renderItinerary,
@@ -35,10 +37,13 @@ import {
 import { openSearchModal } from './render/search-modal.js?v=20260504-ui5';
 import { openEventEditorModal } from './render/event-editor-modal.js?v=20260504-ui5';
 import { openDayEditorModal } from './render/day-editor-modal.js';
+import { openRouteEditorModal } from './render/route-editor-modal.js';
 import { openTripModal } from './render/trip-modal.js';
-import { openShareModal } from './render/share-modal.js';
+import { openShareModal, updateShareImage, setShareImageLoading } from './render/share-modal.js';
+import { renderWorkspaceTabs, closeWorkspaceMenu } from './render/workspace-tabs.js';
 import { readSharedTripFromURL } from './share.js';
 import { buildTripShareImage, dataURLToBlob } from './share-image.js';
+import { loadWorkspace, saveWorkspace } from './storage.js';
 import { sleep, formatDateCN } from './utils.js';
 
 // ─── boot ──────────────────────────────────────────────
@@ -46,30 +51,37 @@ import { sleep, formatDateCN } from './utils.js';
 window.addEventListener('load', boot);
 
 async function boot() {
+  const savedWorkspace = await loadWorkspace();
   const sharedTrip = readSharedTripFromURL();
-  if (sharedTrip) replaceTrip(sharedTrip);
+  initWorkspace(savedWorkspace, sharedTrip);
+  await persistWorkspace();
 
+  renderWorkspace();
   renderHeader();
   setStatus('正在加载高德地图 JS API 2.0...');
-  bindTripButtons();
   bindShareButton();
 
   // 订阅 trip 变更：编辑模式下任何 mutator 都会触发，UI 自动重渲
   on('trip:changed', handleTripChanged);
   on('trip:replaced', handleTripReplaced);
+  on('workspace:changed', handleWorkspaceChanged);
+  on('workspace:replaced', handleWorkspaceChanged);
+  on('location:updated', persistWorkspace);
+
+  renderAll();
 
   try {
     const AMap = await loadAMap();
     setAMap(AMap);
 
     initMap(AMap);
-    renderAll();
     createAllMarkers();
     selectDay('all', { fitView: true, planRoutes: false });
+    syncEmptyWorkspaceUI();
 
     // 后台异步校准坐标，完成后重新设置当前选中的日期
     await resolveAllLocations();
-    selectDay(getAppState().activeDayId, { fitView: false, planRoutes: true });
+    if (hasActiveTrip()) selectDay(getAppState().activeDayId, { fitView: false, planRoutes: true });
   } catch (error) {
     console.error('高德地图加载失败：', error);
     setStatus('<strong>地图加载失败。</strong>请检查 Key、安全密钥、域名白名单和网络状态。');
@@ -77,52 +89,83 @@ async function boot() {
 }
 
 function renderAll() {
+  renderWorkspace();
   renderTabs({
     onSelectDay: (dayId) => selectDay(dayId, { fitView: true, planRoutes: true }),
     onAddDay: openCreateDayFlow
   });
   renderItinerary(getItineraryHandlers());
+  syncEmptyWorkspaceUI();
 }
 
 function getItineraryHandlers() {
   return {
     onEventClick: (event) => focusLocation(event.locationId),
-    onRouteClick: (segment) => fitSegment(segment),
+    onRouteClick: (segment) => {
+      fitSegment(segment);
+      highlightSegment(segment.id);
+    },
+    onEditRoute: openRouteEditorFlow,
     onEditDay: openEditDayFlow,
     onEditEvent: openEditEventFlow,
     onAddLocation: (dayId) => openAddLocationFlow({ dayId }),
     onAddAfterEvent: (dayId, eventId) => openAddLocationFlow({ dayId, afterEventId: eventId }),
     onMoveEvent: moveEventInDay,
     onReorderEvent: reorderEventInDay,
-    onDeleteEvent: deleteEventFlow
+    onDeleteEvent: deleteEventFlow,
+    onCreateTrip: openCreateTripFlow
   };
 }
 
-function bindTripButtons() {
-  document.getElementById('edit-trip-title-btn')?.addEventListener('click', () => {
-    openTripModal({
-      mode: 'edit',
-      title: getTrip().title,
-      handlers: {
-        onSave: (title) => {
-          updateTripMeta({ title });
-          setStatus('旅行标题已更新。');
-        }
-      }
-    });
+function renderWorkspace() {
+  renderWorkspaceTabs({
+    onSelectTrip: (tripId) => {
+      if (switchTrip(tripId)) setStatus('已切换行程。');
+    },
+    onCreateTrip: openCreateTripFlow,
+    onRenameTrip: openRenameTripFlow,
+    onDeleteTrip: deleteTripFlow
   });
+}
 
-  document.getElementById('new-trip-btn')?.addEventListener('click', () => {
-    openTripModal({
-      mode: 'create',
-      handlers: {
-        onCreate: (title) => {
-          createEmptyTrip(title);
-          setStatus('已新建空白旅行路线。先新建一天，再添加地点。');
-        }
+function openCreateTripFlow() {
+  if (getWorkspace().trips.length >= 3) {
+    setStatus('最多只能同时保存 3 个行程。请先删除一个旧行程。');
+    return;
+  }
+  openTripModal({
+    mode: 'create',
+    handlers: {
+      onCreate: (title) => {
+        createTrip(title);
+        setStatus('已新建空白旅行路线。先新建一天，再添加地点。');
       }
-    });
+    }
   });
+}
+
+function openRenameTripFlow(tripId) {
+  const target = getWorkspace().trips.find(item => item.id === tripId);
+  if (!target) return;
+  openTripModal({
+    mode: 'edit',
+    title: target.title,
+    handlers: {
+      onSave: (title) => {
+        renameTrip(tripId, title);
+        setStatus('旅行标题已更新。');
+      }
+    }
+  });
+}
+
+function deleteTripFlow(tripId) {
+  const target = getWorkspace().trips.find(item => item.id === tripId);
+  if (!target) return;
+  const ok = window.confirm(`删除“${target.title || '这个行程'}”？这个行程里的日期和地点都会一起删除。`);
+  if (!ok) return;
+  deleteTrip(tripId);
+  setStatus(hasActiveTrip() ? '行程已删除。' : '还没有行程。点击左上角 + 号新建行程。');
 }
 
 function openCreateDayFlow() {
@@ -153,7 +196,7 @@ function openEditDayFlow(dayId) {
   openDayEditorModal({
     mode: 'edit',
     day,
-    canDelete: getTrip().days.length > 1,
+    canDelete: true,
     disabledDates: getTrip().days.filter(item => item.id !== dayId).map(item => item.date),
     handlers: {
       onSave: (_day, patch) => {
@@ -169,10 +212,6 @@ function openEditDayFlow(dayId) {
 function deleteDayFlow(dayId) {
   const day = getDay(dayId);
   if (!day) return;
-  if (getTrip().days.length <= 1) {
-    setStatus('至少需要保留一天行程。');
-    return;
-  }
 
   const ok = window.confirm(`删除“${formatDateCN(day.date)} · ${day.title}”？这一天里的日程也会一起删除。`);
   if (!ok) return;
@@ -182,15 +221,22 @@ function deleteDayFlow(dayId) {
 
 function bindShareButton() {
   document.getElementById('share-trip-btn')?.addEventListener('click', async () => {
+    if (!hasActiveTrip()) {
+      setStatus('请先新建行程，再生成分享长图。');
+      return;
+    }
     setStatus('正在生成分享长图...');
     try {
-      const image = await buildTripShareImage(getTrip());
+      const includeRoutes = false; // 默认不勾选交通方式
+      const image = await buildTripShareImage(getTrip(), { includeRoutes });
       openShareModal({
         imageUrl: image.dataURL,
         filename: image.filename,
+        includeRoutes,
         handlers: {
           onDownload: downloadShareImage,
-          onCopyImage: copyShareImage
+          onCopyImage: copyShareImage,
+          onRegenerate: regenerateShareImage
         }
       });
       setStatus('分享长图已生成。');
@@ -199,6 +245,21 @@ function bindShareButton() {
       setStatus('分享长图生成失败，请稍后再试。');
     }
   });
+}
+
+async function regenerateShareImage(includeRoutes) {
+  if (!hasActiveTrip()) return;
+  try {
+    const image = await buildTripShareImage(getTrip(), { includeRoutes });
+    updateShareImage(image.dataURL, image.filename);
+    setStatus(includeRoutes
+      ? '分享长图已重新生成（含交通方式）。'
+      : '分享长图已重新生成。');
+  } catch (error) {
+    console.error('重新生成分享长图失败：', error);
+    setStatus('重新生成失败，请关闭后再试。');
+    setShareImageLoading(false);
+  }
 }
 
 function downloadShareImage(imageUrl, filename) {
@@ -229,6 +290,7 @@ async function copyShareImage(imageUrl) {
 // ─── 添加地点流程 ───────────────────────────────────────
 
 function openAddLocationFlow(options = {}) {
+  if (!hasActiveTrip()) return;
   const state = getAppState();
   if (!state.AMap) {
     setStatus('地图还在加载，请稍后再添加地点。');
@@ -249,6 +311,8 @@ function openAddLocationFlow(options = {}) {
       addEventToDay(targetDayId, {
         title: event.title,
         icon: event.icon,
+        timeSlot: event.timeSlot,
+        note: event.note,
         locationId
       }, { afterEventId: options.afterEventId });
     }
@@ -258,6 +322,7 @@ function openAddLocationFlow(options = {}) {
 // ─── 编辑 / 删除 / 移动流程 ─────────────────────────────
 
 function openEditEventFlow(dayId, event) {
+  if (!hasActiveTrip()) return;
   const state = getAppState();
   if (!state.AMap) {
     setStatus('地图还在加载，请稍后再编辑日程。');
@@ -270,6 +335,7 @@ function openEditEventFlow(dayId, event) {
     location: loc,
     handlers: {
       onSearch: (keyword) => searchPlaces(state.AMap, keyword),
+      onResolveAddress: (lnglat) => reverseGeocode(state.AMap, lnglat),
       onConfirm: ({ event: eventPatch, location, selectedPlace }) => {
         let locationId = event.locationId;
 
@@ -297,6 +363,19 @@ function deleteEventFlow(dayId, event) {
   if (countLocationReferences(locationId) === 0) removeLocation(locationId);
 }
 
+function openRouteEditorFlow(segment) {
+  openRouteEditorModal({
+    segment,
+    handlers: {
+      onConfirm: (routeToNext) => {
+        if (!updateRouteToNext(segment.dayId, segment.eventId, routeToNext)) {
+          setStatus('路线设置更新失败，请重试。');
+        }
+      }
+    }
+  });
+}
+
 function countLocationReferences(locationId) {
   const trip = getTrip();
   return trip.days.reduce((count, day) => {
@@ -306,8 +385,19 @@ function countLocationReferences(locationId) {
 
 // ─── trip 变更订阅 ──────────────────────────────────────
 
+async function persistWorkspace() {
+  await saveWorkspace(getWorkspace());
+}
+
+function handleWorkspaceChanged() {
+  renderWorkspace();
+  persistWorkspace();
+}
+
 function handleTripChanged(payload) {
   if (!payload) return;
+  persistWorkspace();
+  renderWorkspace();
 
   if (payload.kind === 'trip:updated') {
     renderHeader();
@@ -326,6 +416,8 @@ function handleTripChanged(payload) {
     payload.removedLocationIds?.forEach(removeMarker);
   }
 
+  pruneMapMarkersToTripEvents();
+
   // 编辑型变更统一重新渲染行程，再按当前视图刷新 marker 和路线。
   renderTabs({
     onSelectDay: (dayId) => selectDay(dayId, { fitView: true, planRoutes: true }),
@@ -334,9 +426,13 @@ function handleTripChanged(payload) {
   renderItinerary(getItineraryHandlers());
   const activeId = getNextActiveDayId(payload);
   selectDay(activeId, { fitView: true, planRoutes: activeId !== 'all' });
+  syncEmptyWorkspaceUI();
 }
 
 function handleTripReplaced() {
+  closeWorkspaceMenu();
+  persistWorkspace();
+  renderWorkspace();
   renderHeader();
   renderTabs({
     onSelectDay: (dayId) => selectDay(dayId, { fitView: true, planRoutes: true }),
@@ -347,6 +443,7 @@ function handleTripReplaced() {
   clearAllMarkers();
   createAllMarkers();
   selectDay('all', { fitView: true, planRoutes: false });
+  syncEmptyWorkspaceUI();
 }
 
 function getNextActiveDayId(payload) {
@@ -367,7 +464,21 @@ function selectDay(dayId, { fitView = false, planRoutes = false } = {}) {
   updateVisibleDayGroups(dayId);
   clearAllRoutes();
 
+  if (!hasActiveTrip()) {
+    resetRouteCards();
+    showEmptyMapView();
+    setStatus('还没有行程。点击左上角 + 号新建行程。');
+    syncEmptyWorkspaceUI();
+    return;
+  }
+
   const visibleMarkers = showMarkersForDay(dayId);
+  if (!hasTripEventLocations()) {
+    resetRouteCards();
+    showEmptyMapView();
+    setStatus('还没有地点。添加地点后，地图会自动定位到行程范围。');
+    return;
+  }
 
   if (dayId === 'all') {
     resetRouteCards();
@@ -383,6 +494,7 @@ function selectDay(dayId, { fitView = false, planRoutes = false } = {}) {
 // ─── 路径规划 ──────────────────────────────────────────
 
 function scheduleRoutePlanning(day) {
+  if (!hasActiveTrip()) return;
   const state = getAppState();
   if (state.routePlanningTimer) clearTimeout(state.routePlanningTimer);
 
@@ -414,11 +526,11 @@ async function planRoutesForDay(day, segments, serial) {
 
     if (result.ok) {
       success += 1;
-      drawRoutePaths(result.paths, segment.color, false);
+      drawRoutePaths(segment, result.paths, false);
       updateRouteCardOk(segment, result.detail);
     } else if (result.estimated) {
       estimated += 1;
-      drawRoutePaths(result.paths, segment.color, true);
+      drawRoutePaths(segment, result.paths, true);
       updateRouteCardEstimated(segment, result.detail);
     } else {
       failed += 1;
@@ -462,6 +574,10 @@ function clearAllRoutes() {
 // ─── 后台批量解析地点坐标 ───────────────────────────────
 
 async function resolveAllLocations() {
+  if (!hasActiveTrip()) {
+    setStatus('还没有行程。点击左上角 + 号新建行程。');
+    return;
+  }
   const state = getAppState();
   const trip = getTrip();
   setStatus('已先使用内置坐标显示地点；正在后台校准地点位置...');
@@ -481,4 +597,36 @@ async function resolveAllLocations() {
   }
 
   setStatus(`地点加载完成：${success}/${entries.length} 个地点已由高德校准。选择某一天可查看路线。`);
+}
+
+function syncEmptyWorkspaceUI() {
+  const empty = !hasActiveTrip();
+  document.body.classList.toggle('workspace-empty', empty);
+  const shareBtn = document.getElementById('share-trip-btn');
+  if (shareBtn) {
+    shareBtn.disabled = empty;
+    shareBtn.hidden = empty;
+  }
+  const mapHint = document.getElementById('map-empty-hint');
+  if (mapHint) mapHint.hidden = !empty;
+  if (empty) showEmptyMapView();
+}
+
+function getReferencedLocationIds() {
+  const trip = getTrip();
+  const ids = new Set();
+  trip.days.forEach(day => {
+    day.events.forEach(event => {
+      if (event.locationId && trip.locations[event.locationId]) ids.add(event.locationId);
+    });
+  });
+  return Array.from(ids);
+}
+
+function hasTripEventLocations() {
+  return getReferencedLocationIds().length > 0;
+}
+
+function pruneMapMarkersToTripEvents() {
+  pruneMarkersToLocationIds(getReferencedLocationIds());
 }

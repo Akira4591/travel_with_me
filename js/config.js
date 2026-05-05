@@ -28,6 +28,10 @@ export const AppConfig = {
   defaultCenter: [116.6631, 39.9015],
   defaultZoom: 11,
 
+  // 没有任何行程地点时展示中国视图
+  emptyMapCenter: [104.1954, 35.8617],
+  emptyMapZoom: 4,
+
   // 多段路线的颜色循环
   routeColors: [
     '#ef4444', '#2563eb', '#16a34a', '#9333ea',

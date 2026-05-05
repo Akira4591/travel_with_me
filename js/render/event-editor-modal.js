@@ -7,6 +7,7 @@ import { escapeHTML } from '../utils.js';
 import {
   bindIconPicker, getIconIdForEvent, inferIconId, renderIconPickerHTML
 } from './icons.js';
+import { TIME_SLOT_OPTIONS, normalizeTimeSlot } from '../time-slots.js';
 
 let modalEl = null;
 let currentHandlers = null;
@@ -46,9 +47,17 @@ function createModal(event, location) {
           <label>图标</label>
           ${renderIconPickerHTML(getIconIdForEvent(event, location))}
         </div>
+        <div class="modal-form-row time-form-row">
+          <label>时间</label>
+          ${renderTimeSlotPickerHTML(event.timeSlot)}
+        </div>
 
         <div class="editor-section-title">更新地点信息</div>
-        <div class="editor-search-panel">
+        <div class="editor-location-card">
+          ${renderLocationCardHTML(location, '当前地点')}
+        </div>
+
+        <div class="editor-search-panel" hidden>
           <div class="editor-search-copy">请输入新的地点</div>
           <div class="editor-search-box">
             <svg class="editor-search-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -60,16 +69,9 @@ function createModal(event, location) {
         </div>
         <div class="modal-results editor-results" data-state="idle"></div>
 
-        <div class="editor-location-card">
-          <div>
-            <div class="editor-location-label">当前地点</div>
-            <div class="editor-location-name">${escapeHTML(location.name || '')}</div>
-            <div class="editor-location-addr">${escapeHTML(location.addr || location.query || '地址未提供')}</div>
-          </div>
-          <div class="editor-location-coords">
-            <span>经度 ${escapeHTML(location.lnglat?.[0] || '')}</span>
-            <span>纬度 ${escapeHTML(location.lnglat?.[1] || '')}</span>
-          </div>
+        <div class="modal-form-row note-form-row">
+          <label>备注</label>
+          <textarea class="editor-note-input" placeholder="请输入备注信息，例如预约时间、注意事项、同行人安排">${escapeHTML(event.note || '')}</textarea>
         </div>
 
         <div class="modal-actions">
@@ -80,18 +82,49 @@ function createModal(event, location) {
     </div>
   `;
 
-  bindEvents(root);
+  bindEvents(root, location);
   return root;
 }
 
-function bindEvents(root) {
+function bindEvents(root, initialLocation) {
   const form = root.querySelector('.editor-form');
   const searchInput = root.querySelector('.editor-search-input');
   const resultsEl = root.querySelector('.editor-results');
   const locationCard = root.querySelector('.editor-location-card');
   const iconPicker = bindIconPicker(root, root.querySelector('.icon-picker-btn.active')?.dataset.iconId || 'pin');
+  const timeSlotPicker = bindTimeSlotPicker(root);
   let selectedPlace = null;
-  let selectedLocation = readLocationFromCard(locationCard);
+  let selectedLocation = {
+    name: initialLocation.name || '',
+    query: initialLocation.query || initialLocation.name || '',
+    addr: initialLocation.addr || '',
+    lnglat: initialLocation.lnglat || []
+  };
+  let cardLabel = '当前地点';
+
+  const renderCard = (status = 'static') => {
+    locationCard.innerHTML = renderLocationCardHTML(selectedLocation, cardLabel, status);
+  };
+
+  // 已有地点常常只存了名称（addr === name），这里按需异步逆地理回填详细地址。
+  // 注意 modal 关闭后 resultsEl 已不在 DOM 树里，所有异步回调要先确认 modal 还活着。
+  const ensureAddressForCurrent = async () => {
+    if (!hasPoorAddress(selectedLocation) || !currentHandlers?.onResolveAddress) return;
+    if (!Array.isArray(selectedLocation.lnglat) || selectedLocation.lnglat.length < 2) return;
+
+    renderCard('loading');
+    let info;
+    try {
+      info = await currentHandlers.onResolveAddress(selectedLocation.lnglat);
+    } catch (err) {
+      console.warn('逆地理编码失败：', err);
+    }
+    if (!modalEl) return; // 弹窗已关闭
+
+    const composed = composeAddress(info, selectedLocation.name);
+    if (composed) selectedLocation.addr = composed;
+    renderCard('static');
+  };
 
   const doSearch = async () => {
     const keyword = searchInput.value.trim();
@@ -101,26 +134,43 @@ function bindEvents(root) {
 
     try {
       const places = await currentHandlers.onSearch(keyword);
+      if (!modalEl) return;
       if (!places || !places.length) {
-        setResultsState(resultsEl, 'empty', '<div class="modal-hint">没有找到结果，换个关键词试试</div>');
+        setResultsState(resultsEl, 'empty', '<div class="modal-hint">未找到相关地点</div>');
         return;
       }
       renderResults(resultsEl, places, (place) => {
         selectedPlace = place;
+        const fallbackAddr = composeAddress(
+          { formatted: place.addr, province: place.province, city: place.city, district: place.district },
+          place.name
+        );
         selectedLocation = {
           name: place.name || '',
           query: place.name || '',
-          addr: place.addr || place.city || '',
+          addr: fallbackAddr,
           lnglat: place.lnglat || []
         };
-        iconPicker.setValue(inferIconId(`${place.name || ''} ${place.addr || ''}`));
-        renderLocationCard(locationCard, selectedLocation, '已选择地点');
+        iconPicker.setValue(inferIconId(`${place.name || ''} ${fallbackAddr}`));
+        cardLabel = '已选择地点';
+        renderCard('static');
+        // 选完后收起结果，避免遮挡备注栏
+        setResultsState(resultsEl, 'idle', '');
       });
     } catch (err) {
       console.error('搜索地点失败：', err);
       setResultsState(resultsEl, 'error', '<div class="modal-hint">搜索失败，请重试</div>');
     }
   };
+
+  ensureAddressForCurrent();
+
+  root.addEventListener('click', (e) => {
+    if (!e.target.closest('.editor-location-change-btn')) return;
+    const panel = root.querySelector('.editor-search-panel');
+    panel.hidden = false;
+    searchInput.focus();
+  });
 
   root.querySelector('.editor-search-btn').addEventListener('click', doSearch);
   searchInput.addEventListener('keydown', (e) => {
@@ -150,7 +200,9 @@ function bindEvents(root) {
     currentHandlers.onConfirm({
       event: {
         title: root.querySelector('.editor-title-input').value.trim(),
-        icon: iconPicker.getValue()
+        icon: iconPicker.getValue(),
+        timeSlot: timeSlotPicker.getValue(),
+        note: root.querySelector('.editor-note-input').value.trim()
       },
       location: {
         name: selectedLocation.name,
@@ -164,30 +216,72 @@ function bindEvents(root) {
   });
 }
 
-function readLocationFromCard(card) {
-  return {
-    name: card.querySelector('.editor-location-name')?.textContent.trim() || '',
-    query: card.querySelector('.editor-location-name')?.textContent.trim() || '',
-    addr: card.querySelector('.editor-location-addr')?.textContent.trim() || '',
-    lnglat: Array.from(card.querySelectorAll('.editor-location-coords span')).map(item => {
-      const match = item.textContent.match(/(-?\d+(?:\.\d+)?)/);
-      return match ? Number(match[1]) : '';
-    })
-  };
-}
-
-function renderLocationCard(card, location, label) {
-  card.innerHTML = `
+function renderLocationCardHTML(location, label, status = 'static') {
+  return `
     <div>
       <div class="editor-location-label">${escapeHTML(label)}</div>
       <div class="editor-location-name">${escapeHTML(location.name || '')}</div>
-      <div class="editor-location-addr">${escapeHTML(location.addr || location.query || '地址未提供')}</div>
+      <div class="editor-location-addr">${escapeHTML(getLocationAddressText(location, status))}</div>
     </div>
-    <div class="editor-location-coords">
-      <span>经度 ${escapeHTML(location.lnglat?.[0] || '')}</span>
-      <span>纬度 ${escapeHTML(location.lnglat?.[1] || '')}</span>
+    <button type="button" class="editor-location-change-btn">更换地点</button>
+  `;
+}
+
+function getLocationAddressText(location, status) {
+  if (status === 'loading') return '正在获取详细地址...';
+  const addr = String(location.addr || '').trim();
+  const name = String(location.name || '').trim();
+  if (addr && addr !== name) return addr;
+  return '暂无详细地址';
+}
+
+function hasPoorAddress(location) {
+  const addr = String(location.addr || '').trim();
+  const name = String(location.name || '').trim();
+  return !addr || addr === name;
+}
+
+// 把 POI 或逆地理结果合成一个用于显示的"详细地址"。
+// 若 formatted 已包含 name（例如"北京市丰台区北京南站(公交站)"），保留 formatted；
+// 否则用 省+市+区 兜底。和 name 完全相等的情况会被 getLocationAddressText 兜成"暂无"。
+function composeAddress(info, name) {
+  if (!info) return '';
+  const formatted = String(info.formatted || '').trim();
+  if (formatted) return formatted;
+  const composed = [info.province, info.city, info.district]
+    .map(part => String(part || '').trim())
+    .filter(Boolean)
+    .join('');
+  if (composed && composed !== String(name || '').trim()) return composed;
+  return '';
+}
+
+function renderTimeSlotPickerHTML(value) {
+  const selected = normalizeTimeSlot(value);
+  return `
+    <div class="time-slot-picker" role="radiogroup" aria-label="选择时间">
+      ${TIME_SLOT_OPTIONS.map(option => `
+        <button type="button" class="time-slot-btn ${option.id === selected ? 'active' : ''}" data-time-slot="${option.id}" role="radio" aria-checked="${option.id === selected}">
+          ${escapeHTML(option.label)}
+        </button>
+      `).join('')}
     </div>
   `;
+}
+
+function bindTimeSlotPicker(root) {
+  let value = normalizeTimeSlot(root.querySelector('.time-slot-btn.active')?.dataset.timeSlot || '');
+  root.querySelectorAll('.time-slot-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      value = normalizeTimeSlot(button.dataset.timeSlot || '');
+      root.querySelectorAll('.time-slot-btn').forEach(item => {
+        const active = item === button;
+        item.classList.toggle('active', active);
+        item.setAttribute('aria-checked', String(active));
+      });
+    });
+  });
+  return { getValue: () => value };
 }
 
 function setResultsState(resultsEl, state, html) {
@@ -202,9 +296,13 @@ function renderResults(resultsEl, places, onPick) {
     const item = document.createElement('button');
     item.type = 'button';
     item.className = 'modal-result-item';
+    const addrText = composeAddress(
+      { formatted: place.addr, province: place.province, city: place.city, district: place.district },
+      place.name
+    ) || '地址未提供';
     item.innerHTML = `
       <div class="modal-result-name">${escapeHTML(place.name)}</div>
-      <div class="modal-result-addr">${escapeHTML(place.addr || place.city || '地址未提供')}</div>
+      <div class="modal-result-addr">${escapeHTML(addrText)}</div>
     `;
     item.addEventListener('click', () => {
       resultsEl.querySelectorAll('.modal-result-item').forEach(el => el.classList.remove('selected'));

@@ -1,11 +1,11 @@
 // js/storage.js
 // 持久化封装：localStorage 优先，失败时降级到内存
 //
-// 第一版只用 localStorage，但接口设计成 Promise，方便以后切到远程：
-//   - 保存草稿：把当前 trip 写到本地，刷新不丢
-//   - 分享链接：生成短 ID，写入远程 KV，URL 里只带 ID
+// workspace 结构：
+//   { version: 2, savedAt, workspace: { trips: [...], activeTripId } }
 //
-// 调用方不需要知道存储介质，只需要 await 接口
+// 单 trip 接口（saveTrip/loadTrip）保留，方便以后做"草稿快照"或迁出 BFF；
+// 当前主存储是 saveWorkspace/loadWorkspace。
 
 const STORAGE_PREFIX = 'trip-app:';
 const memoryFallback = new Map();
@@ -34,7 +34,39 @@ function safeRemove(key) {
   }
 }
 
-// ─── 公开接口 ──────────────────────────────────────────
+// ─── workspace 接口（多 trip 容器） ────────────────────
+
+const WORKSPACE_KEY = 'workspace';
+
+export async function saveWorkspace(workspace) {
+  const json = JSON.stringify({
+    version: 2,
+    savedAt: Date.now(),
+    workspace
+  });
+  safeSet(WORKSPACE_KEY, json);
+  return { ok: true };
+}
+
+// 返回 workspace 对象；从未保存过返回 null（让调用方走"首次启动"分支）。
+export async function loadWorkspace() {
+  const raw = safeGet(WORKSPACE_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed.workspace ?? null;
+  } catch {
+    console.warn('storage: workspace JSON 解析失败');
+    return null;
+  }
+}
+
+export async function clearWorkspace() {
+  safeRemove(WORKSPACE_KEY);
+  return { ok: true };
+}
+
+// ─── 单 trip 接口（保留，未在主流程使用） ──────────────
 
 export async function saveTrip(trip, slot = 'draft') {
   const json = JSON.stringify({

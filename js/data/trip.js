@@ -13,6 +13,7 @@
 //   - 最后一个 event 不需要 routeToNext
 
 export const initialTrip = {
+  id: 'demo-trip-bj-may',
   title: '五一北京行程',
   subtitle: '点击下方行程卡片，右侧地图将自动飞跃至对应地点',
   city: '北京',
