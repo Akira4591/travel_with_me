@@ -68,18 +68,31 @@ const ROUTE_MODE_COLORS = {
 const ROUTE_BLOCK_H = L(28);
 const INTER_ELEM_GAP = L(8);
 
-const EVENT_TITLE_FONT_SIZE = 12.4;
-const EVENT_TITLE_LINE_HEIGHT = 1.25;
-const EVENT_LOCATION_FONT_SIZE = 10.4;
-const EVENT_LOCATION_LINE_HEIGHT = 1.34;
-const EVENT_NOTE_FONT_SIZE = 10;
-const EVENT_NOTE_LINE_HEIGHT = 1.4;
+const DAY_BADGE_FONT_SIZE = 11;
+const DAY_TITLE_FONT_SIZE = 10.8;
+const DAY_STOPS_FONT_SIZE = 8.4;
+
+const EVENT_TITLE_FONT_SIZE = 9.6;
+const EVENT_TITLE_LINE_HEIGHT = 1.24;
+const EVENT_LOCATION_FONT_SIZE = 8.3;
+const EVENT_LOCATION_LINE_HEIGHT = 1.3;
+const EVENT_NOTE_FONT_SIZE = 8.2;
+const EVENT_NOTE_LINE_HEIGHT = 1.34;
+const EVENT_CARD_PAD_Y = 7;
+const EVENT_ICON_BOX_SIZE = 24;
+const EVENT_ICON_SIZE = 15;
+const EVENT_LOCATION_PIN_SIZE = 9.5;
+const EVENT_TIME_BADGE_FONT_SIZE = 8.6;
 
 // 品牌 logo（折叠地图样式）— 仅本文件用，不放进 icons.js（那是行程图标语义集合）
 const TRAVELER_LOGO_PATHS =
   '<path d="M9 4 3 6v14l6-2"/>' +
   '<path d="M15 6 9 4v14l6 2"/>' +
   '<path d="M21 4l-6 2v14l6-2V4z"/>';
+
+const LOCATION_PIN_PATHS =
+  '<path d="M17.657 16.657 13.414 20.9a2 2 0 0 1-2.827 0l-4.244-4.243a8 8 0 1 1 11.314 0Z"/>' +
+  '<path d="M15 11a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>';
 
 // ─── 入口 ─────────────────────────────────────────────
 
@@ -143,7 +156,7 @@ function measureLayout(ctx, trip, days, opts = {}) {
 
   let daysHeight = 0;
   const dayHeights = days.map((day, idx) => {
-    const headH = L(24) + L(10);    // badge 高 + mb 10
+    const headH = L(DAY_BADGE_FONT_SIZE * 1.18) + L(3.4) * 2 + L(8);
     const events = day.events || [];
     const itemHeights = events.map(event => measureItemHeight(ctx, trip, event));
 
@@ -159,7 +172,7 @@ function measureLayout(ctx, trip, days, opts = {}) {
     const itemsTotal = elements.reduce((s, e) => s + e.height, 0)
       + Math.max(0, elements.length - 1) * INTER_ELEM_GAP;
     const dayH = headH + itemsTotal;
-    daysHeight += dayH + (idx > 0 ? L(22) : 0); // 第二天起 mt 22
+    daysHeight += dayH + (idx > 0 ? L(18) : 0);
     return { headH, itemHeights, elements, total: dayH };
   });
 
@@ -174,24 +187,25 @@ function measureLayout(ctx, trip, days, opts = {}) {
 
 function measureItemHeight(ctx, trip, event) {
   const loc = trip.locations?.[event.locationId] || {};
-  const padV = L(10);
+  const padV = L(EVENT_CARD_PAD_Y);
   const innerW = CONTENT_W - L(26)        // 时间轴左缩进
                 - L(12) * 2               // item 卡左右内边距
-                - L(30) - L(10);          // icon 30 + 与文本间隙 10
+                - L(EVENT_ICON_BOX_SIZE) - L(9); // icon + 与文本间隙
 
   // 时间 badge 占一段宽度，挤压标题首行可用宽度
   const timeSlot = normalizeTimeSlot(event.timeSlot);
   const showTimeBadge = !!timeSlot;
   let badgeFullW = 0;
   if (showTimeBadge) {
-    ctx.font = `500 ${L(10)}px ${FONT_SC}`;
-    badgeFullW = ctx.measureText(getTimeSlotLabel(timeSlot)).width + L(12) /* 6+6 padding */ + L(6) /* 与标题的间距 */;
+    ctx.font = `500 ${L(EVENT_TIME_BADGE_FONT_SIZE)}px ${FONT_SC}`;
+    badgeFullW = ctx.measureText(getTimeSlotLabel(timeSlot)).width + L(10) /* 5+5 padding */ + L(6) /* 与标题的间距 */;
   }
   const titleAvailableW = innerW - badgeFullW;
 
   const titleLines = wrapText(ctx, event.title || loc.name || '未命名地点', titleAvailableW, `600 ${L(EVENT_TITLE_FONT_SIZE)}px ${FONT_SC}`);
   const locText = loc.name || loc.addr || '地点待定';
-  const locLines = wrapText(ctx, locText, innerW, `400 ${L(EVENT_LOCATION_FONT_SIZE)}px ${FONT_SC}`).slice(0, 2);
+  const locTextW = innerW - L(EVENT_LOCATION_PIN_SIZE + 4);
+  const locLines = wrapText(ctx, locText, locTextW, `400 ${L(EVENT_LOCATION_FONT_SIZE)}px ${FONT_SC}`).slice(0, 2);
 
   const note = String(event.note || '').trim();
   const noteLines = note ? wrapText(ctx, note, innerW, `400 ${L(EVENT_NOTE_FONT_SIZE)}px ${FONT_SC}`).slice(0, 2) : [];
@@ -199,12 +213,12 @@ function measureItemHeight(ctx, trip, event) {
   const titleH = titleLines.length * L(EVENT_TITLE_FONT_SIZE * EVENT_TITLE_LINE_HEIGHT);
   const locH = locLines.length * L(EVENT_LOCATION_FONT_SIZE * EVENT_LOCATION_LINE_HEIGHT);
   const noteH = noteLines.length * L(EVENT_NOTE_FONT_SIZE * EVENT_NOTE_LINE_HEIGHT);
-  const gap1 = L(3.5);
-  const gap2 = noteLines.length ? L(4) : 0;
+  const gap1 = L(2.5);
+  const gap2 = noteLines.length ? L(3) : 0;
   const contentH = titleH + gap1 + locH + gap2 + noteH;
 
   // icon-row 是 flex align-items: center，卡高 = max(content, icon=30) + 上下 padding
-  return Math.max(contentH, L(30)) + padV * 2;
+  return Math.max(contentH, L(EVENT_ICON_BOX_SIZE)) + padV * 2;
 }
 
 // ─── 背景与卡片 ───────────────────────────────────────
@@ -464,14 +478,18 @@ async function drawDays(ctx, trip, days, startY, layout) {
     allIconIds.add(normalizeForCanvas(event.icon, event, trip));
   }));
   await Promise.all([...allIconIds].map(async id => {
-    iconCache.set(id, await loadSvgImage(getIconPaths(id), { size: L(18), color: COLORS.ink2 }));
+    iconCache.set(id, await loadSvgImage(getIconPaths(id), { size: L(EVENT_ICON_SIZE), color: COLORS.ink2 }));
   }));
+  iconCache.set(
+    '__location-pin',
+    await loadSvgImage(LOCATION_PIN_PATHS, { size: L(EVENT_LOCATION_PIN_SIZE), color: COLORS.ink4, strokeWidth: 2 })
+  );
 
   let y = startY;
   let globalIndex = 1;
 
   days.forEach((day, dayIdx) => {
-    if (dayIdx > 0) y += L(22);
+    if (dayIdx > 0) y += L(18);
     y = drawDayHead(ctx, day, y);
 
     if (!day.events?.length) {
@@ -517,11 +535,11 @@ function drawDayHead(ctx, day, y) {
   // 左：badge "日期 · 周X"  ｜  中：theme  ｜  右：N STOPS
   const badgeText = `${formatDateCN(day.date)} · ${getWeekdayCN(day.date)}`;
 
-  ctx.font = `700 ${L(13)}px ${FONT_SC}`;
+  ctx.font = `700 ${L(DAY_BADGE_FONT_SIZE)}px ${FONT_SC}`;
   const badgeTextW = ctx.measureText(badgeText).width;
-  const badgePadX = L(8);
-  const badgePadY = L(4);
-  const badgeH = L(13) + badgePadY * 2;
+  const badgePadX = L(7);
+  const badgePadY = L(3.4);
+  const badgeH = L(DAY_BADGE_FONT_SIZE * 1.18) + badgePadY * 2;
   const badgeW = badgeTextW + badgePadX * 2;
   const badgeX = CONTENT_X + L(2);
   const badgeY = y;
@@ -548,21 +566,21 @@ function drawDayHead(ctx, day, y) {
 
   // theme（在 badge 右侧，垂直居中对齐）
   if (day.title) {
-    ctx.fillStyle = COLORS.ink2;
-    ctx.font = `500 ${L(13)}px ${FONT_SC}`;
+    ctx.fillStyle = COLORS.ink3;
+    ctx.font = `500 ${L(DAY_TITLE_FONT_SIZE)}px ${FONT_SC}`;
     ctx.fillText(day.title, badgeX + badgeW + L(10), badgeY + badgeH / 2);
   }
 
   // N STOPS（右对齐）
   const stops = day.events?.length || 0;
   ctx.fillStyle = COLORS.ink4;
-  ctx.font = `500 ${L(10)}px ${FONT_MONO}`;
+  ctx.font = `500 ${L(DAY_STOPS_FONT_SIZE)}px ${FONT_MONO}`;
   ctx.textAlign = 'right';
   ctx.fillText(`${stops} STOPS`, CONTENT_X + CONTENT_W, badgeY + badgeH / 2);
 
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
-  return y + badgeH + L(10);
+  return y + badgeH + L(8);
 }
 
 function drawDashedLine(ctx, x, y1, y2) {
@@ -618,18 +636,18 @@ function drawEventCard(ctx, trip, event, x, y, h, iconCache) {
 
   // icon 徽章
   const padX = L(12);
-  const iconBoxSize = L(30);
+  const iconBoxSize = L(EVENT_ICON_BOX_SIZE);
   const iconBoxX = x + padX;
   const iconBoxY = y + (h - iconBoxSize) / 2;
 
-  roundRect(ctx, iconBoxX, iconBoxY, iconBoxSize, iconBoxSize, L(8));
+  roundRect(ctx, iconBoxX, iconBoxY, iconBoxSize, iconBoxSize, L(7));
   ctx.fillStyle = COLORS.bg2;
   ctx.fill();
 
   const iconId = normalizeForCanvas(event.icon, event, trip);
   const iconImg = iconCache.get(iconId);
   if (iconImg) {
-    const iconSize = L(18);
+    const iconSize = L(EVENT_ICON_SIZE);
     ctx.drawImage(
       iconImg,
       iconBoxX + (iconBoxSize - iconSize) / 2,
@@ -641,26 +659,26 @@ function drawEventCard(ctx, trip, event, x, y, h, iconCache) {
 
   // 文字区
   const loc = trip.locations?.[event.locationId] || {};
-  const textX = iconBoxX + iconBoxSize + L(10);
+  const textX = iconBoxX + iconBoxSize + L(9);
   const textRight = x + cardW - padX;
   const textW = textRight - textX;
 
   // 时间 badge（首行右侧），存在时挤压标题首行可用宽度
   const timeSlot = normalizeTimeSlot(event.timeSlot);
   const showTimeBadge = !!timeSlot;
-  const badgePadX = L(6);
   let badgeW = 0;
   let badgeLabel = '';
   if (showTimeBadge) {
     badgeLabel = getTimeSlotLabel(timeSlot);
-    ctx.font = `500 ${L(10)}px ${FONT_SC}`;
-    badgeW = ctx.measureText(badgeLabel).width + badgePadX * 2;
+    ctx.font = `500 ${L(EVENT_TIME_BADGE_FONT_SIZE)}px ${FONT_SC}`;
+    badgeW = ctx.measureText(badgeLabel).width + L(10);
   }
   const titleAvailableW = textW - (showTimeBadge ? badgeW + L(6) : 0);
 
   const titleLines = wrapText(ctx, event.title || loc.name || '未命名地点', titleAvailableW, `600 ${L(EVENT_TITLE_FONT_SIZE)}px ${FONT_SC}`);
   const locText = loc.name || loc.addr || '地点待定';
-  const locLines = wrapText(ctx, locText, textW, `400 ${L(EVENT_LOCATION_FONT_SIZE)}px ${FONT_SC}`).slice(0, 2);
+  const locIconSpace = L(EVENT_LOCATION_PIN_SIZE + 4);
+  const locLines = wrapText(ctx, locText, textW - locIconSpace, `400 ${L(EVENT_LOCATION_FONT_SIZE)}px ${FONT_SC}`).slice(0, 2);
 
   const note = String(event.note || '').trim();
   const noteLines = note ? wrapText(ctx, note, textW, `400 ${L(EVENT_NOTE_FONT_SIZE)}px ${FONT_SC}`).slice(0, 2) : [];
@@ -671,13 +689,13 @@ function drawEventCard(ctx, trip, event, x, y, h, iconCache) {
   const titleH = titleLines.length * titleLineH;
   const locH = locLines.length * locLineH;
   const noteH = noteLines.length * noteLineH;
-  const gap1 = L(3.5);
-  const gap2 = noteLines.length ? L(4) : 0;
+  const gap1 = L(2.5);
+  const gap2 = noteLines.length ? L(3) : 0;
   const contentH = titleH + gap1 + locH + gap2 + noteH;
-  let textY = y + (h - contentH) / 2 + L(0.6);
+  let textY = y + (h - contentH) / 2 + L(0.25);
 
   // 标题
-  ctx.fillStyle = COLORS.ink;
+  ctx.fillStyle = COLORS.ink2;
   ctx.font = `600 ${L(EVENT_TITLE_FONT_SIZE)}px ${FONT_SC}`;
   ctx.textBaseline = 'top';
   ctx.textAlign = 'left';
@@ -687,30 +705,38 @@ function drawEventCard(ctx, trip, event, x, y, h, iconCache) {
 
   // 时间 badge：右对齐于第一行 title 的垂直中线
   if (showTimeBadge) {
-    const badgeH = L(18);
+    const badgeH = L(15);
     const badgeY = textY + (titleLineH - badgeH) / 2;
     const badgeX = textRight - badgeW;
     roundRect(ctx, badgeX, badgeY, badgeW, badgeH, badgeH / 2);
-    ctx.fillStyle = COLORS.bg2;
+    ctx.fillStyle = COLORS.paperWarm2;
     ctx.fill();
     ctx.strokeStyle = COLORS.line;
     ctx.lineWidth = L(1);
     ctx.stroke();
-    ctx.fillStyle = COLORS.ink2;
-    ctx.font = `500 ${L(10)}px ${FONT_SC}`;
+    ctx.fillStyle = COLORS.ink3;
+    ctx.font = `500 ${L(EVENT_TIME_BADGE_FONT_SIZE)}px ${FONT_SC}`;
     ctx.textBaseline = 'middle';
-    ctx.fillText(badgeLabel, badgeX + badgePadX, badgeY + badgeH / 2);
+    ctx.fillText(badgeLabel, badgeX + L(5), badgeY + badgeH / 2);
     ctx.textBaseline = 'top';
   }
 
   textY += titleH + gap1;
 
   // 地点
-  ctx.fillStyle = COLORS.ink3;
+  ctx.fillStyle = COLORS.ink4;
   ctx.font = `400 ${L(EVENT_LOCATION_FONT_SIZE)}px ${FONT_SC}`;
+  const locationIcon = iconCache.get('__location-pin');
+  ctx.textBaseline = 'middle';
+  if (locationIcon) {
+    const iconSize = L(EVENT_LOCATION_PIN_SIZE);
+    const lineCenterY = textY + locLineH / 2;
+    ctx.drawImage(locationIcon, textX, lineCenterY - iconSize / 2, iconSize, iconSize);
+  }
   locLines.forEach((line, idx) => {
-    ctx.fillText(line, textX, textY + idx * locLineH);
+    ctx.fillText(line, textX + locIconSpace, textY + idx * locLineH + locLineH / 2);
   });
+  ctx.textBaseline = 'top';
   textY += locH;
 
   // 备注（弱化色，最多 2 行）
