@@ -554,6 +554,7 @@ function normalizeWorkspace(input, fallbackTrip = null) {
 function normalizeTrip(input, fallbackTitle = '旅行路线') {
   const cloned = structuredClone(input || {});
   cloned.id = cloned.id || generateTripId();
+  cleanupDemoTripContent(cloned);
   cloned.title = String(cloned.title || fallbackTitle).trim() || fallbackTitle;
   cloned.subtitle = cloned.subtitle || '点击下方行程卡片，右侧地图将自动飞跃至对应地点';
   cloned.city = cloned.city || AppConfig.cityName;
@@ -576,6 +577,21 @@ function normalizeTrip(input, fallbackTitle = '旅行路线') {
     return String(a.date || '').localeCompare(String(b.date || ''));
   });
   return cloned;
+}
+
+function cleanupDemoTripContent(tripLike) {
+  if (tripLike?.id !== 'demo-trip-bj-may' || !Array.isArray(tripLike.days)) return;
+
+  tripLike.days.forEach(day => {
+    if (day.id === 'day-1' && day.title === '接站与安顿') day.title = '入住与晚餐';
+    if (day.id === 'day-4' && day.title === '踏青与送站') day.title = '踏青休闲';
+    if (!Array.isArray(day.events)) return;
+
+    day.events = day.events.filter(event => {
+      const title = String(event?.title || '');
+      return !title.includes('男朋友');
+    });
+  });
 }
 
 function createBlankTrip(title) {

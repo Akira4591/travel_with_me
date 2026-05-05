@@ -101,9 +101,8 @@ export const initialTrip = {
     {
       id: 'day-1',
       date: '2026-05-01',
-      title: '接站与安顿',
+      title: '入住与晚餐',
       events: [
-        { id: 'd1-e1', title: '男朋友抵达北京南站', locationId: 'station',     icon: 'train', routeToNext: { mode: 'transit'  } },
         { id: 'd1-e2', title: '前往酒店放行李',     locationId: 'hotel',       icon: 'hotel', routeToNext: { mode: 'driving'  } },
         { id: 'd1-e3', title: '吃寿司郎',           locationId: 'wanxianghui', icon: 'food' }
       ]
@@ -137,11 +136,10 @@ export const initialTrip = {
     {
       id: 'day-4',
       date: '2026-05-04',
-      title: '踏青与送站',
+      title: '踏青休闲',
       events: [
         { id: 'd4-e0', title: '从酒店出发',     locationId: 'hotel',     icon: 'hotel', routeToNext: { mode: 'driving' } },
-        { id: 'd4-e1', title: '大运河森林公园', locationId: 'canalpark', icon: 'park', routeToNext: { mode: 'transit' } },
-        { id: 'd4-e2', title: '送男朋友回上海', locationId: 'station',   icon: 'train' }
+        { id: 'd4-e1', title: '大运河森林公园', locationId: 'canalpark', icon: 'park' }
       ]
     }
   ]
