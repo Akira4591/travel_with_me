@@ -125,6 +125,7 @@ app.get(TILE_PREFIX, async (c) => {
   return new Response(body, { status: upstreamResp.status, headers });
 });
 
+
 // ─── 静态文件托管 ─────────────────────────────────────────
 // 只暴露前端实际需要的目录/文件，避免把 server/、node_modules/、.env 也意外暴露。
 app.get('/', serveStatic({ path: './index.html' }));

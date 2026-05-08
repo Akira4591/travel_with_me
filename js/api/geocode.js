@@ -49,30 +49,89 @@ export function searchPlaces(AMap, keyword, options = {}) {
       city: options.city || AppConfig.cityCode,
       citylimit: false,
       pageSize: options.pageSize || 10,
-      extensions: 'base'
+      extensions: 'all'
     });
     ps.search(keyword, (status, result) => {
       if (status !== 'complete' || !result?.poiList?.pois) {
         resolve([]);
         return;
       }
-      const places = result.poiList.pois
-        .map(poi => ({
-          id: poi.id,
-          name: String(poi.name || ''),
-          addr: String(poi.address || ''),
-          province: String(poi.pname || ''),
-          city: String(poi.cityname || ''),
-          district: String(poi.adname || ''),
-          type: String(poi.type || ''),
-          lnglat: poi.location
-            ? [Number(poi.location.lng), Number(poi.location.lat)]
-            : null
-        }))
-        .filter(p => p.lnglat && Number.isFinite(p.lnglat[0]) && Number.isFinite(p.lnglat[1]));
-      resolve(places);
+      resolve(mapPois(result.poiList.pois));
     });
   });
+}
+
+// 周边搜索：以 center 为中心、radius 米半径内找 keyword 命中的 POI。
+// 给"AI 搜附近"用——返回结构与 searchPlaces 一致，能复用同一套渲染逻辑。
+//
+// types 可选，是高德 POI 大类编码（如餐饮 050000），多个用 | 分隔。
+// 不传 types 时只用 keyword 过滤；传了能进一步收窄结果。
+export function searchNearBy(AMap, { keyword, center, radius = 1500, types } = {}) {
+  return new Promise(resolve => {
+    if (!AMap || !keyword || !Array.isArray(center) || center.length < 2) {
+      resolve([]);
+      return;
+    }
+    const lng = Number(center[0]);
+    const lat = Number(center[1]);
+    if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+      resolve([]);
+      return;
+    }
+    const psOptions = {
+      citylimit: false,
+      pageSize: 10,
+      extensions: 'all'
+    };
+    if (types) psOptions.type = types;
+
+    const ps = new AMap.PlaceSearch(psOptions);
+    const safeRadius = Math.max(200, Math.min(5000, Math.round(Number(radius) || 1500)));
+    ps.searchNearBy(keyword, [lng, lat], safeRadius, (status, result) => {
+      if (status !== 'complete' || !result?.poiList?.pois) {
+        resolve([]);
+        return;
+      }
+      resolve(mapPois(result.poiList.pois));
+    });
+  });
+}
+
+function mapPois(pois) {
+  return pois
+    .map(poi => {
+      // 高德 JS API 2.0 在 extensions=all 下，rating/cost 有时在顶层、有时在 biz_ext 下
+      // 兼容两种写法，缺失时返回 null（不要伪造为 0 或 '暂无'）
+      const rating = pickNumber(poi.rating ?? poi.biz_ext?.rating);
+      const cost = pickNumber(poi.cost ?? poi.biz_ext?.cost);
+      const photos = Array.isArray(poi.photos) ? poi.photos : [];
+      return {
+        id: poi.id,
+        name: String(poi.name || ''),
+        addr: String(poi.address || ''),
+        province: String(poi.pname || ''),
+        city: String(poi.cityname || ''),
+        district: String(poi.adname || ''),
+        type: String(poi.type || ''),
+        lnglat: poi.location
+          ? [Number(poi.location.lng), Number(poi.location.lat)]
+          : null,
+        rating,
+        cost,
+        tag: String(poi.tag || '').trim(),
+        tel: String(poi.tel || '').trim(),
+        photo: String(photos[0]?.url || '').trim(),
+        businessArea: String(poi.business_area || '').trim(),
+        openTime: String(poi.opentime_today || poi.opentime_week || '').trim()
+      };
+    })
+    .filter(p => p.lnglat && Number.isFinite(p.lnglat[0]) && Number.isFinite(p.lnglat[1]));
+}
+
+function pickNumber(v) {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : null;
 }
 
 // 逆地理编码：根据 [lng, lat] 反查"省市区 + 详细地址"。

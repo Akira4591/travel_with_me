@@ -54,7 +54,7 @@ function createModal(event, location) {
 
         <div class="editor-section-title">更新地点信息</div>
         <div class="editor-location-card">
-          ${renderLocationCardHTML(location, '当前地点')}
+          ${renderLocationCardHTML(location, '当前地点', 'static', getIconIdForEvent(event, location))}
         </div>
 
         <div class="editor-search-panel" hidden>
@@ -89,6 +89,7 @@ function createModal(event, location) {
 function bindEvents(root, initialLocation) {
   const form = root.querySelector('.editor-form');
   const searchInput = root.querySelector('.editor-search-input');
+  const searchBtn = root.querySelector('.editor-search-btn');
   const resultsEl = root.querySelector('.editor-results');
   const locationCard = root.querySelector('.editor-location-card');
   const iconPicker = bindIconPicker(root, root.querySelector('.icon-picker-btn.active')?.dataset.iconId || 'pin');
@@ -98,12 +99,15 @@ function bindEvents(root, initialLocation) {
     name: initialLocation.name || '',
     query: initialLocation.query || initialLocation.name || '',
     addr: initialLocation.addr || '',
-    lnglat: initialLocation.lnglat || []
+    lnglat: initialLocation.lnglat || [],
+    photo: initialLocation.photo || '',
+    type: initialLocation.type || ''
   };
   let cardLabel = '当前地点';
 
   const renderCard = (status = 'static') => {
-    locationCard.innerHTML = renderLocationCardHTML(selectedLocation, cardLabel, status);
+    // 用当前 iconPicker 的值兜底图标——用户切了图标后占位 emoji 也要跟着变
+    locationCard.innerHTML = renderLocationCardHTML(selectedLocation, cardLabel, status, iconPicker.getValue());
   };
 
   // 已有地点常常只存了名称（addr === name），这里按需异步逆地理回填详细地址。
@@ -129,6 +133,7 @@ function bindEvents(root, initialLocation) {
   const doSearch = async () => {
     const keyword = searchInput.value.trim();
     if (!keyword || !currentHandlers?.onSearch) return;
+
     selectedPlace = null;
     setResultsState(resultsEl, 'loading', '<div class="modal-hint">搜索中...</div>');
 
@@ -149,7 +154,9 @@ function bindEvents(root, initialLocation) {
           name: place.name || '',
           query: place.name || '',
           addr: fallbackAddr,
-          lnglat: place.lnglat || []
+          lnglat: place.lnglat || [],
+          photo: place.photo || '',
+          type: place.type || ''
         };
         iconPicker.setValue(inferIconId(`${place.name || ''} ${fallbackAddr}`));
         cardLabel = '已选择地点';
@@ -172,7 +179,7 @@ function bindEvents(root, initialLocation) {
     searchInput.focus();
   });
 
-  root.querySelector('.editor-search-btn').addEventListener('click', doSearch);
+  searchBtn.addEventListener('click', doSearch);
   searchInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -208,7 +215,9 @@ function bindEvents(root, initialLocation) {
         name: selectedLocation.name,
         query: selectedLocation.query || selectedLocation.name,
         addr: selectedLocation.addr,
-        lnglat: [lng, lat]
+        lnglat: [lng, lat],
+        photo: selectedLocation.photo || '',
+        type: selectedLocation.type || ''
       },
       selectedPlace
     });
@@ -216,15 +225,49 @@ function bindEvents(root, initialLocation) {
   });
 }
 
-function renderLocationCardHTML(location, label, status = 'static') {
+function renderLocationCardHTML(location, label, status = 'static', iconId = 'pin') {
+  const photoHTML = renderEditorLocationPhoto(location, iconId);
   return `
-    <div>
+    <div class="editor-location-text">
       <div class="editor-location-label">${escapeHTML(label)}</div>
       <div class="editor-location-name">${escapeHTML(location.name || '')}</div>
       <div class="editor-location-addr">${escapeHTML(getLocationAddressText(location, status))}</div>
+      <button type="button" class="editor-location-change-btn">更换地点</button>
     </div>
-    <button type="button" class="editor-location-change-btn">更换地点</button>
+    ${photoHTML}
   `;
+}
+
+// 当前/已选择地点卡的右侧图位：
+// - 有真图：渲染为圆角矩形，加载失败兜底为 emoji 占位
+// - 无图：emoji 占位（用 event.icon 决定 emoji，比 POI type 信号更强）
+function renderEditorLocationPhoto(location, iconId) {
+  const url = String(location.photo || '').trim();
+  const emoji = getEventIconEmoji(iconId);
+  if (url) {
+    const httpsUrl = url.replace(/^http:\/\//i, 'https://');
+    // onerror 时把 img 替换成 emoji 占位（高德 photo 偶发 404）
+    return `
+      <figure class="editor-location-photo">
+        <img src="${escapeHTML(httpsUrl)}" alt="" loading="lazy" referrerpolicy="no-referrer"
+             onerror="this.parentElement.classList.add('is-placeholder');this.parentElement.innerHTML='${emoji}';">
+      </figure>
+    `;
+  }
+  return `<figure class="editor-location-photo is-placeholder">${emoji}</figure>`;
+}
+
+// 行程图标 id → emoji（占位用）。用户给事件设的图标比 POI type 更能反映其角色
+function getEventIconEmoji(iconId) {
+  switch (iconId) {
+    case 'train': return '🚉';
+    case 'hotel': return '🏨';
+    case 'food': return '🍽️';
+    case 'school': return '🎓';
+    case 'park': return '🌳';
+    case 'shop': return '🛍️';
+    default: return '📍';
+  }
 }
 
 function getLocationAddressText(location, status) {
@@ -284,6 +327,62 @@ function bindTimeSlotPicker(root) {
   return { getValue: () => value };
 }
 
+// 推荐结果卡的图位：
+// - 有真图：圆角矩形展示，加载失败兜底为 emoji 占位（不留空白，体感一致）
+// - 无图：emoji 占位（基于 POI type 推断），不让"半数有图半数空"显得不协调
+// 高德 photo URL 默认 http，HTTPS 生产站会被 mixed content 拦截 → 改写成 https
+function renderPhotoBanner(place) {
+  const url = String(place.photo || '').trim();
+  const emoji = getPoiTypeEmoji(place.type);
+  if (url) {
+    const httpsUrl = url.replace(/^http:\/\//i, 'https://');
+    return `
+      <figure class="modal-result-photo">
+        <img src="${escapeHTML(httpsUrl)}" alt="" loading="lazy" referrerpolicy="no-referrer"
+             onerror="this.parentElement.classList.add('is-placeholder');this.parentElement.innerHTML='${emoji}';">
+      </figure>
+    `;
+  }
+  return `<figure class="modal-result-photo is-placeholder">${emoji}</figure>`;
+}
+
+// 高德 POI type 字符串（如"餐饮服务;中餐厅;川菜"）→ emoji
+function getPoiTypeEmoji(type) {
+  const t = String(type || '');
+  if (/餐饮|美食|快餐|小吃|餐厅/.test(t)) return '🍽️';
+  if (/咖啡|奶茶|饮品|茶馆/.test(t)) return '☕';
+  if (/酒店|住宿|宾馆|民宿/.test(t)) return '🏨';
+  if (/景点|风景|文化古迹|博物馆/.test(t)) return '🏛️';
+  if (/公园|植物园|动物园/.test(t)) return '🌳';
+  if (/商场|购物中心|百货/.test(t)) return '🛍️';
+  if (/超市/.test(t)) return '🛒';
+  if (/便利店/.test(t)) return '🏪';
+  if (/火车站|汽车站|地铁站|机场|港口/.test(t)) return '🚉';
+  if (/医院|诊所|药店/.test(t)) return '🏥';
+  if (/银行|atm/i.test(t)) return '🏦';
+  if (/学校|大学|教育/.test(t)) return '🎓';
+  if (/电影|剧院|KTV|娱乐/i.test(t)) return '🎬';
+  if (/书店|图书/.test(t)) return '📚';
+  return '📍';
+}
+
+// 把高德返回的真实数据（评分/人均/标签）渲染成 chip
+// 三项全空时返回空串，整行不出现，保持卡片紧凑
+function renderMetaChips(place) {
+  const chips = [];
+  if (place.rating != null && Number(place.rating) > 0) {
+    chips.push(`<span class="meta-chip meta-rating">⭐ ${escapeHTML(String(place.rating))}</span>`);
+  }
+  if (place.cost != null && Number(place.cost) > 0) {
+    chips.push(`<span class="meta-chip meta-cost">¥${escapeHTML(String(place.cost))}/人</span>`);
+  }
+  const firstTag = String(place.tag || '').split(/[;\s]+/).filter(Boolean)[0];
+  if (firstTag) {
+    chips.push(`<span class="meta-chip meta-tag">${escapeHTML(firstTag)}</span>`);
+  }
+  return chips.length ? `<div class="modal-result-meta">${chips.join('')}</div>` : '';
+}
+
 function setResultsState(resultsEl, state, html) {
   resultsEl.dataset.state = state;
   resultsEl.innerHTML = html;
@@ -300,9 +399,13 @@ function renderResults(resultsEl, places, onPick) {
       { formatted: place.addr, province: place.province, city: place.city, district: place.district },
       place.name
     ) || '地址未提供';
+    const metaHTML = renderMetaChips(place);
+    const photoHTML = renderPhotoBanner(place);
     item.innerHTML = `
+      ${photoHTML}
       <div class="modal-result-name">${escapeHTML(place.name)}</div>
       <div class="modal-result-addr">${escapeHTML(addrText)}</div>
+      ${metaHTML}
     `;
     item.addEventListener('click', () => {
       resultsEl.querySelectorAll('.modal-result-item').forEach(el => el.classList.remove('selected'));

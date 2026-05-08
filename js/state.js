@@ -180,7 +180,10 @@ export function addLocation(loc) {
     query: loc.query || loc.name,
     addr: loc.addr || loc.name,
     lnglat: loc.lnglat,
-    resolved: true
+    resolved: true,
+    // photo / type 来自高德 extensions=all，持久化给"已有地点"编辑卡的右侧图位用
+    photo: loc.photo || '',
+    type: loc.type || ''
   };
   emit('trip:changed', { kind: 'location:added', locationId: id });
   return id;
@@ -198,6 +201,8 @@ export function updateLocation(locationId, patch) {
     loc.lnglat = patch.lnglat;
     loc.resolved = true;
   }
+  if (patch.photo != null) loc.photo = patch.photo;
+  if (patch.type != null) loc.type = patch.type;
 
   emit('location:updated', { locationId });
   emit('trip:changed', { kind: 'location:updated', locationId });
@@ -297,7 +302,7 @@ export function addEventToDay(dayId, event, options = {}) {
   const note = event.note ? String(event.note).trim() : '';
   const newEvent = {
     id,
-    title: event.title || '',
+    title: String(event.title || trip.locations[event.locationId]?.name || '').trim(),
     ...(event.icon ? { icon: event.icon } : {}),
     ...(timeSlot ? { timeSlot } : {}),
     ...(note ? { note } : {}),
@@ -581,6 +586,13 @@ function normalizeTrip(input, fallbackTitle = '旅行路线') {
 
 function cleanupDemoTripContent(tripLike) {
   if (tripLike?.id !== 'demo-trip-bj-may' || !Array.isArray(tripLike.days)) return;
+
+  const demoLocationIds = new Set(Object.keys(initialTrip.locations || {}));
+  Object.entries(tripLike.locations || {}).forEach(([locationId, loc]) => {
+    if (!demoLocationIds.has(locationId) || !loc) return;
+    delete loc.lnglat;
+    delete loc.resolved;
+  });
 
   tripLike.days.forEach(day => {
     if (day.id === 'day-1' && day.title === '接站与安顿') day.title = '入住与晚餐';

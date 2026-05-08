@@ -3,8 +3,10 @@
 //
 // 这个模块只管"画 UI + 收集表单数据"，不直接读 state、不直接动 trip
 // 调用方传 handlers：
-//   - onSearch(keyword) → Promise<places[]>
+//   - onSearch(keyword) → Promise<places[]> —— 关键词搜索（全城）
+//   - onNearbySearch(userInput) → Promise<places[]> —— "搜附近"（基于锚点周围最多 4 个）
 //   - onConfirm({ place, event }) → 调用方负责真正写入 trip
+//   - nearbyAnchor: { name } | null —— 决定"搜附近"tab 文案；为 null 时退化为全城搜
 //
 // 设计成单例：同时只能开一个弹窗，重复 open 会先关掉旧的
 
@@ -18,7 +20,7 @@ let currentHandlers = null;
 export function openSearchModal(handlers) {
   closeSearchModal();
   currentHandlers = handlers;
-  modalEl = createModal();
+  modalEl = createModal(handlers);
   document.body.appendChild(modalEl);
   // 推迟到下一帧 focus，避免 focus 时 DOM 还没接到事件循环
   requestAnimationFrame(() => {
@@ -35,7 +37,12 @@ export function closeSearchModal() {
 
 // ─── 内部 ──────────────────────────────────────────────
 
-function createModal() {
+function createModal(handlers) {
+  const anchorName = handlers?.nearbyAnchor?.name || '';
+  const nearbyHintHTML = anchorName
+    ? `以「<span class="search-nearby-anchor"></span>」为中心搜索附近最多 4 个地点`
+    : '当天还没有地点，将基于关键词全城搜索';
+
   const root = document.createElement('div');
   root.className = 'modal-overlay';
   root.innerHTML = `
@@ -46,7 +53,12 @@ function createModal() {
       </div>
       <div class="modal-body">
         <div class="place-search-panel">
-          <div class="place-search-title">先搜索地点</div>
+          <div class="editor-search-tabs" role="tablist" aria-label="搜索方式">
+            <button type="button" class="editor-search-tab active" data-search-mode="keyword" role="tab" aria-selected="true">关键词搜索</button>
+            <button type="button" class="editor-search-tab" data-search-mode="nearby" role="tab" aria-selected="false">搜附近</button>
+          </div>
+          <div class="place-search-title" data-mode-text="keyword">先搜索地点</div>
+          <div class="place-search-title search-nearby-hint" data-mode-text="nearby" hidden>${nearbyHintHTML}</div>
           <div class="modal-search-row">
             <input type="text" class="modal-search-input" placeholder="例如：颐和园、王府井小吃街" />
             <button type="button" class="modal-search-btn">搜索</button>
@@ -81,6 +93,12 @@ function createModal() {
     </div>
   `;
 
+  // 把 anchor 名字注入到提示文案里（避免 innerHTML 直接拼接出现 XSS）
+  if (anchorName) {
+    const anchorEl = root.querySelector('.search-nearby-anchor');
+    if (anchorEl) anchorEl.textContent = anchorName;
+  }
+
   bindEvents(root);
   return root;
 }
@@ -94,34 +112,71 @@ function bindEvents(root) {
   const iconPicker = bindIconPicker(form, 'pin');
   const timeSlotPicker = bindTimeSlotPicker(form);
 
+  let searchMode = 'keyword'; // 'keyword' | 'nearby'
   let selected = null;
 
   const doSearch = async () => {
     const keyword = input.value.trim();
     if (!keyword) return;
-    if (!currentHandlers?.onSearch) return;
+    const isNearby = searchMode === 'nearby';
+    const runner = isNearby ? currentHandlers?.onNearbySearch : currentHandlers?.onSearch;
+    if (!runner) return;
 
     selected = null;
     form.hidden = true;
     setResultsState(resultsEl, 'loading', '<div class="modal-hint">搜索中...</div>');
 
     try {
-      const places = await currentHandlers.onSearch(keyword);
+      const places = await runner(keyword);
       if (!places || !places.length) {
-        setResultsState(resultsEl, 'empty', '<div class="modal-hint">没有找到结果，换个关键词试试</div>');
+        const emptyHTML = isNearby
+          ? '<div class="modal-hint">附近没找到相关地点，换个关键词试试</div>'
+          : '<div class="modal-hint">没有找到结果，换个关键词试试</div>';
+        setResultsState(resultsEl, 'empty', emptyHTML);
         return;
       }
       renderResults(resultsEl, places, (place) => {
         selected = place;
+        // 自动用地点名做标题，降低用户输入负担；用户仍可在保存前改。
+        titleInput.value = place.name || '';
         iconPicker.setValue(inferIconId(`${place.name || ''} ${place.addr || ''}`));
         form.hidden = false;
         titleInput.focus();
+        titleInput.select();
       });
     } catch (err) {
       console.error('搜索地点失败：', err);
       setResultsState(resultsEl, 'error', '<div class="modal-hint">搜索失败，请重试</div>');
     }
   };
+
+  // 关键词 / 搜附近 两种搜索模式切换
+  const tabs = root.querySelectorAll('.editor-search-tab');
+  const switchMode = (mode) => {
+    if (searchMode === mode) return;
+    searchMode = mode;
+    tabs.forEach(t => {
+      const active = t.dataset.searchMode === mode;
+      t.classList.toggle('active', active);
+      t.setAttribute('aria-selected', String(active));
+    });
+    root.querySelectorAll('[data-mode-text]').forEach(el => {
+      el.hidden = el.dataset.modeText !== mode;
+    });
+    if (mode === 'nearby') {
+      input.placeholder = '例如：川菜、咖啡馆、便利店';
+    } else {
+      input.placeholder = '例如：颐和园、王府井小吃街';
+    }
+    input.value = '';
+    selected = null;
+    form.hidden = true;
+    setResultsState(resultsEl, 'idle', '<div class="modal-hint">输入关键词后点击"搜索"，从下方结果中选一个地点</div>');
+    input.focus();
+  };
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => switchMode(tab.dataset.searchMode));
+  });
 
   searchBtn.addEventListener('click', doSearch);
   input.addEventListener('keydown', (e) => {
@@ -143,7 +198,7 @@ function bindEvents(root) {
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     if (!selected || !currentHandlers?.onConfirm) return;
-    const title = form.querySelector('.modal-event-title').value.trim();
+    const title = form.querySelector('.modal-event-title').value.trim() || selected.name || '';
     if (!title) return;
 
     currentHandlers.onConfirm({
@@ -187,6 +242,58 @@ function bindTimeSlotPicker(root) {
   return { getValue: () => value };
 }
 
+// 推荐结果卡的图位——和 event-editor-modal 保持同款行为：
+// 有真图就圆角矩形展示，没图（或加载失败）回落到 POI type 对应的 emoji 占位
+function renderPhotoBanner(place) {
+  const url = String(place.photo || '').trim();
+  const emoji = getPoiTypeEmoji(place.type);
+  if (url) {
+    const httpsUrl = url.replace(/^http:\/\//i, 'https://');
+    return `
+      <figure class="modal-result-photo">
+        <img src="${escapeHTML(httpsUrl)}" alt="" loading="lazy" referrerpolicy="no-referrer"
+             onerror="this.parentElement.classList.add('is-placeholder');this.parentElement.innerHTML='${emoji}';">
+      </figure>
+    `;
+  }
+  return `<figure class="modal-result-photo is-placeholder">${emoji}</figure>`;
+}
+
+function getPoiTypeEmoji(type) {
+  const t = String(type || '');
+  if (/餐饮|美食|快餐|小吃|餐厅/.test(t)) return '🍽️';
+  if (/咖啡|奶茶|饮品|茶馆/.test(t)) return '☕';
+  if (/酒店|住宿|宾馆|民宿/.test(t)) return '🏨';
+  if (/景点|风景|文化古迹|博物馆/.test(t)) return '🏛️';
+  if (/公园|植物园|动物园/.test(t)) return '🌳';
+  if (/商场|购物中心|百货/.test(t)) return '🛍️';
+  if (/超市/.test(t)) return '🛒';
+  if (/便利店/.test(t)) return '🏪';
+  if (/火车站|汽车站|地铁站|机场|港口/.test(t)) return '🚉';
+  if (/医院|诊所|药店/.test(t)) return '🏥';
+  if (/银行|atm/i.test(t)) return '🏦';
+  if (/学校|大学|教育/.test(t)) return '🎓';
+  if (/电影|剧院|KTV|娱乐/i.test(t)) return '🎬';
+  if (/书店|图书/.test(t)) return '📚';
+  return '📍';
+}
+
+// 高德 extensions=all 返回的真实数据 → chip。三项全空时返回空串
+function renderMetaChips(place) {
+  const chips = [];
+  if (place.rating != null && Number(place.rating) > 0) {
+    chips.push(`<span class="meta-chip meta-rating">⭐ ${escapeHTML(String(place.rating))}</span>`);
+  }
+  if (place.cost != null && Number(place.cost) > 0) {
+    chips.push(`<span class="meta-chip meta-cost">¥${escapeHTML(String(place.cost))}/人</span>`);
+  }
+  const firstTag = String(place.tag || '').split(/[;\s]+/).filter(Boolean)[0];
+  if (firstTag) {
+    chips.push(`<span class="meta-chip meta-tag">${escapeHTML(firstTag)}</span>`);
+  }
+  return chips.length ? `<div class="modal-result-meta">${chips.join('')}</div>` : '';
+}
+
 function setResultsState(resultsEl, state, html) {
   resultsEl.dataset.state = state;
   resultsEl.innerHTML = html;
@@ -199,9 +306,13 @@ function renderResults(resultsEl, places, onPick) {
     const item = document.createElement('button');
     item.type = 'button';
     item.className = 'modal-result-item';
+    const metaHTML = renderMetaChips(place);
+    const photoHTML = renderPhotoBanner(place);
     item.innerHTML = `
+      ${photoHTML}
       <div class="modal-result-name">${escapeHTML(place.name)}</div>
       <div class="modal-result-addr">${escapeHTML(place.addr || place.city || '地址未提供')}</div>
+      ${metaHTML}
     `;
     item.addEventListener('click', () => {
       resultsEl.querySelectorAll('.modal-result-item').forEach(el => el.classList.remove('selected'));

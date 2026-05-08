@@ -40,11 +40,16 @@ export function createAllMarkers() {
   const trip = getTrip();
   Object.keys(trip.locations).forEach(locationId => {
     const loc = getLocation(locationId);
+    // 没有 lnglat 时跳过——首次启动 demo trip 不带内置坐标，
+    // 等 resolveAllLocations 异步从高德拿到坐标后再创建 marker。
+    if (!Array.isArray(loc.lnglat) || loc.lnglat.length < 2) return;
     createOrUpdateMarker(locationId, loc.lnglat);
   });
 }
 
 export function createOrUpdateMarker(locationId, lnglat) {
+  // 防御：lnglat 缺失时不创建 marker，避免给 AMap 喂 undefined
+  if (!Array.isArray(lnglat) || lnglat.length < 2) return null;
   const state = getAppState();
   const existing = state.markers.get(locationId);
   if (existing) {

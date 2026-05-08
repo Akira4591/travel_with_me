@@ -11,6 +11,10 @@
 //   - 每个 event 通过 locationId 引用 trip.locations
 //   - event.routeToNext 标记"从当前地点到下一个地点"用什么交通方式
 //   - 最后一个 event 不需要 routeToNext
+//
+// 注意：locations 不再内置 lnglat。boot 时由 resolveAllLocations() 走高德
+// PlaceSearch / Geocoder 自动校准（searchTerms / resolveBy / includeKeywords
+// 等字段是给高德解析当辅助提示）。
 
 export const initialTrip = {
   id: 'demo-trip-bj-may',
@@ -23,8 +27,7 @@ export const initialTrip = {
       name: '北京南站',
       query: '北京南站',
       searchTerms: ['北京南站'],
-      addr: '北京南站',
-      lnglat: [116.379000, 39.865200]
+      addr: '北京南站'
     },
     hotel: {
       name: '汉庭酒店(通州会议中心店)',
@@ -36,14 +39,12 @@ export const initialTrip = {
         '汉庭酒店 北京 通州会议中心店'
       ],
       includeKeywords: ['汉庭'],
-      addr: '汉庭酒店(通州会议中心店)',
-      lnglat: [116.681800, 39.934200]
+      addr: '汉庭酒店(通州会议中心店)'
     },
     wanxianghui: {
       name: '首开通州万象汇',
       query: '首开通州万象汇',
-      addr: '首开通州万象汇',
-      lnglat: [116.733900, 39.910200]
+      addr: '首开通州万象汇'
     },
     ziguangyuan: {
       name: '紫光园(全国总店)',
@@ -55,45 +56,38 @@ export const initialTrip = {
         '紫光园 通州店 玉桥中路43号'
       ],
       includeKeywords: ['紫光园'],
-      addr: '北京市通州区玉桥中路43号',
-      lnglat: [116.671800, 39.890600]
+      addr: '北京市通州区玉桥中路43号'
     },
     bookstore: {
       name: '春风在书店·总店',
       query: '春风在书店 总店',
-      addr: '春风在书店·总店',
-      lnglat: [116.704700, 39.968100]
+      addr: '春风在书店·总店'
     },
     ruc: {
       name: '中国人民大学通州校区',
       query: '中国人民大学通州校区',
       searchTerms: ['中国人民大学通州校区'],
-      addr: '中国人民大学通州校区',
-      lnglat: [116.742600, 39.905200]
+      addr: '中国人民大学通州校区'
     },
     liangmahe: {
       name: '亮马河国际风情水岸',
       query: '亮马河国际风情水岸',
-      addr: '亮马河国际风情水岸',
-      lnglat: [116.465200, 39.949500]
+      addr: '亮马河国际风情水岸'
     },
     solana: {
       name: 'SOLANA蓝色港湾',
       query: 'SOLANA蓝色港湾',
-      addr: 'SOLANA蓝色港湾',
-      lnglat: [116.474400, 39.949000]
+      addr: 'SOLANA蓝色港湾'
     },
     chaoyangpark: {
       name: '朝阳公园 (南门)',
       query: '朝阳公园南门',
-      addr: '朝阳公园南门',
-      lnglat: [116.478500, 39.933000]
+      addr: '朝阳公园南门'
     },
     canalpark: {
       name: '大运河森林公园 (西门/宋梁路)',
       query: '大运河森林公园西门',
-      addr: '大运河森林公园西门',
-      lnglat: [116.738000, 39.874700]
+      addr: '大运河森林公园西门'
     }
   },
 

@@ -8,7 +8,7 @@
 //   3) planRoutes：编排"规划路线 → 画线 → 更新卡片"
 
 import { loadAMap } from './api/amap-loader.js';
-import { createGeocodeServices, resolveLocation, searchPlaces, reverseGeocode } from './api/geocode.js';
+import { createGeocodeServices, resolveLocation, searchPlaces, searchNearBy, reverseGeocode } from './api/geocode.js';
 import {
   createRouteService, searchRoute, buildEstimatedResult, safeClearService
 } from './api/routing.js';
@@ -34,8 +34,8 @@ import {
   updateRouteCardError, resetRouteCards, setStatus,
   buildRouteSegments
 } from './render/sidebar.js';
-import { openSearchModal } from './render/search-modal.js?v=20260504-ui5';
-import { openEventEditorModal } from './render/event-editor-modal.js?v=20260504-ui5';
+import { openSearchModal } from './render/search-modal.js?v=20260508-r2';
+import { openEventEditorModal } from './render/event-editor-modal.js?v=20260508-r2';
 import { openDayEditorModal } from './render/day-editor-modal.js';
 import { openRouteEditorModal } from './render/route-editor-modal.js';
 import { openTripModal } from './render/trip-modal.js';
@@ -289,6 +289,47 @@ async function copyShareImage(imageUrl) {
 
 // ─── 添加地点流程 ───────────────────────────────────────
 
+
+// "搜附近"流水线（不再调 LLM）：直接用用户原话当 keyword，在锚点附近搜
+// 默认半径 1500 米；最多返回 4 个 POI（按高德返回顺序，离锚点近优先）
+const NEARBY_DEFAULT_RADIUS = 1500;
+const NEARBY_MAX_RESULTS = 4;
+async function runNearbySearch({ userInput, anchorLocation, AMap }) {
+  if (!userInput) return [];
+  const center = Array.isArray(anchorLocation?.lnglat) && anchorLocation.lnglat.length >= 2
+    ? anchorLocation.lnglat
+    : null;
+
+  let candidates;
+  if (center) {
+    candidates = await searchNearBy(AMap, {
+      keyword: userInput,
+      center,
+      radius: NEARBY_DEFAULT_RADIUS
+    });
+  } else {
+    // 没锚点（当天为空）：退化为全城关键词搜索
+    candidates = await searchPlaces(AMap, userInput);
+  }
+  return candidates.slice(0, NEARBY_MAX_RESULTS);
+}
+
+// 解析"添加地点"流程的搜附近锚点：优先使用 afterEventId 对应的地点，其次取当天最后一个地点
+function resolveAddLocationAnchor(dayId, afterEventId) {
+  const day = getDay(dayId);
+  if (!day) return null;
+  const events = day.events || [];
+  if (!events.length) return null;
+
+  let anchorEvent;
+  if (afterEventId) {
+    anchorEvent = events.find(e => e.id === afterEventId);
+  }
+  if (!anchorEvent) anchorEvent = events[events.length - 1];
+  if (!anchorEvent?.locationId) return null;
+  return getLocation(anchorEvent.locationId) || null;
+}
+
 function openAddLocationFlow(options = {}) {
   if (!hasActiveTrip()) return;
   const state = getAppState();
@@ -299,14 +340,26 @@ function openAddLocationFlow(options = {}) {
   const targetDayId = options.dayId || state.activeDayId;
   if (targetDayId === 'all') return; // 按钮在"全部"视图本就隐藏，这里再兜一层
 
+  const anchorLocation = resolveAddLocationAnchor(targetDayId, options.afterEventId);
+
   openSearchModal({
+    nearbyAnchor: anchorLocation
+      ? { name: anchorLocation.name }
+      : null,
     onSearch: (keyword) => searchPlaces(state.AMap, keyword),
+    onNearbySearch: (userInput) => runNearbySearch({
+      userInput,
+      anchorLocation,
+      AMap: state.AMap
+    }),
     onConfirm: ({ place, event }) => {
       const locationId = addLocation({
         name: place.name,
         query: place.name,
         addr: place.addr || place.name,
-        lnglat: place.lnglat
+        lnglat: place.lnglat,
+        photo: place.photo || '',
+        type: place.type || ''
       });
       addEventToDay(targetDayId, {
         title: event.title,
@@ -417,6 +470,9 @@ function handleTripChanged(payload) {
   }
 
   pruneMapMarkersToTripEvents();
+  // prune 之后兜底重建：处理 'location:added' → prune 把刚加的 marker 删掉的时序问题。
+  // 等紧随其后的 'event:added' 触发本函数时，这里会重新创建丢失的 marker。
+  ensureMarkersForReferencedLocations();
 
   // 编辑型变更统一重新渲染行程，再按当前视图刷新 marker 和路线。
   renderTabs({
@@ -580,7 +636,7 @@ async function resolveAllLocations() {
   }
   const state = getAppState();
   const trip = getTrip();
-  setStatus('已先使用内置坐标显示地点；正在后台校准地点位置...');
+  setStatus('正在通过高德解析地点坐标...');
 
   const services = createGeocodeServices(state.AMap);
   const entries = Object.entries(trip.locations);
@@ -629,4 +685,15 @@ function hasTripEventLocations() {
 
 function pruneMapMarkersToTripEvents() {
   pruneMarkersToLocationIds(getReferencedLocationIds());
+}
+
+// 同步：保证所有被 event 引用且有 lnglat 的 location 都有 marker。
+// 解决 'location:added' 后立即 prune 的时序问题——刚加的 location 还没被 event 引用，
+// marker 会被误删；后续 'event:added' 触发时这里把丢失的 marker 重建回来。
+function ensureMarkersForReferencedLocations() {
+  const trip = getTrip();
+  for (const id of getReferencedLocationIds()) {
+    const loc = trip.locations[id];
+    if (loc?.lnglat) createOrUpdateMarker(id, loc.lnglat);
+  }
 }

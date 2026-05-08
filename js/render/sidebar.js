@@ -92,8 +92,10 @@ export function updateVisibleDayGroups(dayId) {
   document.querySelectorAll('.day-add-btn').forEach(btn => {
     btn.hidden = dayId === 'all';
   });
+  // 空天提示在所有视图下都展示——只要这一天没有地点，就提示用户去添加。
+  // 之前在"全部日期"视图下被隐藏，导致空白天看起来啥也没有。
   document.querySelectorAll('.empty-day-state').forEach(state => {
-    state.hidden = dayId === 'all';
+    state.hidden = false;
   });
 }
 

@@ -377,9 +377,20 @@ body {
 
 .tab-btn:hover { background: #f0ebe3; color: var(--text); }
 .tab-btn.active { background: var(--text); color: #fffdf8; border-color: var(--text); }
+/* "+ 新建一天" 按钮：去掉边框和底色，只保留居中的图标，hover 时浅底反馈 */
 .tab-add-day-btn {
-  border-color: var(--line);
-  background: var(--surface-strong);
+  min-width: 34px;
+  padding: 0 8px;
+  border: 0;
+  background: transparent;
+  color: var(--muted-2);
+  font-size: 16px;
+  box-shadow: none;
+  appearance: none;
+}
+.tab-add-day-btn:hover {
+  background: transparent;
+  color: var(--text);
 }
 
 .itinerary-list {
@@ -562,8 +573,7 @@ body {
   white-space: nowrap;
 }
 
-.day-add-btn,
-.day-edit-btn {
+.day-add-btn {
   padding: 5px 10px;
   border-radius: 8px;
   font-size: 12px;
@@ -577,18 +587,34 @@ body {
   flex-shrink: 0;
 }
 
+/* 编辑日期 ··· 按钮：去掉边框和底色，纯图标居中，hover 时浅底反馈 */
 .day-edit-btn {
-  width: 30px;
-  padding: 5px 0;
+  width: 28px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted-2);
   font-size: 14px;
   line-height: 1;
+  font-weight: 700;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  box-shadow: none;
+  appearance: none;
 }
 
-.day-add-btn:hover,
-.day-edit-btn:hover {
+.day-add-btn:hover {
   background: var(--accent-soft);
   color: var(--accent-dark);
   border-color: #e7b5a6;
+}
+
+.day-edit-btn:hover {
+  background: transparent;
+  color: var(--accent-dark);
 }
 
 .event-container {
@@ -1174,6 +1200,88 @@ body {
   font-size: 12px;
   color: var(--muted);
   line-height: 1.4;
+}
+
+.modal-result-photo {
+  margin: 0 0 8px;
+  padding: 0;
+  height: 130px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #f4eee6 0%, #ede5d5 100%);
+}
+
+.modal-result-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.3s ease;
+}
+
+.modal-result-item:hover .modal-result-photo img {
+  transform: scale(1.04);
+}
+
+/* 无图（或加载失败）时的 emoji 占位——同样 130px 高，颜色更浅，emoji 居中放大 */
+.modal-result-photo.is-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 56px;
+  background: linear-gradient(135deg, #fcf8f0 0%, #f0e6d3 100%);
+  color: rgba(0, 0, 0, 0.45);
+  line-height: 1;
+  user-select: none;
+}
+
+.modal-result-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.meta-chip {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-weight: 700;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.meta-rating {
+  color: #c97a1a;
+  border-color: rgba(201, 122, 26, 0.3);
+  background: rgba(201, 122, 26, 0.08);
+}
+
+.meta-cost {
+  color: #2e7d4f;
+  border-color: rgba(46, 125, 79, 0.3);
+  background: rgba(46, 125, 79, 0.08);
+}
+
+.meta-tag {
+  color: var(--muted);
+}
+
+.search-nearby-hint {
+  font-weight: 600;
+  color: var(--accent-dark);
+}
+
+.search-nearby-hint .search-nearby-anchor {
+  color: var(--text);
+  font-weight: 800;
+}
+
+[data-mode-text][hidden] {
+  display: none;
 }
 
 .modal-event-form {
@@ -1776,11 +1884,49 @@ body {
   display: none;
 }
 
+.editor-search-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 10px;
+  padding: 3px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-radius: 8px;
+}
+
+.editor-search-tab {
+  flex: 1;
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--accent-dark);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.editor-search-tab:hover {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.editor-search-tab.active {
+  background: var(--surface-strong);
+  color: var(--accent-dark);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
 .editor-search-copy {
   font-size: 12px;
   color: var(--accent-dark);
   font-weight: 800;
   margin-bottom: 8px;
+}
+
+.editor-search-copy[hidden] {
+  display: none;
 }
 
 .editor-search-box {
@@ -1835,18 +1981,54 @@ body {
   border: 1px solid var(--line);
   background: #fbfaf6;
   border-radius: 12px;
-  padding: 12px 14px 52px;
+  padding: 12px 14px;
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  position: relative;
+  gap: 12px;
+  align-items: stretch;
   min-height: 130px;
 }
 
+.editor-location-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0; /* 防止 name/addr 长文本撑破 flex */
+}
+
+/* 右侧地点图——100x100 圆角矩形，垂直居中对齐文字栏 */
+.editor-location-photo {
+  flex-shrink: 0;
+  width: 100px;
+  height: 100px;
+  margin: 0;
+  padding: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #f4eee6 0%, #ede5d5 100%);
+  align-self: center;
+}
+
+.editor-location-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.editor-location-photo.is-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 44px;
+  background: linear-gradient(135deg, #fcf8f0 0%, #f0e6d3 100%);
+  color: rgba(0, 0, 0, 0.45);
+  line-height: 1;
+  user-select: none;
+}
+
 .editor-location-change-btn {
-  position: absolute;
-  right: 14px;
-  bottom: 14px;
+  align-self: flex-start;
+  margin-top: auto; /* 推到 text 列的底部，和右侧图视觉对齐 */
   height: 32px;
   padding: 0 13px;
   border: 1px solid var(--line);
@@ -1884,6 +2066,7 @@ body {
   line-height: 1.45;
   margin-top: 2px;
 }
+
 
 @media (max-width: 640px) {
   .modal-search-row {
