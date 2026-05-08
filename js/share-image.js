@@ -169,8 +169,10 @@ function measureLayout(ctx, trip, days, opts = {}) {
       }
     });
 
-    const itemsTotal = elements.reduce((s, e) => s + e.height, 0)
-      + Math.max(0, elements.length - 1) * INTER_ELEM_GAP;
+    const emptyDayH = events.length ? 0 : L(58);
+    const itemsTotal = events.length
+      ? elements.reduce((s, e) => s + e.height, 0) + Math.max(0, elements.length - 1) * INTER_ELEM_GAP
+      : emptyDayH;
     const dayH = headH + itemsTotal;
     daysHeight += dayH + (idx > 0 ? L(18) : 0);
     return { headH, itemHeights, elements, total: dayH };

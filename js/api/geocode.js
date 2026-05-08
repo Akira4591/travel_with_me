@@ -21,7 +21,7 @@ export function createGeocodeServices(AMap) {
       city: AppConfig.cityCode,
       citylimit: true,
       pageSize: 10,
-      extensions: 'base'
+      extensions: 'all'
     })
   };
 }
@@ -33,7 +33,8 @@ export function resolveLocation(services, loc) {
   if (loc.resolveBy === 'poi') {
     return placeSearchWithRetries(services.placeSearch, loc);
   }
-  return geocodeWithRetries(services.geocoder, loc);
+  return placeSearchWithRetries(services.placeSearch, loc)
+    .then(result => result || geocodeWithRetries(services.geocoder, loc));
 }
 
 // 多结果搜索：给"添加地点"弹窗用，返回 POI 列表
@@ -205,7 +206,7 @@ function placeSearchWithRetries(placeSearch, loc) {
       });
 
       if (status === 'complete' && matched?.location) {
-        done({
+        done(mapPois([matched])[0] || {
           lnglat: [Number(matched.location.lng), Number(matched.location.lat)]
         });
       } else {

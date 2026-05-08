@@ -28,6 +28,7 @@ const appState = {
   map: null,
   infoWindow: null,
   activeDayId: 'all',
+  selectedEventRef: null,
   routePlanningSerial: 0,
   routePlanningTimer: null,
   markers: new Map(),
@@ -588,6 +589,13 @@ function cleanupDemoTripContent(tripLike) {
   if (tripLike?.id !== 'demo-trip-bj-may' || !Array.isArray(tripLike.days)) return;
 
   const demoLocationIds = new Set(Object.keys(initialTrip.locations || {}));
+  const demoTimeSlots = new Map();
+  initialTrip.days.forEach(day => {
+    day.events.forEach(event => {
+      if (event.timeSlot) demoTimeSlots.set(event.id, event.timeSlot);
+    });
+  });
+
   Object.entries(tripLike.locations || {}).forEach(([locationId, loc]) => {
     if (!demoLocationIds.has(locationId) || !loc) return;
     delete loc.lnglat;
@@ -602,6 +610,12 @@ function cleanupDemoTripContent(tripLike) {
     day.events = day.events.filter(event => {
       const title = String(event?.title || '');
       return !title.includes('男朋友');
+    });
+
+    day.events.forEach(event => {
+      if (!event.timeSlot && demoTimeSlots.has(event.id)) {
+        event.timeSlot = demoTimeSlots.get(event.id);
+      }
     });
   });
 }

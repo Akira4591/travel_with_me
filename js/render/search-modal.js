@@ -39,8 +39,10 @@ export function closeSearchModal() {
 
 function createModal(handlers) {
   const anchorName = handlers?.nearbyAnchor?.name || '';
+  const radiusKm = Math.round(Number(handlers?.nearbyAnchor?.radius || 5000) / 1000);
+  const maxResults = Number(handlers?.nearbyAnchor?.maxResults || 4);
   const nearbyHintHTML = anchorName
-    ? `以「<span class="search-nearby-anchor"></span>」为中心搜索附近最多 4 个地点`
+    ? `以「<span class="search-nearby-anchor"></span>」为中心搜索 ${radiusKm}km 内附近最多 ${maxResults} 个地点`
     : '当天还没有地点，将基于关键词全城搜索';
 
   const root = document.createElement('div');

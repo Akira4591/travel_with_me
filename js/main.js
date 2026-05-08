@@ -8,13 +8,13 @@
 //   3) planRoutes：编排"规划路线 → 画线 → 更新卡片"
 
 import { loadAMap } from './api/amap-loader.js';
-import { createGeocodeServices, resolveLocation, searchPlaces, searchNearBy, reverseGeocode } from './api/geocode.js';
+import { createGeocodeServices, resolveLocation, searchPlaces, searchNearBy, reverseGeocode, buildDisplayAddress } from './api/geocode.js';
 import {
   createRouteService, searchRoute, buildEstimatedResult, safeClearService
 } from './api/routing.js';
 import {
   getAppState, getTrip, getDay, getLocation, setActiveDayId, setAMap,
-  updateLocationCoords, updateLocation, removeLocation,
+  updateLocation, removeLocation,
   initWorkspace, getWorkspace, hasActiveTrip,
   createTrip, switchTrip, renameTrip, deleteTrip,
   addDay, updateDay, removeDay, nextDayISO,
@@ -33,16 +33,16 @@ import {
   setRouteCardLoading, updateRouteCardOk, updateRouteCardEstimated,
   updateRouteCardError, resetRouteCards, setStatus,
   buildRouteSegments
-} from './render/sidebar.js';
-import { openSearchModal } from './render/search-modal.js?v=20260508-r2';
-import { openEventEditorModal } from './render/event-editor-modal.js?v=20260508-r2';
+} from './render/sidebar.js?v=20260508-r5';
+import { openSearchModal } from './render/search-modal.js?v=20260508-r4';
+import { openEventEditorModal } from './render/event-editor-modal.js?v=20260508-r4';
 import { openDayEditorModal } from './render/day-editor-modal.js';
 import { openRouteEditorModal } from './render/route-editor-modal.js';
 import { openTripModal } from './render/trip-modal.js';
 import { openShareModal, updateShareImage, setShareImageLoading } from './render/share-modal.js';
 import { renderWorkspaceTabs, closeWorkspaceMenu } from './render/workspace-tabs.js';
 import { readSharedTripFromURL } from './share.js';
-import { buildTripShareImage, dataURLToBlob } from './share-image.js';
+import { buildTripShareImage, dataURLToBlob } from './share-image.js?v=20260508-r5';
 import { loadWorkspace, saveWorkspace } from './storage.js';
 import { sleep, formatDateCN } from './utils.js';
 
@@ -100,7 +100,10 @@ function renderAll() {
 
 function getItineraryHandlers() {
   return {
-    onEventClick: (event) => focusLocation(event.locationId),
+    onEventClick: (dayId, event) => {
+      getAppState().selectedEventRef = { dayId, eventId: event.id };
+      focusLocation(event.locationId);
+    },
     onRouteClick: (segment) => {
       fitSegment(segment);
       highlightSegment(segment.id);
@@ -113,6 +116,7 @@ function getItineraryHandlers() {
     onMoveEvent: moveEventInDay,
     onReorderEvent: reorderEventInDay,
     onDeleteEvent: deleteEventFlow,
+    onAddDay: openCreateDayFlow,
     onCreateTrip: openCreateTripFlow
   };
 }
@@ -291,8 +295,8 @@ async function copyShareImage(imageUrl) {
 
 
 // "搜附近"流水线（不再调 LLM）：直接用用户原话当 keyword，在锚点附近搜
-// 默认半径 1500 米；最多返回 4 个 POI（按高德返回顺序，离锚点近优先）
-const NEARBY_DEFAULT_RADIUS = 1500;
+// 默认半径 5km；最多返回 4 个 POI（按高德返回顺序，离锚点近优先）
+const NEARBY_DEFAULT_RADIUS = 5000;
 const NEARBY_MAX_RESULTS = 4;
 async function runNearbySearch({ userInput, anchorLocation, AMap }) {
   if (!userInput) return [];
@@ -314,7 +318,10 @@ async function runNearbySearch({ userInput, anchorLocation, AMap }) {
   return candidates.slice(0, NEARBY_MAX_RESULTS);
 }
 
-// 解析"添加地点"流程的搜附近锚点：优先使用 afterEventId 对应的地点，其次取当天最后一个地点
+// 解析"添加地点"流程的搜附近锚点：
+// 1) 卡片内 +：使用 afterEventId 对应的地点
+// 2) 日期栏 +：优先使用同一天当前高亮地点
+// 3) 无高亮：回退到当天最后一个地点
 function resolveAddLocationAnchor(dayId, afterEventId) {
   const day = getDay(dayId);
   if (!day) return null;
@@ -324,6 +331,12 @@ function resolveAddLocationAnchor(dayId, afterEventId) {
   let anchorEvent;
   if (afterEventId) {
     anchorEvent = events.find(e => e.id === afterEventId);
+  }
+  if (!anchorEvent) {
+    const selected = getAppState().selectedEventRef;
+    if (selected?.dayId === dayId) {
+      anchorEvent = events.find(e => e.id === selected.eventId);
+    }
   }
   if (!anchorEvent) anchorEvent = events[events.length - 1];
   if (!anchorEvent?.locationId) return null;
@@ -344,7 +357,7 @@ function openAddLocationFlow(options = {}) {
 
   openSearchModal({
     nearbyAnchor: anchorLocation
-      ? { name: anchorLocation.name }
+      ? { name: anchorLocation.name, radius: NEARBY_DEFAULT_RADIUS, maxResults: NEARBY_MAX_RESULTS }
       : null,
     onSearch: (keyword) => searchPlaces(state.AMap, keyword),
     onNearbySearch: (userInput) => runNearbySearch({
@@ -388,6 +401,14 @@ function openEditEventFlow(dayId, event) {
     location: loc,
     handlers: {
       onSearch: (keyword) => searchPlaces(state.AMap, keyword),
+      nearbyAnchor: loc?.lnglat
+        ? { name: loc.name, radius: NEARBY_DEFAULT_RADIUS, maxResults: NEARBY_MAX_RESULTS }
+        : null,
+      onNearbySearch: (userInput) => runNearbySearch({
+        userInput,
+        anchorLocation: loc,
+        AMap: state.AMap
+      }),
       onResolveAddress: (lnglat) => reverseGeocode(state.AMap, lnglat),
       onConfirm: ({ event: eventPatch, location, selectedPlace }) => {
         let locationId = event.locationId;
@@ -413,6 +434,10 @@ function deleteEventFlow(dayId, event) {
 
   const locationId = event.locationId;
   if (!removeEventFromDay(dayId, event.id)) return;
+  const state = getAppState();
+  if (state.selectedEventRef?.dayId === dayId && state.selectedEventRef?.eventId === event.id) {
+    state.selectedEventRef = null;
+  }
   if (countLocationReferences(locationId) === 0) removeLocation(locationId);
 }
 
@@ -487,6 +512,7 @@ function handleTripChanged(payload) {
 
 function handleTripReplaced() {
   closeWorkspaceMenu();
+  getAppState().selectedEventRef = null;
   persistWorkspace();
   renderWorkspace();
   renderHeader();
@@ -645,7 +671,12 @@ async function resolveAllLocations() {
   for (const [locationId, loc] of entries) {
     const result = await resolveLocation(services, loc);
     if (result?.lnglat) {
-      updateLocationCoords(locationId, result.lnglat);
+      updateLocation(locationId, {
+        lnglat: result.lnglat,
+        addr: buildDisplayAddress(result) || loc.addr || loc.name,
+        photo: result.photo || loc.photo || '',
+        type: result.type || loc.type || ''
+      });
       createOrUpdateMarker(locationId, result.lnglat);
       success += 1;
     }

@@ -125,10 +125,13 @@ export function renderItinerary(handlers) {
   if (!trip.days.length) {
     container.innerHTML = `
       <div class="trip-empty-days-state">
-        <div class="empty-day-create-icon" aria-hidden="true">+</div>
+        <button type="button" class="empty-day-create-btn" aria-label="新建一天">+</button>
         <p>还没有日期，点击上方 + 新建一天</p>
       </div>
     `;
+    container.querySelector('.empty-day-create-btn')?.addEventListener('click', () => {
+      handlers.onAddDay?.();
+    });
     return;
   }
 
@@ -239,7 +242,7 @@ function createEventCard(day, event, eventIndex, handlers) {
   card.addEventListener('click', () => {
     document.querySelectorAll('.card').forEach(c => c.classList.remove('active'));
     card.classList.add('active');
-    handlers.onEventClick?.(event);
+    handlers.onEventClick?.(day.id, event);
   });
 
   bindDragEvents(card, day, event, handlers);

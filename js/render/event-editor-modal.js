@@ -30,6 +30,12 @@ export function closeEventEditorModal() {
 }
 
 function createModal(event, location) {
+  const anchorName = currentHandlers?.nearbyAnchor?.name || '';
+  const radiusKm = Math.round(Number(currentHandlers?.nearbyAnchor?.radius || 5000) / 1000);
+  const maxResults = Number(currentHandlers?.nearbyAnchor?.maxResults || 4);
+  const nearbyHintHTML = anchorName
+    ? `以「<span class="search-nearby-anchor"></span>」为中心搜索 ${radiusKm}km 内附近最多 ${maxResults} 个地点`
+    : '当前地点还没有坐标，将基于关键词全城搜索';
   const root = document.createElement('div');
   root.className = 'modal-overlay';
   root.innerHTML = `
@@ -58,7 +64,12 @@ function createModal(event, location) {
         </div>
 
         <div class="editor-search-panel" hidden>
-          <div class="editor-search-copy">请输入新的地点</div>
+          <div class="editor-search-tabs" role="tablist" aria-label="搜索方式">
+            <button type="button" class="editor-search-tab active" data-search-mode="keyword" role="tab" aria-selected="true">关键词搜索</button>
+            <button type="button" class="editor-search-tab" data-search-mode="nearby" role="tab" aria-selected="false">搜附近</button>
+          </div>
+          <div class="editor-search-copy" data-mode-text="keyword">请输入新的地点</div>
+          <div class="editor-search-copy search-nearby-hint" data-mode-text="nearby" hidden>${nearbyHintHTML}</div>
           <div class="editor-search-box">
             <svg class="editor-search-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z"></path>
@@ -82,6 +93,11 @@ function createModal(event, location) {
     </div>
   `;
 
+  if (anchorName) {
+    const anchorEl = root.querySelector('.search-nearby-anchor');
+    if (anchorEl) anchorEl.textContent = anchorName;
+  }
+
   bindEvents(root, location);
   return root;
 }
@@ -95,6 +111,7 @@ function bindEvents(root, initialLocation) {
   const iconPicker = bindIconPicker(root, root.querySelector('.icon-picker-btn.active')?.dataset.iconId || 'pin');
   const timeSlotPicker = bindTimeSlotPicker(root);
   let selectedPlace = null;
+  let searchMode = 'keyword';
   let selectedLocation = {
     name: initialLocation.name || '',
     query: initialLocation.query || initialLocation.name || '',
@@ -132,16 +149,22 @@ function bindEvents(root, initialLocation) {
 
   const doSearch = async () => {
     const keyword = searchInput.value.trim();
-    if (!keyword || !currentHandlers?.onSearch) return;
+    if (!keyword) return;
+    const isNearby = searchMode === 'nearby';
+    const runner = isNearby ? currentHandlers?.onNearbySearch : currentHandlers?.onSearch;
+    if (!runner) return;
 
     selectedPlace = null;
     setResultsState(resultsEl, 'loading', '<div class="modal-hint">搜索中...</div>');
 
     try {
-      const places = await currentHandlers.onSearch(keyword);
+      const places = await runner(keyword);
       if (!modalEl) return;
       if (!places || !places.length) {
-        setResultsState(resultsEl, 'empty', '<div class="modal-hint">未找到相关地点</div>');
+        const emptyHTML = isNearby
+          ? '<div class="modal-hint">附近没找到相关地点，换个关键词试试</div>'
+          : '<div class="modal-hint">未找到相关地点</div>';
+        setResultsState(resultsEl, 'empty', emptyHTML);
         return;
       }
       renderResults(resultsEl, places, (place) => {
@@ -169,6 +192,29 @@ function bindEvents(root, initialLocation) {
       setResultsState(resultsEl, 'error', '<div class="modal-hint">搜索失败，请重试</div>');
     }
   };
+
+  const tabs = root.querySelectorAll('.editor-search-tab');
+  const switchMode = (mode) => {
+    if (searchMode === mode) return;
+    searchMode = mode;
+    tabs.forEach(tab => {
+      const active = tab.dataset.searchMode === mode;
+      tab.classList.toggle('active', active);
+      tab.setAttribute('aria-selected', String(active));
+    });
+    root.querySelectorAll('[data-mode-text]').forEach(el => {
+      el.hidden = el.dataset.modeText !== mode;
+    });
+    searchInput.placeholder = mode === 'nearby' ? '例如：川菜、咖啡馆、便利店' : '搜索新地点';
+    searchInput.value = '';
+    selectedPlace = null;
+    setResultsState(resultsEl, 'idle', '');
+    searchInput.focus();
+  };
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => switchMode(tab.dataset.searchMode));
+  });
 
   ensureAddressForCurrent();
 

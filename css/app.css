@@ -564,6 +564,7 @@ body {
   align-items: center;
   gap: 8px;
   min-width: 0;
+  min-height: 26px;
 }
 
 .day-title-label {
@@ -574,17 +575,23 @@ body {
 }
 
 .day-add-btn {
-  padding: 5px 10px;
-  border-radius: 8px;
+  padding: 4px 2px;
+  border-radius: 6px;
+  min-height: 26px;
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
-  border: 1px solid var(--line-strong);
-  background: var(--surface-strong);
+  border: 0;
+  background: transparent;
   color: var(--muted);
   white-space: nowrap;
   transition: all 0.2s;
   flex-shrink: 0;
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 /* 编辑日期 ··· 按钮：去掉边框和底色，纯图标居中，hover 时浅底反馈 */
@@ -604,12 +611,13 @@ body {
   flex-shrink: 0;
   box-shadow: none;
   appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .day-add-btn:hover {
-  background: var(--accent-soft);
   color: var(--accent-dark);
-  border-color: #e7b5a6;
 }
 
 .day-edit-btn:hover {
