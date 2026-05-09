@@ -184,7 +184,11 @@ export function addLocation(loc) {
     resolved: true,
     // photo / type 来自高德 extensions=all，持久化给"已有地点"编辑卡的右侧图位用
     photo: loc.photo || '',
-    type: loc.type || ''
+    type: loc.type || '',
+    province: loc.province || '',
+    city: loc.city || '',
+    district: loc.district || '',
+    tag: loc.tag || ''
   };
   emit('trip:changed', { kind: 'location:added', locationId: id });
   return id;
@@ -204,6 +208,10 @@ export function updateLocation(locationId, patch) {
   }
   if (patch.photo != null) loc.photo = patch.photo;
   if (patch.type != null) loc.type = patch.type;
+  if (patch.province != null) loc.province = patch.province;
+  if (patch.city != null) loc.city = patch.city;
+  if (patch.district != null) loc.district = patch.district;
+  if (patch.tag != null) loc.tag = patch.tag;
 
   emit('location:updated', { locationId });
   emit('trip:changed', { kind: 'location:updated', locationId });

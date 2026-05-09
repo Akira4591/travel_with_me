@@ -123,7 +123,11 @@ function bindEvents(root, initialLocation) {
     addr: initialLocation.addr || '',
     lnglat: initialLocation.lnglat || [],
     photo: initialLocation.photo || '',
-    type: initialLocation.type || ''
+    type: initialLocation.type || '',
+    province: initialLocation.province || '',
+    city: initialLocation.city || '',
+    district: initialLocation.district || '',
+    tag: initialLocation.tag || ''
   };
   let cardLabel = '当前地点';
 
@@ -184,7 +188,11 @@ function bindEvents(root, initialLocation) {
           addr: fallbackAddr,
           lnglat: place.lnglat || [],
           photo: place.photo || '',
-          type: place.type || ''
+          type: place.type || '',
+          province: place.province || '',
+          city: place.city || '',
+          district: place.district || '',
+          tag: place.tag || ''
         };
         iconPicker.setValue(inferIconId({
           name: place.name,

@@ -385,7 +385,7 @@ async function geocodeAsPOI(placeName, city) {
   const AMap = state.AMap;
   return new Promise(resolve => {
     const geocoder = new AMap.Geocoder({
-      city: city || AppConfig.cityCode || ''
+      city: city || ''
     });
     geocoder.getLocation(placeName, (status, result) => {
       if (status !== 'complete' || (result?.info || '').toUpperCase() !== 'OK') {
@@ -428,16 +428,11 @@ function extractNounKeywords(note, sourceQuote, excludeKeyword = '') {
   return dedup.slice(0, 2);
 }
 
-// 攻略地点搜索的 3 层降级：
-//   Layer A: city 名（如"北京"）—— LLM 给的字符串
-//   Layer B: AppConfig.cityCode（如 '010'）—— 城市 adcode
-//   Layer C: 全国搜（city: false）
+// 攻略地点搜索的降级：
+//   Layer A: city 名（AI/用户给的城市）
+//   Layer B: 全国搜（city: false）
 //
-// 为什么需要 B 层？高德 PlaceSearch 对 city 参数的 string vs adcode 行为有显著差异：
-//   - city='北京' (string) 时，某些查询会静默返回 0 结果
-//   - city='010' (adcode) 时，同一查询能命中
-// Manual search 用 city=false → 落到 AppConfig.cityCode 路径（adcode），所以工作；
-// auto 用 LLM 给的 city 名，被 string 路径坑。这里强制按 A → B → C 顺序兜底。
+// 不回退 AppConfig.cityCode（默认北京）。否则上海攻略在 city 搜索失败后，会被北京候选污染。
 async function searchGuidePlaces(keyword, city, pageSize = 8) {
   const state = getAppState();
   if (!keyword) return [];
@@ -445,9 +440,8 @@ async function searchGuidePlaces(keyword, city, pageSize = 8) {
   if (!state.AMap) setAMap(AMap);
 
   const cityCandidates = [];
-  if (city && city !== AppConfig.cityCode) cityCandidates.push(city); // A: LLM 城市名
-  if (AppConfig.cityCode) cityCandidates.push(AppConfig.cityCode);    // B: 默认 adcode
-  cityCandidates.push(false);                                         // C: 全国
+  if (city) cityCandidates.push(city); // A: AI/用户城市名
+  cityCandidates.push(false);          // B: 全国兜底。不要回退默认北京，避免跨城市攻略误匹配。
 
   for (const cityArg of cityCandidates) {
     const places = await searchPlaces(AMap, keyword, { city: cityArg, pageSize });
@@ -455,7 +449,7 @@ async function searchGuidePlaces(keyword, city, pageSize = 8) {
       places.length ? `first="${places[0]?.name}"` : '');
     if (places.length) return places;
   }
-  console.warn(`[guide-search] "${keyword}" 三层都 0 结果`, { tried: cityCandidates });
+  console.warn(`[guide-search] "${keyword}" 城市/全国搜索都 0 结果`, { tried: cityCandidates });
   return [];
 }
 
@@ -492,7 +486,11 @@ function importGuideDraft(draft) {
       addr,
       lnglat: poi?.lnglat || null,
       photo: poi?.photo || '',
-      type: poi?.type || ''
+      type: poi?.type || '',
+      province: poi?.province || '',
+      city: poi?.city || '',
+      district: poi?.district || '',
+      tag: poi?.tag || ''
     });
     const payload = {
       title: event.placeName,
@@ -717,7 +715,11 @@ function openAddLocationFlow(options = {}) {
         addr: place.addr || place.name,
         lnglat: place.lnglat,
         photo: place.photo || '',
-        type: place.type || ''
+        type: place.type || '',
+        province: place.province || '',
+        city: place.city || '',
+        district: place.district || '',
+        tag: place.tag || ''
       });
       const eventPayload = {
         title: event.title,
@@ -1124,15 +1126,24 @@ async function resolveAllLocations() {
   const services = createGeocodeServices(state.AMap);
   const entries = Object.entries(trip.locations);
   let success = 0;
+  let skipped = 0;
 
   for (const [locationId, loc] of entries) {
+    if (loc?.resolved === true || hasValidLngLat(loc?.lnglat)) {
+      skipped += 1;
+      continue;
+    }
     const result = await resolveLocation(services, loc);
     if (result?.lnglat) {
       updateLocation(locationId, {
         lnglat: result.lnglat,
         addr: buildDisplayAddress(result) || loc.addr || loc.name,
         photo: result.photo || loc.photo || '',
-        type: result.type || loc.type || ''
+        type: result.type || loc.type || '',
+        province: result.province || loc.province || '',
+        city: result.city || loc.city || '',
+        district: result.district || loc.district || '',
+        tag: result.tag || loc.tag || ''
       });
       createOrUpdateMarker(locationId, result.lnglat);
       success += 1;
@@ -1140,7 +1151,14 @@ async function resolveAllLocations() {
     await sleep(160); // 节流，避免对服务端施压
   }
 
-  setStatus(`地点加载完成：${success}/${entries.length} 个地点已由高德校准。选择某一天可查看路线。`);
+  setStatus(`地点加载完成：${skipped} 个已保留，${success} 个由高德校准。选择某一天可查看路线。`);
+}
+
+function hasValidLngLat(lnglat) {
+  return Array.isArray(lnglat)
+    && lnglat.length >= 2
+    && Number.isFinite(Number(lnglat[0]))
+    && Number.isFinite(Number(lnglat[1]));
 }
 
 function syncEmptyWorkspaceUI() {
