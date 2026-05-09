@@ -11,7 +11,7 @@
 // 设计成单例：同时只能开一个弹窗，重复 open 会先关掉旧的
 
 import { escapeHTML } from '../utils.js';
-import { bindIconPicker, inferIconId, renderIconPickerHTML } from './icons.js';
+import { bindIconPicker, inferIconId, renderIconPickerHTML, renderIconSVG } from './icons.js';
 import { TIME_SLOT_OPTIONS, normalizeTimeSlot } from '../time-slots.js';
 
 let modalEl = null;
@@ -76,7 +76,7 @@ function createModal(handlers) {
           </div>
           <div class="modal-form-row icon-form-row">
             <label>图标</label>
-            ${renderIconPickerHTML('pin')}
+            ${renderIconPickerHTML('place')}
           </div>
           <div class="modal-form-row time-form-row">
             <label>时间</label>
@@ -111,7 +111,7 @@ function bindEvents(root) {
   const resultsEl = root.querySelector('.modal-results');
   const form = root.querySelector('.modal-event-form');
   const titleInput = form.querySelector('.modal-event-title');
-  const iconPicker = bindIconPicker(form, 'pin');
+  const iconPicker = bindIconPicker(form, 'place');
   const timeSlotPicker = bindTimeSlotPicker(form);
 
   let searchMode = 'keyword'; // 'keyword' | 'nearby'
@@ -141,7 +141,12 @@ function bindEvents(root) {
         selected = place;
         // 自动用地点名做标题，降低用户输入负担；用户仍可在保存前改。
         titleInput.value = place.name || '';
-        iconPicker.setValue(inferIconId(`${place.name || ''} ${place.addr || ''}`));
+        iconPicker.setValue(inferIconId({
+          name: place.name,
+          addr: place.addr,
+          type: place.type,
+          tag: place.tag
+        }));
         form.hidden = false;
         titleInput.focus();
         titleInput.select();
@@ -245,39 +250,26 @@ function bindTimeSlotPicker(root) {
 }
 
 // 推荐结果卡的图位——和 event-editor-modal 保持同款行为：
-// 有真图就圆角矩形展示，没图（或加载失败）回落到 POI type 对应的 emoji 占位
+// 有真图就圆角矩形展示，没图（或加载失败）回落到 POI type 对应的 SVG 占位
 function renderPhotoBanner(place) {
   const url = String(place.photo || '').trim();
-  const emoji = getPoiTypeEmoji(place.type);
+  const iconHTML = renderIconSVG(inferIconId({
+    name: place.name,
+    addr: place.addr,
+    type: place.type,
+    tag: place.tag
+  }), 'placeholder-icon-svg');
   if (url) {
     const httpsUrl = url.replace(/^http:\/\//i, 'https://');
     return `
       <figure class="modal-result-photo">
         <img src="${escapeHTML(httpsUrl)}" alt="" loading="lazy" referrerpolicy="no-referrer"
-             onerror="this.parentElement.classList.add('is-placeholder');this.parentElement.innerHTML='${emoji}';">
+             onerror="this.parentElement.classList.add('is-placeholder');">
+        <span class="placeholder-icon-holder">${iconHTML}</span>
       </figure>
     `;
   }
-  return `<figure class="modal-result-photo is-placeholder">${emoji}</figure>`;
-}
-
-function getPoiTypeEmoji(type) {
-  const t = String(type || '');
-  if (/餐饮|美食|快餐|小吃|餐厅/.test(t)) return '🍽️';
-  if (/咖啡|奶茶|饮品|茶馆/.test(t)) return '☕';
-  if (/酒店|住宿|宾馆|民宿/.test(t)) return '🏨';
-  if (/景点|风景|文化古迹|博物馆/.test(t)) return '🏛️';
-  if (/公园|植物园|动物园/.test(t)) return '🌳';
-  if (/商场|购物中心|百货/.test(t)) return '🛍️';
-  if (/超市/.test(t)) return '🛒';
-  if (/便利店/.test(t)) return '🏪';
-  if (/火车站|汽车站|地铁站|机场|港口/.test(t)) return '🚉';
-  if (/医院|诊所|药店/.test(t)) return '🏥';
-  if (/银行|atm/i.test(t)) return '🏦';
-  if (/学校|大学|教育/.test(t)) return '🎓';
-  if (/电影|剧院|KTV|娱乐/i.test(t)) return '🎬';
-  if (/书店|图书/.test(t)) return '📚';
-  return '📍';
+  return `<figure class="modal-result-photo is-placeholder"><span class="placeholder-icon-holder">${iconHTML}</span></figure>`;
 }
 
 // 高德 extensions=all 返回的真实数据 → chip。三项全空时返回空串

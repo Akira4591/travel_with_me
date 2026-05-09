@@ -5,7 +5,7 @@
 
 import { escapeHTML } from '../utils.js';
 import {
-  bindIconPicker, getIconIdForEvent, inferIconId, renderIconPickerHTML
+  bindIconPicker, getIconIdForEvent, inferIconId, renderIconPickerHTML, renderIconSVG
 } from './icons.js';
 import { TIME_SLOT_OPTIONS, normalizeTimeSlot } from '../time-slots.js';
 
@@ -112,7 +112,7 @@ function bindEvents(root, initialLocation) {
   const searchBtn = root.querySelector('.editor-search-btn');
   const resultsEl = root.querySelector('.editor-results');
   const locationCard = root.querySelector('.editor-location-card');
-  const iconPicker = bindIconPicker(root, root.querySelector('.icon-picker-btn.active')?.dataset.iconId || 'pin');
+  const iconPicker = bindIconPicker(root, root.querySelector('.icon-picker-btn.active')?.dataset.iconId || 'place');
   const containerPicker = bindContainerPicker(root);
   const timeSlotPicker = bindTimeSlotPicker(root);
   let selectedPlace = null;
@@ -128,7 +128,7 @@ function bindEvents(root, initialLocation) {
   let cardLabel = '当前地点';
 
   const renderCard = (status = 'static') => {
-    // 用当前 iconPicker 的值兜底图标——用户切了图标后占位 emoji 也要跟着变
+    // 用当前 iconPicker 的值兜底图标——用户切了图标后占位 SVG 也要跟着变
     locationCard.innerHTML = renderLocationCardHTML(selectedLocation, cardLabel, status, iconPicker.getValue());
   };
 
@@ -186,7 +186,12 @@ function bindEvents(root, initialLocation) {
           photo: place.photo || '',
           type: place.type || ''
         };
-        iconPicker.setValue(inferIconId(`${place.name || ''} ${fallbackAddr}`));
+        iconPicker.setValue(inferIconId({
+          name: place.name,
+          addr: fallbackAddr,
+          type: place.type,
+          tag: place.tag
+        }));
         cardLabel = '已选择地点';
         renderCard('static');
         // 选完后收起结果，避免遮挡备注栏
@@ -291,35 +296,23 @@ function renderLocationCardHTML(location, label, status = 'static', iconId = 'pi
 }
 
 // 当前/已选择地点卡的右侧图位：
-// - 有真图：渲染为圆角矩形，加载失败兜底为 emoji 占位
-// - 无图：emoji 占位（用 event.icon 决定 emoji，比 POI type 信号更强）
+// - 有真图：渲染为圆角矩形，加载失败兜底为 SVG 占位
+// - 无图：SVG 占位（用 event.icon 决定，比 POI type 信号更强）
 function renderEditorLocationPhoto(location, iconId) {
   const url = String(location.photo || '').trim();
-  const emoji = getEventIconEmoji(iconId);
+  const iconHTML = renderIconSVG(iconId, 'placeholder-icon-svg');
   if (url) {
     const httpsUrl = url.replace(/^http:\/\//i, 'https://');
-    // onerror 时把 img 替换成 emoji 占位（高德 photo 偶发 404）
+    // onerror 时把 img 替换成 SVG 占位（高德 photo 偶发 404）
     return `
       <figure class="editor-location-photo">
         <img src="${escapeHTML(httpsUrl)}" alt="" loading="lazy" referrerpolicy="no-referrer"
-             onerror="this.parentElement.classList.add('is-placeholder');this.parentElement.innerHTML='${emoji}';">
+             onerror="this.parentElement.classList.add('is-placeholder');">
+        <span class="placeholder-icon-holder">${iconHTML}</span>
       </figure>
     `;
   }
-  return `<figure class="editor-location-photo is-placeholder">${emoji}</figure>`;
-}
-
-// 行程图标 id → emoji（占位用）。用户给事件设的图标比 POI type 更能反映其角色
-function getEventIconEmoji(iconId) {
-  switch (iconId) {
-    case 'train': return '🚉';
-    case 'hotel': return '🏨';
-    case 'food': return '🍽️';
-    case 'school': return '🎓';
-    case 'park': return '🌳';
-    case 'shop': return '🛍️';
-    default: return '📍';
-  }
+  return `<figure class="editor-location-photo is-placeholder"><span class="placeholder-icon-holder">${iconHTML}</span></figure>`;
 }
 
 function getLocationAddressText(location, status) {
@@ -450,42 +443,28 @@ function bindTimeSlotPicker(root) {
 }
 
 // 推荐结果卡的图位：
-// - 有真图：圆角矩形展示，加载失败兜底为 emoji 占位（不留空白，体感一致）
-// - 无图：emoji 占位（基于 POI type 推断），不让"半数有图半数空"显得不协调
+// - 有真图：圆角矩形展示，加载失败兜底为 SVG 占位（不留空白，体感一致）
+// - 无图：SVG 占位（基于 POI type 推断），不让"半数有图半数空"显得不协调
 // 高德 photo URL 默认 http，HTTPS 生产站会被 mixed content 拦截 → 改写成 https
 function renderPhotoBanner(place) {
   const url = String(place.photo || '').trim();
-  const emoji = getPoiTypeEmoji(place.type);
+  const iconHTML = renderIconSVG(inferIconId({
+    name: place.name,
+    addr: place.addr,
+    type: place.type,
+    tag: place.tag
+  }), 'placeholder-icon-svg');
   if (url) {
     const httpsUrl = url.replace(/^http:\/\//i, 'https://');
     return `
       <figure class="modal-result-photo">
         <img src="${escapeHTML(httpsUrl)}" alt="" loading="lazy" referrerpolicy="no-referrer"
-             onerror="this.parentElement.classList.add('is-placeholder');this.parentElement.innerHTML='${emoji}';">
+             onerror="this.parentElement.classList.add('is-placeholder');">
+        <span class="placeholder-icon-holder">${iconHTML}</span>
       </figure>
     `;
   }
-  return `<figure class="modal-result-photo is-placeholder">${emoji}</figure>`;
-}
-
-// 高德 POI type 字符串（如"餐饮服务;中餐厅;川菜"）→ emoji
-function getPoiTypeEmoji(type) {
-  const t = String(type || '');
-  if (/餐饮|美食|快餐|小吃|餐厅/.test(t)) return '🍽️';
-  if (/咖啡|奶茶|饮品|茶馆/.test(t)) return '☕';
-  if (/酒店|住宿|宾馆|民宿/.test(t)) return '🏨';
-  if (/景点|风景|文化古迹|博物馆/.test(t)) return '🏛️';
-  if (/公园|植物园|动物园/.test(t)) return '🌳';
-  if (/商场|购物中心|百货/.test(t)) return '🛍️';
-  if (/超市/.test(t)) return '🛒';
-  if (/便利店/.test(t)) return '🏪';
-  if (/火车站|汽车站|地铁站|机场|港口/.test(t)) return '🚉';
-  if (/医院|诊所|药店/.test(t)) return '🏥';
-  if (/银行|atm/i.test(t)) return '🏦';
-  if (/学校|大学|教育/.test(t)) return '🎓';
-  if (/电影|剧院|KTV|娱乐/i.test(t)) return '🎬';
-  if (/书店|图书/.test(t)) return '📚';
-  return '📍';
+  return `<figure class="modal-result-photo is-placeholder"><span class="placeholder-icon-holder">${iconHTML}</span></figure>`;
 }
 
 // 把高德返回的真实数据（评分/人均/标签）渲染成 chip

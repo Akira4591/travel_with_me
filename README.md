@@ -9,11 +9,13 @@ Trip App 是一个中文旅行路线规划 Web App，用来创建多条旅行路
 - **多路线工作区**：顶部活页本标签切换，最多本地保存 3 条旅行路线。
 - **本地自动保存**：workspace 保存到 localStorage，刷新后恢复当前路线和编辑内容。
 - **默认演示行程**：首次打开会加载“五一北京行程”；默认地点不再写死坐标，启动后通过高德解析。
+- **AI 攻略导入**：可粘贴中文攻略文本，由 DeepSeek 提取行程结构，再用高德匹配 POI，预览确认后创建新路线。
 - **日期管理**：新建一天、编辑日期/标题、删除日期；日期不可重复，并按时间排序。
 - **地点管理**：搜索添加地点、替换已有地点、删除地点、同一天内拖拽排序。
 - **智能一些的添加体验**：新增地点时标题自动使用地点名；可按关键词搜索，也可基于当天已有地点“搜附近”。
 - **地点信息增强**：高德 POI 结果会尽量展示图片、评分、人均、标签；地点详情卡也会保留图片/type 信息。
 - **时间块与备注**：地点支持未定、上午、中午、下午、晚上；支持备注。
+- **简约 icon 体系**：内置 Lucide 风格 SVG 图标，按 POI type、地点名和标题加权匹配，避免地址误判。
 - **地图联动**：点击地点卡片聚焦地图；没有地点时清空 marker/路线并展示中国视图。
 - **路线规划**：支持打车/驾车、步行、公共交通、骑行；失败时有估算兜底。
 - **自定义路线展示**：每段路线可设置展示名称和组合步骤，地图仍绑定一个高德基础 mode 规划。
@@ -26,7 +28,8 @@ Trip App 是一个中文旅行路线规划 Web App，用来创建多条旅行路
 Node.js + Hono
   ├─ 静态文件托管
   ├─ 高德 Web 服务代理：/_AMapService/*
-  └─ 高德瓦片代理：/_AMapTile
+  ├─ 高德瓦片代理：/_AMapTile
+  └─ AI 攻略解析：/_ai/extract-guide
 
 Browser
   ├─ 原生 ES Modules
@@ -70,14 +73,15 @@ Stop-Process -Id <PID> -Force
 
 ## 环境变量
 
-高德安全密钥 `jscode` 只能放在服务端环境变量里，不能写入前端代码。
+高德安全密钥 `jscode` 和 DeepSeek API Key 都只能放在服务端环境变量里，不能写入前端代码。
 
 ```text
 AMAP_JSCODE=<your-amap-jscode>
+DEEPSEEK_API_KEY=<your-deepseek-api-key>
 PORT=8080
 ```
 
-本地可参考 `.env.example`。生产环境需要在部署平台配置 `AMAP_JSCODE`。
+本地可参考 `.env.example`。生产环境需要在部署平台配置 `AMAP_JSCODE` 和 `DEEPSEEK_API_KEY`。如果不配置 `DEEPSEEK_API_KEY`，AI 导入入口会不可用，但普通行程规划不受影响。
 
 ## 部署
 
@@ -88,6 +92,7 @@ Zeabur 或类似平台需要：
 - 使用 Node 18+。
 - 安装依赖后运行 `node server/index.js`。
 - 配置环境变量 `AMAP_JSCODE`。
+- 如需 AI 导入，配置环境变量 `DEEPSEEK_API_KEY`。
 - 在高德控制台把生产域名加入 Web JS API Key 的域名白名单。
 
 上线后建议检查：
@@ -97,7 +102,9 @@ Zeabur 或类似平台需要：
 - 搜附近可用。
 - 路线规划能返回真实路线或估算路线。
 - 分享长图能显示地图瓦片。
+- AI 导入能打开、解析、进入预览；未匹配地点可手动搜索绑定。
 - 浏览器源码里搜不到 `AMAP_JSCODE`。
+- 浏览器源码里搜不到 `DEEPSEEK_API_KEY`。
 
 ## 目录结构
 
@@ -107,7 +114,9 @@ trip-app/
 ├── package.json
 ├── package-lock.json
 ├── server/
-│   └── index.js              # Hono BFF：静态托管、高德服务代理、瓦片代理
+│   ├── index.js              # Hono BFF：静态托管、高德/AI 代理、瓦片代理
+│   └── prompts/
+│       └── guide-extract.md  # AI 攻略解析 Prompt
 ├── index.html
 ├── css/
 │   └── app.css
@@ -120,6 +129,7 @@ trip-app/
     ├── time-slots.js         # 时间块定义和排序
     ├── share.js              # 旧 #trip= 链接兼容
     ├── share-image.js        # Canvas 分享长图生成
+    ├── guide-import.js       # AI 攻略导入请求封装
     ├── data/
     │   └── trip.js           # 五一北京演示数据，无内置坐标
     ├── api/
@@ -135,6 +145,8 @@ trip-app/
         ├── day-editor-modal.js
         ├── route-editor-modal.js
         ├── share-modal.js
+        ├── guide-import-modal.js
+        ├── guide-preview-modal.js
         ├── trip-modal.js
         ├── date-picker.js
         └── icons.js
@@ -192,7 +204,6 @@ trip = {
   days: [
     {
       id,
-      date,
       title,
       events: [
         {
@@ -206,7 +217,8 @@ trip = {
         }
       ]
     }
-  ]
+  ],
+  unscheduled: []
 }
 ```
 
@@ -231,10 +243,32 @@ routeToNext = {
 3. `server/index.js` 转发到 `https://restapi.amap.com`，并注入 `jscode=$AMAP_JSCODE`。
 4. 分享长图地图瓦片走 `/_AMapTile`，避免跨域图片污染 canvas。
 
+## AI 攻略导入
+
+AI 导入入口在顶部行程 `+` 标签 hover 展开后显示。导入流程：
+
+1. 用户粘贴中文攻略文本，可选填写城市。
+2. 前端调用 `/_ai/extract-guide`，由服务端读取 `server/prompts/guide-extract.md` 并调用 DeepSeek。
+3. 前端按 AI 结果做高德 POI 匹配，进入预览页。
+4. 用户可在预览页调整 day/timeSlot、删除事件、为未匹配地点手动搜索绑定。
+5. 确认后创建一条新 trip；有 day 的事件进入具体日期，无 day 的事件进入 `unscheduled[]`。
+
+当前模型使用 `deepseek-v4-flash`。曾测试 `deepseek-v4-pro` 的 JSON Output，但出现空 content，因此暂时回到 flash。后续模型切换需要用真实攻略评测集验证稳定性。
+
+## Icon 体系
+
+地点 icon 使用内置 SVG path，不依赖 npm 包或构建流程。视觉来源统一参考 Lucide 线性图标风格。
+
+- 当前分类：地点、交通、酒店、餐饮、咖啡甜品、购物、市集、校园、公园户外、景点、展馆、娱乐游玩、酒吧。
+- 旧 id 会兜底兼容，例如 `pin -> place`、`train -> transport`、`shop/book -> shopping`、`school -> campus`、`photo -> attraction`。
+- 自动匹配按 `POI type > 事件标题/地点名 > 地址` 加权判断；地址不会触发交通，避免餐饮店因地址含“站”误判为交通。
+- localStorage schema 当前为 v4；旧 schema 会被重置，避免继续保留旧 icon id。
+
 ## 已知限制
 
 - localStorage 只适合本机草稿，不支持跨设备同步。
 - 分享长图是当前主分享方式；旧 `#trip=` 长链接只做兼容。
+- AI 导入仍是 MVP，地点抽取和备注质量需要继续用真实攻略评测。
 - 组合交通方式目前主要用于展示说明，地图仍按一个高德基础 mode 规划。
 - 默认示例不再内置坐标，首次解析依赖高德 POI/Geocoder 返回结果。
 - 拖拽排序只支持同一天内调整，不支持跨天拖动。

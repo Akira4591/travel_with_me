@@ -496,7 +496,13 @@ function importGuideDraft(draft) {
     });
     const payload = {
       title: event.placeName,
-      icon: inferIconId(`${event.placeName} ${name} ${addr} ${poi?.type || ''}`),
+      icon: inferIconId({
+        title: event.placeName,
+        name,
+        addr,
+        type: poi?.type,
+        tag: poi?.tag
+      }),
       timeSlot: event.timeSlot,
       note: event.matched ? event.note : '',
       locationId

@@ -115,8 +115,8 @@ export const initialTrip = {
       events: [
         { id: 'd2-e0', title: '从酒店出发',         locationId: 'hotel',       icon: 'hotel', timeSlot: 'morning', routeToNext: { mode: 'driving' } },
         { id: 'd2-e1', title: '紫光园吃午饭',       locationId: 'ziguangyuan', icon: 'food', timeSlot: 'noon', routeToNext: { mode: 'driving' } },
-        { id: 'd2-e2', title: '春风在书店撸猫',     locationId: 'bookstore',   icon: 'shop', timeSlot: 'afternoon', routeToNext: { mode: 'driving' } },
-        { id: 'd2-e3', title: '人大通州校区转转',   locationId: 'ruc',         icon: 'school', timeSlot: 'afternoon', routeToNext: { mode: 'driving' } },
+        { id: 'd2-e2', title: '春风在书店撸猫',     locationId: 'bookstore',   icon: 'shopping', timeSlot: 'afternoon', routeToNext: { mode: 'driving' } },
+        { id: 'd2-e3', title: '人大通州校区转转',   locationId: 'ruc',         icon: 'campus', timeSlot: 'afternoon', routeToNext: { mode: 'driving' } },
         { id: 'd2-e4', title: '万象汇吃晚餐',       locationId: 'wanxianghui', icon: 'food', timeSlot: 'evening', routeToNext: { mode: 'driving' } },
         { id: 'd2-e5', title: '回酒店休息',         locationId: 'hotel',       icon: 'hotel', timeSlot: 'evening' }
       ]

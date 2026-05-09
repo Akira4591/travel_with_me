@@ -10,7 +10,7 @@
 import { AppConfig } from './config.js';
 // V5：day.date 字段已删除，formatDateCN/isISODate 不再使用
 import { getTransportIcon, getTransportLabel } from './utils.js';
-import { getIconPaths } from './render/icons.js';
+import { getIconPaths, inferIconId, normalizeIconId } from './render/icons.js';
 import { getTimeSlotLabel, normalizeTimeSlot } from './time-slots.js';
 
 // ─── 度量常数 ─────────────────────────────────────────
@@ -99,7 +99,8 @@ const LOCATION_PIN_PATHS =
 
 export async function buildTripShareImage(trip, options = {}) {
   const includeRoutes = !!options.includeRoutes;
-  const orderedDays = [...(trip.days || [])].sort(compareDays);
+  // Day 模型已从绝对日期迁移为数组顺序，不能再按旧 date 字段排序。
+  const orderedDays = [...(trip.days || [])];
   const locations = collectTripLocations(trip);
   const totalStops = orderedDays.reduce((sum, day) => sum + (day.events?.length || 0), 0);
   const viewport = getMapViewport(locations, CONTENT_W, MAP_H);
@@ -878,20 +879,14 @@ function collectTripLocations(trip) {
 
 function normalizeForCanvas(iconId, event, trip) {
   const id = String(iconId || '').trim();
-  if (id) return id;
+  if (id) return normalizeIconId(id) || 'place';
   const loc = trip.locations?.[event?.locationId];
-  return inferIconFallback(event?.title, loc?.name);
-}
-
-function inferIconFallback(title, locName) {
-  const text = `${title || ''} ${locName || ''}`;
-  if (/餐|饭|吃|寿司|咖啡/.test(text)) return 'food';
-  if (/酒店|住宿|民宿/.test(text)) return 'hotel';
-  if (/站|车|铁|地铁|机场/.test(text)) return 'train';
-  if (/学|校园|大学/.test(text)) return 'school';
-  if (/公园|河|湖|水岸|森林/.test(text)) return 'park';
-  if (/商场|书店|逛/.test(text)) return 'shop';
-  return 'pin';
+  return inferIconId({
+    title: event?.title,
+    name: loc?.name,
+    addr: loc?.addr,
+    type: loc?.type
+  });
 }
 
 // ─── 地图投影 ─────────────────────────────────────────

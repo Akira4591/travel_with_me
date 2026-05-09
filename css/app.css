@@ -1730,20 +1730,39 @@ body {
   transition: transform 0.3s ease;
 }
 
+.modal-result-photo.is-placeholder img {
+  display: none;
+}
+
 .modal-result-item:hover .modal-result-photo img {
   transform: scale(1.04);
 }
 
-/* 无图（或加载失败）时的 emoji 占位——同样 130px 高，颜色更浅，emoji 居中放大 */
+/* 无图（或加载失败）时的 SVG 占位——同样 130px 高，颜色更浅，icon 居中放大 */
 .modal-result-photo.is-placeholder {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 56px;
   background: linear-gradient(135deg, #fcf8f0 0%, #f0e6d3 100%);
   color: rgba(0, 0, 0, 0.45);
   line-height: 1;
   user-select: none;
+}
+
+.placeholder-icon-holder {
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.is-placeholder > .placeholder-icon-holder {
+  display: flex;
+}
+
+.modal-result-photo .placeholder-icon-svg {
+  width: 46px;
+  height: 46px;
+  stroke-width: 1.55;
 }
 
 .modal-result-meta {
@@ -2624,15 +2643,24 @@ body {
   display: block;
 }
 
+.editor-location-photo.is-placeholder img {
+  display: none;
+}
+
 .editor-location-photo.is-placeholder {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 44px;
   background: linear-gradient(135deg, #fcf8f0 0%, #f0e6d3 100%);
   color: rgba(0, 0, 0, 0.45);
   line-height: 1;
   user-select: none;
+}
+
+.editor-location-photo .placeholder-icon-svg {
+  width: 38px;
+  height: 38px;
+  stroke-width: 1.6;
 }
 
 .editor-location-change-btn {

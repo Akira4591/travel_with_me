@@ -2,12 +2,15 @@
 // 持久化封装：localStorage 优先，失败时降级到内存
 //
 // workspace 结构：
-//   { version: 3, savedAt, workspace: { trips: [...], activeTripId } }
+//   { version: 4, savedAt, workspace: { trips: [...], activeTripId } }
 //
 // V5 schema 升级：version 2 -> 3
 //   - days[].date 字段删除
 //   - 顶层 trip 新增 unscheduled[]
 //   - 旧版本（v < 3）数据加载时直接丢弃，触发首次启动用 initialTrip
+// V6 schema 升级：version 3 -> 4
+//   - 行程 icon id 规范化为 canonical id（pin/train/shop 等旧 id 不再写入新数据）
+//   - 旧版本直接丢弃，避免 localStorage 里继续保留冗余 icon id
 //
 // 单 trip 接口（saveTrip/loadTrip）保留，方便以后做"草稿快照"或迁出 BFF；
 // 当前主存储是 saveWorkspace/loadWorkspace。
@@ -43,7 +46,7 @@ function safeRemove(key) {
 
 const WORKSPACE_KEY = 'workspace';
 
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 export async function saveWorkspace(workspace) {
   const json = JSON.stringify({
@@ -56,7 +59,7 @@ export async function saveWorkspace(workspace) {
 }
 
 // 返回 workspace 对象；从未保存过返回 null（让调用方走"首次启动"分支）。
-// V5：旧版本 schema (v < 3) 直接丢弃——data 字段删除、unscheduled 新增是破坏性改动，
+// 旧版本 schema 直接丢弃——当前项目仍处于 MVP，localStorage 只作为本机草稿。
 // 兼容层成本高于价值，宁可让用户重置一次。
 export async function loadWorkspace() {
   const raw = safeGet(WORKSPACE_KEY);

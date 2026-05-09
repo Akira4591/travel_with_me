@@ -14,6 +14,8 @@
 - AI 导入：入口合并在顶部 `+` 标签 hover 展开里；BFF 调 DeepSeek `deepseek-v4-flash`；前端有解析进度条、导入预览、未匹配地点手动搜索兜底。
 - AI 导入写入：导入始终创建新 trip；按 day 写入 `days[].events`，无 day 写入 `unscheduled[]`；未匹配地点允许以无坐标 location 导入。
 - 地点匹配：当前有多层降级，包括 PlaceSearch、note/source quote 关键词扩展、Geocoder 坐标兜底、附近 POI enrich；预览页可手动搜索替换未匹配地点。
+- Icon 体系：已切到 Lucide 风格内置 SVG；分类为地点、交通、酒店、餐饮、咖啡甜品、购物、市集、校园、公园户外、景点、展馆、娱乐游玩、酒吧；旧 id 通过 alias 兜底。
+- Icon 匹配：已改为 `POI type > 标题/地点名 > 地址` 加权判断，地址不再触发交通，避免餐饮店因地址包含“站”被误判。
 
 ## P0 风险
 
@@ -97,6 +99,11 @@
    - 当前组合交通主要用于展示，地图仍按一个高德基础 mode 规划。
    - 后续如要真实组合路线，需要引入中转点/途经点模型。
 
+8. Icon 体系后续细化
+   - 当前已完成第一轮重构：新增分类、统一 Lucide 风格、删除“拍照”独立分类、修复餐饮误判交通。
+   - 后续可根据真实使用继续补充细分分类，例如温泉、海边、剧场、亲子、运动。
+   - 需要积累 bad case，再调整关键词权重，避免为了单个样例继续堆规则。
+
 ## 工程 TODO
 
 1. Prompt 持久化位置
@@ -118,6 +125,7 @@
    - `searchPlaces()` 目前支持 `city: false` 全域搜索。
    - 需要继续确认高德 PlaceSearch 在城市名、adcode、全域三种输入下的差异。
 
-5. 文档更新
-   - README 需要在 AI 导入稳定后补充：环境变量、AI 功能、DeepSeek 模型、Prompt 位置、部署检查项。
+5. 文档维护
+   - README 已补充 AI 导入、DeepSeek 环境变量、Prompt 位置、icon 体系和部署检查项。
    - 旧 `HANDOFF.md` 删除后，不再新建同名交接文档；后续统一维护 README + TODO。
+   - 每次完成较大功能后同步更新 README 的“当前能力/已知限制”和 TODO 的“当前项目认知/后续方向”。
