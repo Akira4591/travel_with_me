@@ -1,5 +1,4 @@
 import { escapeHTML } from '../utils.js';
-import { TIME_SLOT_OPTIONS, getTimeSlotLabel, normalizeTimeSlot } from '../time-slots.js';
 
 let modalEl = null;
 let currentHandlers = null;
@@ -105,7 +104,6 @@ function renderEventCard(event) {
       </div>
       <div class="guide-preview-event-controls">
         ${renderDaySelect(event)}
-        ${renderTimeSelect(event)}
         <button type="button" class="guide-preview-delete" title="删除">删除</button>
         <span class="guide-preview-match ${event.matched ? 'ok' : 'fail'}">${status}</span>
         ${event.matched ? '' : '<button type="button" class="guide-preview-search-toggle">搜索地点</button>'}
@@ -163,17 +161,6 @@ function renderDaySelect(event) {
   return `<select class="guide-preview-day-select" aria-label="选择日期">${options.join('')}</select>`;
 }
 
-function renderTimeSelect(event) {
-  const selected = normalizeTimeSlot(event.timeSlot);
-  return `
-    <select class="guide-preview-time-select" aria-label="选择时间">
-      ${TIME_SLOT_OPTIONS.map(option => `
-        <option value="${escapeHTML(option.id)}" ${option.id === selected ? 'selected' : ''}>${escapeHTML(getTimeSlotLabel(option.id))}</option>
-      `).join('')}
-    </select>
-  `;
-}
-
 function bindShellEvents(root) {
   root.querySelector('.modal-close').addEventListener('click', closeGuidePreviewModal);
   root.addEventListener('click', (e) => {
@@ -202,9 +189,6 @@ function bindBodyEvents(body) {
     card.querySelector('.guide-preview-day-select').addEventListener('change', (e) => {
       event.day = e.target.value ? Number(e.target.value) : null;
       renderBody(body);
-    });
-    card.querySelector('.guide-preview-time-select').addEventListener('change', (e) => {
-      event.timeSlot = normalizeTimeSlot(e.target.value);
     });
     card.querySelector('.guide-preview-delete').addEventListener('click', () => {
       event.deleted = true;

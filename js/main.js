@@ -52,7 +52,6 @@ import { buildTripShareImage, dataURLToBlob } from './share-image.js?v=20260508-
 import { loadWorkspace, saveWorkspace } from './storage.js';
 import { sleep } from './utils.js';
 import { inferIconId } from './render/icons.js';
-import { normalizeTimeSlot } from './time-slots.js';
 
 // ─── boot ──────────────────────────────────────────────
 
@@ -212,7 +211,7 @@ async function buildGuideDraft(extracted, source, onProgress) {
       id: `guide-${Date.now().toString(36)}-${index}`,
       placeName: item.place_name,
       day: Number.isInteger(item.day) && item.day > 0 ? item.day : null,
-      timeSlot: normalizeTimeSlot(item.time_slot),
+      timeSlot: '',
       note: poi ? (item.note || '') : '',
       sourceQuote: item.source_quote || '',
       poi,
@@ -510,7 +509,7 @@ function importGuideDraft(draft) {
       addUnscheduledEvent(payload);
     } else {
       const dayId = dayIds[event.day - 1] || dayIds[0];
-      addEventToDay(dayId, payload);
+      addEventToDay(dayId, payload, { preserveOrder: true });
     }
   });
 

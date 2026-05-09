@@ -310,7 +310,9 @@ export function addEventToDay(dayId, event, options = {}) {
     ...(event.routeToNext ? { routeToNext: normalizeRouteToNext(event.routeToNext) } : {})
   };
 
-  const insertIndex = getTimeSlotAppendIndex(day, timeSlot, options);
+  const insertIndex = options.preserveOrder
+    ? getPreserveOrderInsertIndex(day, options)
+    : getTimeSlotAppendIndex(day, timeSlot, options);
   day.events.splice(insertIndex, 0, newEvent);
   normalizeDayRoutes(day);
 
@@ -594,6 +596,17 @@ function getTimeSlotAppendIndex(day, timeSlot, options = {}) {
   const rank = getTimeSlotRank(timeSlot);
   for (let index = 0; index < day.events.length; index += 1) {
     if (getTimeSlotRank(day.events[index].timeSlot) > rank) return index;
+  }
+  return day.events.length;
+}
+
+function getPreserveOrderInsertIndex(day, options = {}) {
+  if (options.afterEventId) {
+    const index = day.events.findIndex(event => event.id === options.afterEventId);
+    if (index >= 0) return index + 1;
+  }
+  if (Number.isInteger(options.index)) {
+    return Math.max(0, Math.min(day.events.length, options.index));
   }
   return day.events.length;
 }
