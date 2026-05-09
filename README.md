@@ -78,10 +78,13 @@ Stop-Process -Id <PID> -Force
 ```text
 AMAP_JSCODE=<your-amap-jscode>
 DEEPSEEK_API_KEY=<your-deepseek-api-key>
+DEEPSEEK_TIMEOUT_MS=90000
 PORT=8080
 ```
 
 本地可参考 `.env.example`。生产环境需要在部署平台配置 `AMAP_JSCODE` 和 `DEEPSEEK_API_KEY`。如果不配置 `DEEPSEEK_API_KEY`，AI 导入入口会不可用，但普通行程规划不受影响。
+
+`DEEPSEEK_TIMEOUT_MS` 可选，默认 90000。Zeabur 等部署环境到 DeepSeek 的链路可能比本地慢，如果 AI 导入频繁超时，可在部署平台显式配置为 `90000` 或更高。
 
 ## 部署
 

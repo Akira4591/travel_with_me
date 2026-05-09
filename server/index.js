@@ -30,6 +30,7 @@ const TILE_PREFIX = '/_AMapTile';
 const AI_PREFIX = '/_ai';
 const DEEPSEEK_MODEL = 'deepseek-v4-flash';
 const DEEPSEEK_JSON_ATTEMPTS = 2;
+const DEEPSEEK_TIMEOUT_MS = readPositiveInt(process.env.DEEPSEEK_TIMEOUT_MS, 90000);
 const GUIDE_PROMPT_TEMPLATE = loadGuidePromptTemplate();
 
 if (!JSCODE) {
@@ -73,36 +74,13 @@ app.post(`${AI_PREFIX}/extract-guide`, async (c) => {
   if (text.length < 50) return c.json({ error: 'TEXT_TOO_SHORT', message: '文字太短，请粘贴完整攻略段落。' }, 400);
   if (text.length > 5000) return c.json({ error: 'TEXT_TOO_LONG', message: '文字过长，请分段处理。' }, 400);
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 25000);
-
   try {
     let lastDebug = null;
     for (let attempt = 1; attempt <= DEEPSEEK_JSON_ATTEMPTS; attempt += 1) {
-      const upstreamResp = await fetch('https://api.deepseek.com/chat/completions', {
-        method: 'POST',
-        signal: controller.signal,
-        headers: {
-          'authorization': `Bearer ${DEEPSEEK_KEY}`,
-          'content-type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: DEEPSEEK_MODEL,
-          response_format: { type: 'json_object' },
-          thinking: { type: 'disabled' },
-          temperature: 0.2,
-          max_tokens: 4096,
-          messages: [
-            {
-              role: 'system',
-              content: '你必须只输出一个可被 JSON.parse 解析的 json object，不要输出 markdown、代码块、解释文字或前后缀。'
-            },
-            {
-              role: 'user',
-              content: renderGuidePrompt(GUIDE_PROMPT_TEMPLATE, text, cityHint)
-            }
-          ]
-        })
+      const upstreamResp = await fetchDeepSeekWithTimeout({
+        text,
+        cityHint,
+        signalTimeoutMs: DEEPSEEK_TIMEOUT_MS
       });
 
       const data = await upstreamResp.json().catch(() => null);
@@ -138,12 +116,18 @@ app.post(`${AI_PREFIX}/extract-guide`, async (c) => {
     }, 502);
   } catch (err) {
     if (err?.name === 'AbortError') {
-      return c.json({ error: 'AI_TIMEOUT', message: 'AI 处理超时，请稍后重试。' }, 504);
+      console.warn('[trip-app] DeepSeek 请求超时：', {
+        model: DEEPSEEK_MODEL,
+        timeoutMs: DEEPSEEK_TIMEOUT_MS,
+        textLength: text.length
+      });
+      return c.json({
+        error: 'AI_TIMEOUT',
+        message: `AI 处理超过 ${Math.round(DEEPSEEK_TIMEOUT_MS / 1000)} 秒，请稍后重试或缩短攻略文本。`
+      }, 504);
     }
     console.error('[trip-app] AI 攻略导入失败：', err);
     return c.json({ error: 'AI_FAILED', message: 'AI 暂时不可用，请稍后重试。' }, 502);
-  } finally {
-    clearTimeout(timer);
   }
 });
 
@@ -295,6 +279,45 @@ function renderGuidePrompt(template, text, cityHint) {
   return template
     .replace('{user_specified_city 或 "由你识别"}', city)
     .replace('{user_text}', text);
+}
+
+async function fetchDeepSeekWithTimeout({ text, cityHint, signalTimeoutMs }) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), signalTimeoutMs);
+  try {
+    return await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'authorization': `Bearer ${DEEPSEEK_KEY}`,
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: DEEPSEEK_MODEL,
+        response_format: { type: 'json_object' },
+        thinking: { type: 'disabled' },
+        temperature: 0.2,
+        max_tokens: 4096,
+        messages: [
+          {
+            role: 'system',
+            content: '你必须只输出一个可被 JSON.parse 解析的 json object，不要输出 markdown、代码块、解释文字或前后缀。'
+          },
+          {
+            role: 'user',
+            content: renderGuidePrompt(GUIDE_PROMPT_TEMPLATE, text, cityHint)
+          }
+        ]
+      })
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function readPositiveInt(value, fallback) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : fallback;
 }
 
 function parseGuideJSON(content) {
