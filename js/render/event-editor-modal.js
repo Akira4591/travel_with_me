@@ -53,6 +53,10 @@ function createModal(event, location) {
           <label>图标</label>
           ${renderIconPickerHTML(getIconIdForEvent(event, location))}
         </div>
+        <div class="modal-form-row date-form-row">
+          <label>日期</label>
+          ${renderContainerPickerHTML(currentHandlers?.containerOptions || [], currentHandlers?.currentContainerId || '')}
+        </div>
         <div class="modal-form-row time-form-row">
           <label>时间</label>
           ${renderTimeSlotPickerHTML(event.timeSlot)}
@@ -109,6 +113,7 @@ function bindEvents(root, initialLocation) {
   const resultsEl = root.querySelector('.editor-results');
   const locationCard = root.querySelector('.editor-location-card');
   const iconPicker = bindIconPicker(root, root.querySelector('.icon-picker-btn.active')?.dataset.iconId || 'pin');
+  const containerPicker = bindContainerPicker(root);
   const timeSlotPicker = bindTimeSlotPicker(root);
   let selectedPlace = null;
   let searchMode = 'keyword';
@@ -254,6 +259,7 @@ function bindEvents(root, initialLocation) {
       event: {
         title: root.querySelector('.editor-title-input').value.trim(),
         icon: iconPicker.getValue(),
+        targetDayId: containerPicker.getValue(),
         timeSlot: timeSlotPicker.getValue(),
         note: root.querySelector('.editor-note-input').value.trim()
       },
@@ -356,6 +362,76 @@ function renderTimeSlotPickerHTML(value) {
       `).join('')}
     </div>
   `;
+}
+
+function renderContainerPickerHTML(options, currentValue) {
+  const normalized = options.length ? options : [{ id: currentValue || 'unscheduled', label: '未排期' }];
+  const selected = currentValue || normalized[0]?.id || 'unscheduled';
+  const selectedOption = normalized.find(option => option.id === selected) || normalized[0];
+  return `
+    <div class="editor-container-picker" data-value="${escapeHTML(selectedOption?.id || '')}">
+      <button type="button" class="editor-container-trigger" aria-haspopup="listbox" aria-expanded="false">
+        <span class="editor-container-label">${escapeHTML(selectedOption?.label || '未排期')}</span>
+        <span class="editor-container-arrow" aria-hidden="true">⌄</span>
+      </button>
+      <div class="editor-container-menu" role="listbox" hidden>
+      ${normalized.map(option => `
+        <button type="button" class="editor-container-option ${option.id === selected ? 'active' : ''}" data-container-id="${escapeHTML(option.id)}" role="option" aria-selected="${option.id === selected}">
+          ${escapeHTML(option.label)}
+        </button>
+      `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function bindContainerPicker(root) {
+  const picker = root.querySelector('.editor-container-picker');
+  const trigger = root.querySelector('.editor-container-trigger');
+  const label = root.querySelector('.editor-container-label');
+  const menu = root.querySelector('.editor-container-menu');
+  if (!picker || !trigger || !label || !menu) return { getValue: () => '' };
+
+  const close = () => {
+    menu.hidden = true;
+    trigger.setAttribute('aria-expanded', 'false');
+  };
+  const open = () => {
+    menu.hidden = false;
+    trigger.setAttribute('aria-expanded', 'true');
+  };
+  const toggle = () => {
+    if (menu.hidden) open();
+    else close();
+  };
+
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggle();
+  });
+
+  menu.querySelectorAll('.editor-container-option').forEach(option => {
+    option.addEventListener('click', (e) => {
+      e.stopPropagation();
+      picker.dataset.value = option.dataset.containerId || '';
+      label.textContent = option.textContent.trim();
+      menu.querySelectorAll('.editor-container-option').forEach(item => {
+        const active = item === option;
+        item.classList.toggle('active', active);
+        item.setAttribute('aria-selected', String(active));
+      });
+      close();
+    });
+  });
+
+  root.addEventListener('click', (e) => {
+    if (!picker.contains(e.target)) close();
+  });
+  root.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') close();
+  });
+
+  return { getValue: () => picker.dataset.value || '' };
 }
 
 function bindTimeSlotPicker(root) {

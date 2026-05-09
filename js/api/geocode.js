@@ -46,12 +46,15 @@ export function searchPlaces(AMap, keyword, options = {}) {
       resolve([]);
       return;
     }
-    const ps = new AMap.PlaceSearch({
-      city: options.city || AppConfig.cityCode,
+    const psOptions = {
       citylimit: false,
       pageSize: options.pageSize || 10,
       extensions: 'all'
-    });
+    };
+    if (options.city !== false) {
+      psOptions.city = options.city || AppConfig.cityCode;
+    }
+    const ps = new AMap.PlaceSearch(psOptions);
     ps.search(keyword, (status, result) => {
       if (status !== 'complete' || !result?.poiList?.pois) {
         resolve([]);

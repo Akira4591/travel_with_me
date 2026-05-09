@@ -12,7 +12,7 @@ import {
 } from '../state.js';
 import {
   escapeHTML, formatDistance, formatDuration,
-  getTransportLabel, formatDateCN
+  getTransportLabel
 } from '../utils.js';
 import { getIconIdForEvent, renderIconSVG } from './icons.js';
 import { getTimeSlotLabel, normalizeTimeSlot } from '../time-slots.js';
@@ -49,8 +49,9 @@ export function renderTabs(handlers) {
   if (!hasActiveTrip()) return;
 
   tabs.appendChild(createTabButton('all', '全部日期', handlers));
-  trip.days.forEach(day => {
-    tabs.appendChild(createTabButton(day.id, formatDateCN(day.date), handlers));
+  // V5：tab 按钮显示 "Day 1" / "Day 2" 而不是日期
+  trip.days.forEach((day, dayIndex) => {
+    tabs.appendChild(createTabButton(day.id, `Day ${dayIndex + 1}`, handlers));
   });
 
   const addDayBtn = document.createElement('button');
@@ -83,17 +84,19 @@ export function updateVisibleDayGroups(dayId) {
   if (container) container.scrollTop = 0;
 
   document.querySelectorAll('.day-group').forEach(group => {
+    const isUnscheduled = group.dataset.dayId === 'unscheduled';
     group.style.display =
-      dayId === 'all' || group.dataset.dayId === dayId ? 'block' : 'none';
+      (isUnscheduled ? dayId === 'all' : dayId === 'all' || group.dataset.dayId === dayId)
+        ? 'block'
+        : 'none';
   });
   document.querySelectorAll('.route-card').forEach(card => {
     card.hidden = dayId === 'all';
   });
   document.querySelectorAll('.day-add-btn').forEach(btn => {
-    btn.hidden = dayId === 'all';
+    btn.hidden = btn.classList.contains('unscheduled-add-btn') ? dayId !== 'all' : dayId === 'all';
   });
   // 空天提示在所有视图下都展示——只要这一天没有地点，就提示用户去添加。
-  // 之前在"全部日期"视图下被隐藏，导致空白天看起来啥也没有。
   document.querySelectorAll('.empty-day-state').forEach(state => {
     state.hidden = false;
   });
@@ -135,15 +138,17 @@ export function renderItinerary(handlers) {
     return;
   }
 
-  trip.days.forEach(day => {
+  trip.days.forEach((day, dayIndex) => {
+    // V5：标签变成 "Day N · 标题"，title 留空时显示"新的一天"
+    const dayLabel = day.title?.trim() || '新的一天';
     const dayGroup = document.createElement('section');
     dayGroup.className = 'day-group';
     dayGroup.dataset.dayId = day.id;
     dayGroup.innerHTML = `
       <div class="day-title">
         <div class="day-title-main">
-          <span class="day-title-label">${escapeHTML(formatDateCN(day.date))} · ${escapeHTML(day.title)}</span>
-          <button type="button" class="day-edit-btn" title="编辑日期">···</button>
+          <span class="day-title-label">Day ${dayIndex + 1} · ${escapeHTML(dayLabel)}</span>
+          <button type="button" class="day-edit-btn" title="编辑这一天">···</button>
         </div>
         <button type="button" class="day-add-btn">+ 添加地点</button>
       </div>
@@ -159,6 +164,7 @@ export function renderItinerary(handlers) {
     });
 
     const eventsContainer = dayGroup.querySelector('.event-container');
+    bindContainerDropEvents(eventsContainer, day, handlers);
     let routeOrder = 0;
 
     if (!day.events.length) {
@@ -189,11 +195,52 @@ export function renderItinerary(handlers) {
 
     container.appendChild(dayGroup);
   });
+
+  // V5 新增：未排期 section（与 day-group 并列，始终展示在末尾）
+  // - 数据来自 trip.unscheduled，只有"全部日期"页展示
+  // - 不画 routeToNext route-card（unscheduled events 之间没有路线）
+  const unscheduled = trip.unscheduled || [];
+  const unsGroup = document.createElement('section');
+  unsGroup.className = 'day-group day-group-unscheduled';
+  unsGroup.dataset.dayId = 'unscheduled';
+  unsGroup.innerHTML = `
+    <div class="day-title">
+      <div class="day-title-main">
+        <span class="day-title-label">未排期</span>
+      </div>
+      <button type="button" class="day-add-btn unscheduled-add-btn">+ 添加地点</button>
+    </div>
+    <div class="event-container"></div>
+  `;
+
+  unsGroup.querySelector('.unscheduled-add-btn').addEventListener('click', () => {
+    handlers.onAddUnscheduledLocation?.();
+  });
+
+  const evContainer = unsGroup.querySelector('.event-container');
+  const mockDay = { id: 'unscheduled', events: unscheduled };
+  bindContainerDropEvents(evContainer, mockDay, handlers);
+
+  if (!unscheduled.length) {
+    evContainer.classList.add('event-container-empty', 'event-container-unscheduled-empty');
+    evContainer.innerHTML = `
+      <div class="empty-day-state unscheduled-empty-state">
+        <p>可以把暂不确定日期的地点放在这里</p>
+      </div>
+    `;
+  } else {
+    unscheduled.forEach((event, idx) => {
+      evContainer.appendChild(createEventCard(mockDay, event, idx, handlers));
+    });
+  }
+
+  container.appendChild(unsGroup);
 }
 
 // ─── Event 卡 ──────────────────────────────────────────
 
 function createEventCard(day, event, eventIndex, handlers) {
+  const isUnscheduled = day.id === 'unscheduled';
   const loc = getLocation(event.locationId);
   const card = document.createElement('article');
   card.className = 'card';
@@ -212,6 +259,18 @@ function createEventCard(day, event, eventIndex, handlers) {
   const noteHTML = event.note
     ? `<div class="event-note">${escapeHTML(event.note)}</div>`
     : '';
+  const actionHTML = isUnscheduled
+    ? `
+        <button type="button" class="event-action-btn" data-action="edit" title="编辑">···</button>
+        <button type="button" class="event-action-btn danger" data-action="delete" title="删除">−</button>
+      `
+    : `
+        <button type="button" class="event-action-btn" data-action="edit" title="编辑">···</button>
+        <button type="button" class="event-action-btn" data-action="add-after" title="后面添加">+</button>
+        <button type="button" class="event-action-btn" data-action="move-up" title="上移" ${canMoveWithinTimeSlot(day, eventIndex, 'up') ? '' : 'disabled'}>↑</button>
+        <button type="button" class="event-action-btn" data-action="move-down" title="下移" ${canMoveWithinTimeSlot(day, eventIndex, 'down') ? '' : 'disabled'}>↓</button>
+        <button type="button" class="event-action-btn danger" data-action="delete" title="删除">−</button>
+      `;
   card.innerHTML = `
     <button type="button" class="drag-handle" draggable="true" aria-label="拖动排序" title="拖动排序">⋮⋮</button>
     <div class="card-icon" aria-hidden="true">${iconHTML}</div>
@@ -230,11 +289,7 @@ function createEventCard(day, event, eventIndex, handlers) {
       </div>
       ${noteHTML}
       <div class="card-actions">
-        <button type="button" class="event-action-btn" data-action="edit" title="编辑">···</button>
-        <button type="button" class="event-action-btn" data-action="add-after" title="后面添加">+</button>
-        <button type="button" class="event-action-btn" data-action="move-up" title="上移" ${canMoveWithinTimeSlot(day, eventIndex, 'up') ? '' : 'disabled'}>↑</button>
-        <button type="button" class="event-action-btn" data-action="move-down" title="下移" ${canMoveWithinTimeSlot(day, eventIndex, 'down') ? '' : 'disabled'}>↓</button>
-        <button type="button" class="event-action-btn danger" data-action="delete" title="删除">−</button>
+        ${actionHTML}
       </div>
     </div>
   `;
@@ -285,27 +340,89 @@ function bindDragEvents(card, day, event, handlers) {
 
   handle.addEventListener('dragend', () => {
     card.classList.remove('dragging');
-    document.querySelectorAll('.card.drag-over').forEach(el => el.classList.remove('drag-over'));
+    clearDragInsertState();
   });
 
   card.addEventListener('dragover', (e) => {
     e.preventDefault();
-    card.classList.add('drag-over');
+    e.stopPropagation();
+    clearDragInsertState(card);
+    card.classList.toggle('drag-insert-before', getInsertPosition(e, card) === 'before');
+    card.classList.toggle('drag-insert-after', getInsertPosition(e, card) === 'after');
     e.dataTransfer.dropEffect = 'move';
   });
 
   card.addEventListener('dragleave', () => {
-    card.classList.remove('drag-over');
+    card.classList.remove('drag-insert-before', 'drag-insert-after');
   });
 
   card.addEventListener('drop', (e) => {
     const payload = readDragPayload(e);
-    if (!payload || payload.dayId !== day.id || payload.eventId === event.id) return;
+    if (!payload || payload.eventId === event.id) return;
     e.preventDefault();
     e.stopPropagation();
-    card.classList.remove('drag-over');
-    if (payload.timeSlot !== normalizeTimeSlot(event.timeSlot)) return;
-    handlers.onReorderEvent?.(day.id, payload.eventId, event.id);
+    const position = getInsertPosition(e, card);
+    const targetIndex = (day.events || []).findIndex(item => item.id === event.id);
+    const afterEventId = position === 'after'
+      ? event.id
+      : getPreviousEventId(day.events || [], targetIndex);
+    const explicitIndex = position === 'before' && targetIndex === 0 ? 0 : undefined;
+    clearDragInsertState();
+    handlers.onDropEvent?.(payload, {
+      dayId: day.id,
+      timeSlot: normalizeTimeSlot(event.timeSlot),
+      afterEventId,
+      index: explicitIndex
+    });
+  });
+}
+
+function bindContainerDropEvents(container, day, handlers) {
+  container.addEventListener('dragover', (e) => {
+    if (e.target.closest('.card')) return;
+    e.preventDefault();
+    container.classList.add('drag-container-over');
+    e.dataTransfer.dropEffect = 'move';
+  });
+
+  container.addEventListener('dragleave', (e) => {
+    if (container.contains(e.relatedTarget)) return;
+    container.classList.remove('drag-container-over');
+  });
+
+  container.addEventListener('drop', (e) => {
+    if (e.target.closest('.card')) return;
+    const payload = readDragPayload(e);
+    if (!payload) return;
+    e.preventDefault();
+    container.classList.remove('drag-container-over');
+    const events = day.events || [];
+    handlers.onDropEvent?.(payload, {
+      dayId: day.id,
+      timeSlot: normalizeTimeSlot(payload.timeSlot),
+      afterEventId: events.length ? events[events.length - 1].id : null,
+      index: events.length
+    });
+  });
+}
+
+function getInsertPosition(e, card) {
+  const rect = card.getBoundingClientRect();
+  return e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+}
+
+function getPreviousEventId(events, index) {
+  if (index <= 0) return null;
+  return events[index - 1]?.id || null;
+}
+
+function clearDragInsertState(except = null) {
+  document.querySelectorAll('.card.drag-insert-before, .card.drag-insert-after').forEach(el => {
+    if (el === except) return;
+    el.classList.remove('drag-insert-before', 'drag-insert-after');
+  });
+  document.querySelectorAll('.event-container.drag-container-over').forEach(el => {
+    el.classList.remove('drag-container-over');
   });
 }
 

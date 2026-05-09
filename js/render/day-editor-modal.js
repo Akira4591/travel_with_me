@@ -1,19 +1,18 @@
 // js/render/day-editor-modal.js
-// 编辑 / 新建 day 级信息：日期文案和当天标题。
+// 编辑 / 新建 day 级信息：当天标题（V5 删除了日期字段）。
 
 import { escapeHTML } from '../utils.js';
-import { bindDatePicker, createDatePickerHTML } from './date-picker.js';
 
 let modalEl = null;
 let currentHandlers = null;
 
-export function openDayEditorModal({ day = null, mode = 'edit', canDelete = true, disabledDates = [], handlers }) {
+export function openDayEditorModal({ day = null, mode = 'edit', canDelete = true, handlers }) {
   closeDayEditorModal();
   currentHandlers = handlers;
-  modalEl = createModal(day, mode, canDelete, disabledDates);
+  modalEl = createModal(day, mode, canDelete);
   document.body.appendChild(modalEl);
   requestAnimationFrame(() => {
-    modalEl?.querySelector('.date-picker-trigger')?.focus();
+    modalEl?.querySelector('.day-title-input')?.focus();
   });
 }
 
@@ -24,24 +23,20 @@ export function closeDayEditorModal() {
   currentHandlers = null;
 }
 
-function createModal(day, mode, canDelete, disabledDates) {
+function createModal(day, mode, canDelete) {
   const isCreate = mode === 'create';
   const root = document.createElement('div');
   root.className = 'modal-overlay';
   root.innerHTML = `
-    <div class="modal day-editor-modal" role="dialog" aria-modal="true" aria-label="${isCreate ? '新建一天' : '编辑日期'}">
+    <div class="modal day-editor-modal" role="dialog" aria-modal="true" aria-label="${isCreate ? '新建一天' : '编辑这一天'}">
       <div class="modal-header">
-        <h2>${isCreate ? '新建一天' : '编辑日期'}</h2>
+        <h2>${isCreate ? '新建一天' : '编辑这一天'}</h2>
         <button type="button" class="modal-close" aria-label="关闭">×</button>
       </div>
       <form class="modal-body day-editor-form">
         <div class="modal-form-row">
-          <label>日期</label>
-          ${createDatePickerHTML(day?.date || '', { disabledDates })}
-        </div>
-        <div class="modal-form-row">
           <label>标题</label>
-          <input type="text" class="day-title-input" placeholder="例如：城市漫步" required value="${escapeHTML(day?.title || '')}" />
+          <input type="text" class="day-title-input" placeholder="留空则显示「新的一天」" value="${escapeHTML(day?.title || '')}" />
         </div>
         <div class="modal-actions day-editor-actions">
           ${!isCreate && canDelete ? '<button type="button" class="modal-danger day-delete-btn">删除这一天</button>' : ''}
@@ -53,7 +48,6 @@ function createModal(day, mode, canDelete, disabledDates) {
     </div>
   `;
 
-  bindDatePicker(root);
   bindEvents(root, day, mode);
   return root;
 }
@@ -77,11 +71,10 @@ function bindEvents(root, day, mode) {
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();
+    // V5：patch 只剩 title。空字符串允许提交（renderItinerary 显示"新的一天"）。
     const patch = {
-      date: root.querySelector('.day-date-input').value.trim(),
       title: root.querySelector('.day-title-input').value.trim()
     };
-    if (!patch.date || !patch.title) return;
 
     const ok = mode === 'create'
       ? currentHandlers?.onCreate?.(patch)

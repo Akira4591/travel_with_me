@@ -1,16 +1,25 @@
 // js/data/trip.js
 // 初始 trip 数据：五一北京行程
 //
-// 数据模型说明：
+// 数据模型说明（V5 版）：
 //
 // trip.locations 是地点的"主表"，按 id 索引
 //   - 添加地点 = 在这里 append
 //   - 删除地点 = 从这里删 + 检查 days[].events 引用
 //
+// trip.days[] 是按顺序排列的多日行程数组
+//   - 索引即 Day 序号（days[0] = Day 1）
+//   - V5 删除了 day.date 字段——规划阶段思考的是"第几天"，不是绝对日期
+//   - day.title 可选，空时 UI 显示"新的一天"
+//
 // trip.days[].events 是每天的事件序列
 //   - 每个 event 通过 locationId 引用 trip.locations
 //   - event.routeToNext 标记"从当前地点到下一个地点"用什么交通方式
 //   - 最后一个 event 不需要 routeToNext
+//
+// trip.unscheduled[] V5 新增：未排期事件
+//   - 形态与 events 一致，但**不带 routeToNext**（未排期之间不画路线）
+//   - 用于承接 AI 攻略导入识别出的"无日期归属"地点（推荐合集类）
 //
 // 注意：locations 不再内置 lnglat。boot 时由 resolveAllLocations() 走高德
 // PlaceSearch / Geocoder 自动校准（searchTerms / resolveBy / includeKeywords
@@ -94,7 +103,6 @@ export const initialTrip = {
   days: [
     {
       id: 'day-1',
-      date: '2026-05-01',
       title: '入住与晚餐',
       events: [
         { id: 'd1-e2', title: '前往酒店放行李',     locationId: 'hotel',       icon: 'hotel', timeSlot: 'afternoon', routeToNext: { mode: 'driving'  } },
@@ -103,7 +111,6 @@ export const initialTrip = {
     },
     {
       id: 'day-2',
-      date: '2026-05-02',
       title: '吃喝与逛校园',
       events: [
         { id: 'd2-e0', title: '从酒店出发',         locationId: 'hotel',       icon: 'hotel', timeSlot: 'morning', routeToNext: { mode: 'driving' } },
@@ -116,7 +123,6 @@ export const initialTrip = {
     },
     {
       id: 'day-3',
-      date: '2026-05-03',
       title: '朝阳水岸休闲',
       events: [
         { id: 'd3-e0', title: '从酒店出发',         locationId: 'hotel',        icon: 'hotel', timeSlot: 'morning', routeToNext: { mode: 'transit'  } },
@@ -129,12 +135,17 @@ export const initialTrip = {
     },
     {
       id: 'day-4',
-      date: '2026-05-04',
       title: '踏青休闲',
       events: [
         { id: 'd4-e0', title: '从酒店出发',     locationId: 'hotel',     icon: 'hotel', timeSlot: 'morning', routeToNext: { mode: 'driving' } },
         { id: 'd4-e1', title: '大运河森林公园', locationId: 'canalpark', icon: 'park', timeSlot: 'morning' }
       ]
     }
-  ]
+  ],
+
+  // V5 新增：未排期事件容器
+  // - AI 攻略导入识别出的"推荐合集"（无 day 归属）落到这里
+  // - 用户可通过 day/timeSlot select 把它们移到具体 day
+  // - 不画 routeToNext
+  unscheduled: []
 };

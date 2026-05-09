@@ -22,16 +22,130 @@ import { serveStatic } from '@hono/node-server/serve-static';
 loadDotenv();
 
 const JSCODE = process.env.AMAP_JSCODE;
+const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY;
 const PORT = Number(process.env.PORT) || 8080;
 const UPSTREAM = 'https://restapi.amap.com';
 const PROXY_PREFIX = '/_AMapService';
 const TILE_PREFIX = '/_AMapTile';
+const AI_PREFIX = '/_ai';
+const DEEPSEEK_MODEL = 'deepseek-v4-flash';
+const DEEPSEEK_JSON_ATTEMPTS = 2;
+const GUIDE_PROMPT_TEMPLATE = loadGuidePromptTemplate();
 
 if (!JSCODE) {
   console.warn('[trip-app] AMAP_JSCODE 未设置：高德 Web 服务请求会被拒绝。请检查 .env 或部署环境变量。');
 }
+if (!DEEPSEEK_KEY) {
+  console.warn('[trip-app] DEEPSEEK_API_KEY 未设置：AI 攻略导入功能将不可用。');
+}
+// V5：DEEPSEEK_KEY 仅在此读取声明，具体路由（/_ai/extract-guide）在 V6 实现攻略提取时再加
 
 const app = new Hono();
+
+// ─── AI 攻略导入 ────────────────────────────────────────
+
+app.get(`${AI_PREFIX}/status`, (c) => {
+  return c.json({
+    available: Boolean(DEEPSEEK_KEY && GUIDE_PROMPT_TEMPLATE),
+    reason: !DEEPSEEK_KEY
+      ? 'DEEPSEEK_API_KEY_MISSING'
+      : (!GUIDE_PROMPT_TEMPLATE ? 'GUIDE_PROMPT_MISSING' : '')
+  });
+});
+
+app.post(`${AI_PREFIX}/extract-guide`, async (c) => {
+  if (!DEEPSEEK_KEY) {
+    return c.json({ error: 'AI_UNAVAILABLE', message: 'AI 攻略导入功能暂不可用：缺少 DEEPSEEK_API_KEY。' }, 503);
+  }
+  if (!GUIDE_PROMPT_TEMPLATE) {
+    return c.json({ error: 'AI_PROMPT_MISSING', message: '攻略解析 Prompt 未找到，请检查服务端 Prompt 文件。' }, 500);
+  }
+
+  let payload;
+  try {
+    payload = await c.req.json();
+  } catch {
+    return c.json({ error: 'BAD_REQUEST', message: '请求格式错误。' }, 400);
+  }
+
+  const text = String(payload?.text || '').trim();
+  const cityHint = String(payload?.cityHint || '').trim();
+  if (text.length < 50) return c.json({ error: 'TEXT_TOO_SHORT', message: '文字太短，请粘贴完整攻略段落。' }, 400);
+  if (text.length > 5000) return c.json({ error: 'TEXT_TOO_LONG', message: '文字过长，请分段处理。' }, 400);
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 25000);
+
+  try {
+    let lastDebug = null;
+    for (let attempt = 1; attempt <= DEEPSEEK_JSON_ATTEMPTS; attempt += 1) {
+      const upstreamResp = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          'authorization': `Bearer ${DEEPSEEK_KEY}`,
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: DEEPSEEK_MODEL,
+          response_format: { type: 'json_object' },
+          thinking: { type: 'disabled' },
+          temperature: 0.2,
+          max_tokens: 4096,
+          messages: [
+            {
+              role: 'system',
+              content: '你必须只输出一个可被 JSON.parse 解析的 json object，不要输出 markdown、代码块、解释文字或前后缀。'
+            },
+            {
+              role: 'user',
+              content: renderGuidePrompt(GUIDE_PROMPT_TEMPLATE, text, cityHint)
+            }
+          ]
+        })
+      });
+
+      const data = await upstreamResp.json().catch(() => null);
+      if (!upstreamResp.ok) {
+        console.error('[trip-app] DeepSeek 请求失败：', data || upstreamResp.statusText);
+        return c.json({ error: 'AI_UPSTREAM_FAILED', message: 'AI 暂时不可用，请稍后重试。' }, 502);
+      }
+
+      const choice = data?.choices?.[0];
+      const content = choice?.message?.content || '';
+      const parsed = parseGuideJSON(content);
+      if (parsed) return c.json(normalizeExtractedGuide(parsed));
+
+      const debug = {
+        attempt,
+        model: data?.model || DEEPSEEK_MODEL,
+        finishReason: choice?.finish_reason || '',
+        contentLength: String(content || '').length,
+        preview: previewText(content)
+      };
+      lastDebug = debug;
+      console.warn('[trip-app] AI 输出 JSON 解析失败：', debug);
+      if (attempt < DEEPSEEK_JSON_ATTEMPTS) {
+        await sleep(500);
+        continue;
+      }
+    }
+
+    return c.json({
+      error: 'AI_PARSE_FAILED',
+      message: buildParseFailMessage(lastDebug || {}),
+      debug: lastDebug
+    }, 502);
+  } catch (err) {
+    if (err?.name === 'AbortError') {
+      return c.json({ error: 'AI_TIMEOUT', message: 'AI 处理超时，请稍后重试。' }, 504);
+    }
+    console.error('[trip-app] AI 攻略导入失败：', err);
+    return c.json({ error: 'AI_FAILED', message: 'AI 暂时不可用，请稍后重试。' }, 502);
+  } finally {
+    clearTimeout(timer);
+  }
+});
 
 // ─── 高德 Web 服务代理 ────────────────────────────────────
 // 高德 JS SDK 在前端设置 _AMapSecurityConfig.serviceHost 后，
@@ -65,10 +179,18 @@ app.all(`${PROXY_PREFIX}/*`, async (c) => {
 
   let upstreamResp;
   try {
-    upstreamResp = await fetch(upstream, init);
+    upstreamResp = await fetchWithRetry(upstream, init, {
+      attempts: 2,
+      label: '高德 Web 服务'
+    });
   } catch (err) {
     console.error('[trip-app] 上游请求失败：', err);
-    return c.json({ status: '0', info: 'BFF_UPSTREAM_FAILED', infocode: '50001' }, 502);
+    return c.json({
+      status: '0',
+      info: 'BFF_UPSTREAM_FAILED',
+      infocode: '50001',
+      message: '高德服务连接超时或网络不可用，请稍后重试。'
+    }, 502);
   }
 
   const body = await upstreamResp.arrayBuffer();
@@ -155,4 +277,149 @@ function loadDotenv() {
     const value = line.slice(eq + 1).trim().replace(/^["']|["']$/g, '');
     if (process.env[key] === undefined) process.env[key] = value;
   }
+}
+
+function loadGuidePromptTemplate() {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const promptPath = resolve(here, 'prompts', 'guide-extract.md');
+  try {
+    return readFileSync(promptPath, 'utf8').trim();
+  } catch {
+    console.warn('[trip-app] 未找到 AI 攻略导入 Prompt，无法加载攻略解析功能。');
+    return '';
+  }
+}
+
+function renderGuidePrompt(template, text, cityHint) {
+  const city = cityHint || '由你识别';
+  return template
+    .replace('{user_specified_city 或 "由你识别"}', city)
+    .replace('{user_text}', text);
+}
+
+function parseGuideJSON(content) {
+  const normalized = stripMarkdownFence(String(content || '').trim());
+  try {
+    return JSON.parse(normalized);
+  } catch {}
+
+  const jsonLike = extractBalancedJSONObject(normalized);
+  if (!jsonLike) return null;
+  try {
+    return JSON.parse(jsonLike);
+  } catch {
+    const repaired = repairCommonJSONIssues(jsonLike);
+    try {
+      return JSON.parse(repaired);
+    } catch {
+      return null;
+    }
+  }
+}
+
+function stripMarkdownFence(text) {
+  return text
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
+}
+
+function extractBalancedJSONObject(text) {
+  const start = text.indexOf('{');
+  if (start < 0) return '';
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < text.length; i += 1) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+    if (ch === '{') depth += 1;
+    if (ch === '}') {
+      depth -= 1;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return '';
+}
+
+function repairCommonJSONIssues(text) {
+  return text
+    .replace(/,\s*([}\]])/g, '$1')
+    .replace(/:\s*undefined\b/g, ': null');
+}
+
+function previewText(content) {
+  return String(content || '')
+    .replace(/\s+/g, ' ')
+    .slice(0, 500);
+}
+
+function buildParseFailMessage(debug) {
+  if (!debug.contentLength) return 'AI 没有返回内容，请稍后重试。';
+  if (debug.finishReason && debug.finishReason !== 'stop') {
+    return `AI 输出未完成（${debug.finishReason}），请缩短攻略后重试。`;
+  }
+  return `AI 输出不是合法 JSON。返回片段：${debug.preview || '无内容'}`;
+}
+
+function normalizeExtractedGuide(input = {}) {
+  const guideTypes = new Set(['daily_itinerary', 'recommendation_list', 'mixed', 'non_travel']);
+  const timeSlots = new Set(['morning', 'noon', 'afternoon', 'evening']);
+  const guideType = guideTypes.has(input.guide_type) ? input.guide_type : 'non_travel';
+  return {
+    guide_type: guideType,
+    city: input.city ? String(input.city).trim() : null,
+    title_suggestion: String(input.title_suggestion || '').trim(),
+    events: Array.isArray(input.events)
+      ? input.events.map(event => ({
+          place_name: String(event?.place_name || '').trim(),
+          day: Number.isInteger(event?.day) && event.day > 0 ? event.day : null,
+          time_slot: timeSlots.has(event?.time_slot) ? event.time_slot : null,
+          note: String(event?.note || '').trim().slice(0, 120),
+          source_quote: String(event?.source_quote || '').trim().slice(0, 80)
+        })).filter(event => event.place_name)
+      : [],
+    warnings: Array.isArray(input.warnings)
+      ? input.warnings.map(item => String(item || '').trim()).filter(Boolean)
+      : []
+  };
+}
+
+async function fetchWithRetry(url, init = {}, options = {}) {
+  const attempts = Math.max(1, Number(options.attempts) || 1);
+  const label = options.label || '上游服务';
+  let lastError;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await fetch(url, init);
+    } catch (err) {
+      lastError = err;
+      if (attempt >= attempts) break;
+      console.warn(`[trip-app] ${label}请求失败，准备重试 ${attempt}/${attempts - 1}：`, summarizeFetchError(err));
+      await sleep(500 * attempt);
+    }
+  }
+  throw lastError;
+}
+
+function summarizeFetchError(err) {
+  return {
+    name: err?.name || '',
+    message: err?.message || '',
+    code: err?.cause?.code || err?.code || ''
+  };
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }

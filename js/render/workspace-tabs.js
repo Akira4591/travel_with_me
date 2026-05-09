@@ -26,6 +26,10 @@ export function renderWorkspaceTabs(handlers = {}) {
     handlers.onCreateTrip?.();
   });
 
+  root.querySelector('[data-import-guide]')?.addEventListener('click', () => {
+    handlers.onImportGuide?.();
+  });
+
   root.querySelector('[data-trip-menu]')?.addEventListener('click', (e) => {
     e.stopPropagation();
     const button = e.currentTarget;
@@ -59,7 +63,10 @@ function renderTripTab(trip, index, active) {
 
 function renderCreateTab(index) {
   return `
-    <button type="button" class="workspace-tab workspace-tab-add" style="--slot: ${index + 1};" data-create-trip aria-label="新建行程" title="新建行程">+</button>
+    <div class="workspace-tab workspace-tab-add workspace-tab-create-combo" style="--slot: ${index + 1};" aria-label="新建行程">
+      <button type="button" class="workspace-tab-create-btn" data-create-trip aria-label="新建行程" title="新建行程">+</button>
+      <button type="button" class="workspace-tab-import-btn" data-import-guide aria-label="从攻略导入" title="从攻略导入">AI 导入</button>
+    </div>
   `;
 }
 

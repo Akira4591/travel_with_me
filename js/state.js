@@ -12,7 +12,7 @@
 
 import { initialTrip } from './data/trip.js';
 import { AppConfig } from './config.js';
-import { addDaysISO, isISODate, todayISO } from './utils.js';
+// V5：date 字段已删除，addDaysISO/isISODate/todayISO 全部不再使用
 import { getTimeSlotRank, normalizeTimeSlot } from './time-slots.js';
 import { normalizeRouteToNext } from './route-config.js';
 
@@ -231,40 +231,30 @@ export function createEmptyTrip(title) {
   return createTrip(title);
 }
 
+// V5：addDay 简化——不再校验日期、不再 sort by date
+// day 顺序由用户决定（数组索引就是 Day N），title 留空时显示"新的一天"
 export function addDay(day = {}) {
   if (!trip) return null;
   const id = day.id || generateDayId();
-  const date = day.date || nextDayISO(trip);
-  if (dateExists(date)) return null;
 
   trip.days.push({
     id,
-    date,
-    title: day.title || '新的一天',
+    title: String(day.title || '').trim(),
     events: Array.isArray(day.events) ? structuredClone(day.events).map(normalizeEvent) : []
   });
   sortDayEventsByTimeSlot(trip.days[trip.days.length - 1]);
-  sortDaysByDate();
 
   emit('trip:changed', { kind: 'day:added', dayId: id });
   return id;
 }
 
-export function nextDayISO(t = trip) {
-  const dates = (t?.days || []).map(day => day.date).filter(isISODate).sort();
-  const last = dates[dates.length - 1];
-  return last ? addDaysISO(last, 1) : todayISO();
-}
-
+// V5：updateDay 只支持 title patch
 export function updateDay(dayId, patch) {
   if (!trip) return false;
   const day = trip.days.find(item => item.id === dayId);
   if (!day) return false;
-  if (patch.date != null && patch.date !== day.date && dateExists(patch.date, dayId)) return false;
 
-  if (patch.date != null) day.date = patch.date;
-  if (patch.title != null) day.title = patch.title;
-  sortDaysByDate();
+  if (patch.title != null) day.title = String(patch.title).trim();
 
   emit('trip:changed', { kind: 'day:updated', dayId });
   return true;
@@ -272,6 +262,7 @@ export function updateDay(dayId, patch) {
 
 export function removeDay(dayId) {
   if (!trip) return null;
+  if (trip.days.length <= 1) return null;
 
   const index = trip.days.findIndex(day => day.id === dayId);
   if (index < 0) return null;
@@ -416,6 +407,145 @@ export function reorderEventInDay(dayId, eventId, targetEventId) {
   return true;
 }
 
+// ─── 未排期事件容器（V5 新增） ─────────────────────────
+//
+// 形态与 days[].events 一致，但**没有 routeToNext**——未排期之间不画路线。
+// 主要承接 AI 攻略导入识别出的"无日期归属"地点（推荐合集类）。
+// 用户可通过 day/timeSlot 下拉把它们移到具体 day（V6 实现）。
+
+export function getUnscheduled() {
+  return trip?.unscheduled || [];
+}
+
+export function addUnscheduledEvent(event = {}) {
+  if (!trip) return null;
+  if (!Array.isArray(trip.unscheduled)) trip.unscheduled = [];
+  const id = event.id || generateEventId('uns');
+  const newEvent = normalizeUnscheduledEvent({ ...event, id });
+  trip.unscheduled.push(newEvent);
+  emit('trip:changed', { kind: 'unscheduled:added', eventId: id });
+  return id;
+}
+
+export function updateUnscheduledEvent(eventId, patch) {
+  if (!trip) return false;
+  const list = trip.unscheduled || [];
+  const ev = list.find(item => item.id === eventId);
+  if (!ev) return false;
+
+  if (patch.title != null) ev.title = String(patch.title).trim();
+  if (patch.icon != null) ev.icon = patch.icon;
+  if (patch.timeSlot != null) {
+    const nextSlot = normalizeTimeSlot(patch.timeSlot);
+    if (nextSlot) ev.timeSlot = nextSlot;
+    else delete ev.timeSlot;
+  }
+  if (patch.note != null) {
+    const note = String(patch.note).trim();
+    if (note) ev.note = note;
+    else delete ev.note;
+  }
+  if (patch.locationId != null) ev.locationId = patch.locationId;
+  // 不处理 routeToNext——未排期 events 没有这个字段
+
+  emit('trip:changed', { kind: 'unscheduled:updated', eventId });
+  return true;
+}
+
+export function removeUnscheduledEvent(eventId) {
+  if (!trip?.unscheduled) return false;
+  const idx = trip.unscheduled.findIndex(e => e.id === eventId);
+  if (idx < 0) return false;
+  const [removed] = trip.unscheduled.splice(idx, 1);
+  // 清理无引用的 location（同 removeEventFromDay 的 cleanup 逻辑由调用方在 main.js 决定）
+  emit('trip:changed', {
+    kind: 'unscheduled:removed',
+    eventId,
+    removedLocationId: removed?.locationId
+  });
+  return true;
+}
+
+// 跨容器移动：unscheduled ↔ days[N]，days[A] ↔ days[B]
+// target: { dayId: 'unscheduled' | <day-id>, timeSlot?, afterEventId? }
+// 实现思路：从源容器 splice 出 event，patch timeSlot，push 到目标容器。
+// V6 攻略导入"加入行程"按钮会用到这个；V5 先建好接口，UI 调用方留给 V6。
+export function moveEventBetweenContainers(eventId, target = {}) {
+  if (!trip) return false;
+  const targetDayId = target.dayId;
+  if (!targetDayId) return false;
+
+  // 1) 在所有容器里找到 event
+  let sourceArr = null;
+  let sourceIdx = -1;
+  let sourceDayId = null;
+
+  // 先查 unscheduled
+  if (Array.isArray(trip.unscheduled)) {
+    const idx = trip.unscheduled.findIndex(e => e.id === eventId);
+    if (idx >= 0) {
+      sourceArr = trip.unscheduled;
+      sourceIdx = idx;
+      sourceDayId = 'unscheduled';
+    }
+  }
+  // 再查 days
+  if (sourceIdx < 0) {
+    for (const day of trip.days || []) {
+      const idx = day.events.findIndex(e => e.id === eventId);
+      if (idx >= 0) {
+        sourceArr = day.events;
+        sourceIdx = idx;
+        sourceDayId = day.id;
+        break;
+      }
+    }
+  }
+  if (sourceIdx < 0) return false;
+
+  // 2) splice 出来 + patch timeSlot
+  const [event] = sourceArr.splice(sourceIdx, 1);
+  if (target.timeSlot !== undefined) {
+    const nextSlot = normalizeTimeSlot(target.timeSlot);
+    if (nextSlot) event.timeSlot = nextSlot;
+    else delete event.timeSlot;
+  }
+
+  // 3) 插入目标容器
+  if (targetDayId === 'unscheduled') {
+    if (!Array.isArray(trip.unscheduled)) trip.unscheduled = [];
+    delete event.routeToNext; // 跨进 unscheduled 必须剥掉路线
+    trip.unscheduled.splice(getListInsertIndex(trip.unscheduled, target), 0, event);
+  } else {
+    const targetDay = trip.days.find(d => d.id === targetDayId);
+    if (!targetDay) {
+      // 找不到目标 day，回滚到源容器
+      sourceArr.splice(sourceIdx, 0, event);
+      return false;
+    }
+    const insertIndex = getTimeSlotAppendIndex(targetDay, normalizeTimeSlot(event.timeSlot), {
+      afterEventId: target.afterEventId,
+      index: target.index
+    });
+    targetDay.events.splice(insertIndex, 0, event);
+    normalizeDayRoutes(targetDay);
+  }
+
+  // 4) 如果源是某个 day，重排路线
+  if (sourceDayId !== 'unscheduled') {
+    const sourceDay = trip.days.find(d => d.id === sourceDayId);
+    if (sourceDay) normalizeDayRoutes(sourceDay);
+  }
+
+  emit('trip:changed', {
+    kind: 'event:moved-between',
+    eventId,
+    fromDayId: sourceDayId,
+    toDayId: targetDayId
+  });
+  return true;
+}
+
 export function replaceTrip(newTrip) {
   const normalized = normalizeTrip(newTrip);
   if (!workspace.trips.length) {
@@ -428,7 +558,7 @@ export function replaceTrip(newTrip) {
     workspace.activeTripId = normalized.id;
   }
   trip = normalized;
-  sortDaysByDate();
+  // V5：不再 sortDaysByDate
   emit('workspace:changed', { kind: 'trip:replaced', tripId: normalized.id });
   emit('trip:replaced', { trip });
 }
@@ -448,12 +578,27 @@ function getTimeSlotAppendIndex(day, timeSlot, options = {}) {
   if (Number.isInteger(options.index)) {
     return Math.max(0, Math.min(day.events.length, options.index));
   }
+  if (options.afterEventId) {
+    const index = day.events.findIndex(item => item.id === options.afterEventId);
+    if (index >= 0) return index + 1;
+  }
 
   const rank = getTimeSlotRank(timeSlot);
   for (let index = 0; index < day.events.length; index += 1) {
     if (getTimeSlotRank(day.events[index].timeSlot) > rank) return index;
   }
   return day.events.length;
+}
+
+function getListInsertIndex(list, options = {}) {
+  if (Number.isInteger(options.index)) {
+    return Math.max(0, Math.min(list.length, options.index));
+  }
+  if (options.afterEventId) {
+    const index = list.findIndex(item => item.id === options.afterEventId);
+    if (index >= 0) return index + 1;
+  }
+  return list.length;
 }
 
 function moveEventToTimeSlotEnd(day, eventId) {
@@ -515,25 +660,11 @@ function uniqueLocationIds(events) {
 
 function isLocationReferenced(locationId) {
   if (!trip) return false;
-  return trip.days.some(day => day.events.some(event => event.locationId === locationId));
+  return trip.days.some(day => day.events.some(event => event.locationId === locationId))
+    || (trip.unscheduled || []).some(event => event.locationId === locationId);
 }
 
-function dateExists(date, exceptDayId = null) {
-  if (!trip) return false;
-  return isISODate(date) && trip.days.some(day => day.id !== exceptDayId && day.date === date);
-}
-
-function sortDaysByDate() {
-  if (!trip) return;
-  trip.days.sort((a, b) => {
-    const aISO = isISODate(a.date);
-    const bISO = isISODate(b.date);
-    if (aISO && bISO) return a.date.localeCompare(b.date);
-    if (aISO) return -1;
-    if (bISO) return 1;
-    return String(a.date || '').localeCompare(String(b.date || ''));
-  });
-}
+// V5：dateExists / sortDaysByDate 已删除——day 顺序由数组索引决定
 
 function createDefaultWorkspace() {
   const demoTrip = normalizeTrip(initialTrip);
@@ -566,23 +697,31 @@ function normalizeTrip(input, fallbackTitle = '旅行路线') {
   cloned.city = cloned.city || AppConfig.cityName;
   cloned.locations = cloned.locations && typeof cloned.locations === 'object' ? cloned.locations : {};
   cloned.days = Array.isArray(cloned.days) ? cloned.days : [];
+  // V5：不再 normalize day.date（字段已删除），不再 sortDaysByDate
   cloned.days.forEach(day => {
     day.id = day.id || generateDayId();
-    day.date = day.date || todayISO();
-    day.title = day.title || '新的一天';
+    day.title = String(day.title || '').trim();
+    delete day.date; // 防御性清理：万一旧数据混进来，确保新 schema 干净
     day.events = Array.isArray(day.events) ? day.events.map(normalizeEvent) : [];
     sortDayEventsByTimeSlot(day);
     normalizeDayRoutes(day);
   });
-  cloned.days.sort((a, b) => {
-    const aISO = isISODate(a.date);
-    const bISO = isISODate(b.date);
-    if (aISO && bISO) return a.date.localeCompare(b.date);
-    if (aISO) return -1;
-    if (bISO) return 1;
-    return String(a.date || '').localeCompare(String(b.date || ''));
-  });
+  if (!cloned.days.length) {
+    cloned.days.push(createBlankDay());
+  }
+  // V5 新增：unscheduled 数组——AI 攻略导入识别出的"无日期归属" events 落点
+  cloned.unscheduled = Array.isArray(cloned.unscheduled)
+    ? cloned.unscheduled.map(normalizeUnscheduledEvent)
+    : [];
   return cloned;
+}
+
+// 未排期 event 的字段处理：复用 normalizeEvent 的字段处理逻辑，但**剥掉 routeToNext**
+// 因为未排期之间没有"下一站"概念，不画路线
+function normalizeUnscheduledEvent(event = {}) {
+  const normalized = normalizeEvent(event);
+  delete normalized.routeToNext;
+  return normalized;
 }
 
 function cleanupDemoTripContent(tripLike) {
@@ -626,8 +765,16 @@ function createBlankTrip(title) {
     subtitle: '点击下方行程卡片，右侧地图将自动飞跃至对应地点',
     city: AppConfig.cityName,
     locations: {},
-    days: []
+    days: [createBlankDay()]
   }, '新的旅行路线');
+}
+
+function createBlankDay() {
+  return {
+    id: generateDayId(),
+    title: '',
+    events: []
+  };
 }
 
 function createEmptyReadTrip() {
@@ -637,7 +784,8 @@ function createEmptyReadTrip() {
     subtitle: '点击左上角 + 号新建行程',
     city: AppConfig.cityName,
     locations: {},
-    days: []
+    days: [],
+    unscheduled: []
   };
 }
 

@@ -8,7 +8,8 @@
 //   4) 地图走真实瓦片（/_AMapTile 同源代理避免 canvas 跨域污染），叠暖色滤镜与降饱和
 
 import { AppConfig } from './config.js';
-import { formatDateCN, getTransportIcon, getTransportLabel, isISODate } from './utils.js';
+// V5：day.date 字段已删除，formatDateCN/isISODate 不再使用
+import { getTransportIcon, getTransportLabel } from './utils.js';
 import { getIconPaths } from './render/icons.js';
 import { getTimeSlotLabel, normalizeTimeSlot } from './time-slots.js';
 
@@ -492,7 +493,7 @@ async function drawDays(ctx, trip, days, startY, layout) {
 
   days.forEach((day, dayIdx) => {
     if (dayIdx > 0) y += L(18);
-    y = drawDayHead(ctx, day, y);
+    y = drawDayHead(ctx, day, y, dayIdx);
 
     if (!day.events?.length) {
       y = drawEmptyDay(ctx, y);
@@ -533,9 +534,9 @@ async function drawDays(ctx, trip, days, startY, layout) {
   return y;
 }
 
-function drawDayHead(ctx, day, y) {
-  // 左：badge "日期 · 周X"  ｜  中：theme  ｜  右：N STOPS
-  const badgeText = `${formatDateCN(day.date)} · ${getWeekdayCN(day.date)}`;
+function drawDayHead(ctx, day, y, dayIndex = 0) {
+  // V5：badge 显示 "Day N"（之前是日期+周几），title 在 badge 右侧
+  const badgeText = `Day ${dayIndex + 1}`;
 
   ctx.font = `700 ${L(DAY_BADGE_FONT_SIZE)}px ${FONT_SC}`;
   const badgeTextW = ctx.measureText(badgeText).width;
@@ -554,17 +555,10 @@ function drawDayHead(ctx, day, y) {
   ctx.lineWidth = L(1);
   ctx.stroke();
 
-  // badge 文字：日期部分 accent 色，分隔与周 X 用 ink
-  // 简化：整段一次画，不在中间换色（视觉差别小，节省复杂度）
-  // 但根据 mockup 强调日期是 accent，所以分两段画
-  const dateText = formatDateCN(day.date);
-  const restText = ` · ${getWeekdayCN(day.date)}`;
+  // badge 文字：Day N 用 accent 色突出
   ctx.textBaseline = 'middle';
   ctx.fillStyle = COLORS.accent;
-  ctx.fillText(dateText, badgeX + badgePadX, badgeY + badgeH / 2);
-  const dateW = ctx.measureText(dateText).width;
-  ctx.fillStyle = COLORS.ink;
-  ctx.fillText(restText, badgeX + badgePadX + dateW, badgeY + badgeH / 2);
+  ctx.fillText(badgeText, badgeX + badgePadX, badgeY + badgeH / 2);
 
   // theme（在 badge 右侧，垂直居中对齐）
   if (day.title) {
@@ -865,9 +859,9 @@ function drawFooter(ctx, startY) {
 // ─── 数据处理工具 ─────────────────────────────────────
 
 function buildDateRange(days) {
-  const dates = days.map(day => day.date).filter(isISODate).sort();
-  if (!dates.length) return '日期待定';
-  return `${formatDateCN(dates[0])} — ${formatDateCN(dates[dates.length - 1])}`;
+  // V5：days[].date 字段已删除，副标题改为显示总天数
+  if (!days?.length) return '暂无安排';
+  return `共 ${days.length} 天`;
 }
 
 function collectTripLocations(trip) {
@@ -1041,16 +1035,6 @@ function roundRect(ctx, x, y, width, height, radius) {
 
 function sumWithGaps(values, gap) {
   return values.reduce((sum, v) => sum + v, 0) + Math.max(0, values.length - 1) * gap;
-}
-
-function compareDays(a, b) {
-  if (isISODate(a.date) && isISODate(b.date)) return a.date.localeCompare(b.date);
-  return String(a.date || '').localeCompare(String(b.date || ''));
-}
-
-function getWeekdayCN(iso) {
-  if (!isISODate(iso)) return '日期待定';
-  return ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][new Date(`${iso}T00:00:00`).getDay()];
 }
 
 function formatDateStamp(date) {

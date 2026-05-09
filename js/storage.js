@@ -2,7 +2,12 @@
 // 持久化封装：localStorage 优先，失败时降级到内存
 //
 // workspace 结构：
-//   { version: 2, savedAt, workspace: { trips: [...], activeTripId } }
+//   { version: 3, savedAt, workspace: { trips: [...], activeTripId } }
+//
+// V5 schema 升级：version 2 -> 3
+//   - days[].date 字段删除
+//   - 顶层 trip 新增 unscheduled[]
+//   - 旧版本（v < 3）数据加载时直接丢弃，触发首次启动用 initialTrip
 //
 // 单 trip 接口（saveTrip/loadTrip）保留，方便以后做"草稿快照"或迁出 BFF；
 // 当前主存储是 saveWorkspace/loadWorkspace。
@@ -38,9 +43,11 @@ function safeRemove(key) {
 
 const WORKSPACE_KEY = 'workspace';
 
+const SCHEMA_VERSION = 3;
+
 export async function saveWorkspace(workspace) {
   const json = JSON.stringify({
-    version: 2,
+    version: SCHEMA_VERSION,
     savedAt: Date.now(),
     workspace
   });
@@ -49,11 +56,21 @@ export async function saveWorkspace(workspace) {
 }
 
 // 返回 workspace 对象；从未保存过返回 null（让调用方走"首次启动"分支）。
+// V5：旧版本 schema (v < 3) 直接丢弃——data 字段删除、unscheduled 新增是破坏性改动，
+// 兼容层成本高于价值，宁可让用户重置一次。
 export async function loadWorkspace() {
   const raw = safeGet(WORKSPACE_KEY);
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw);
+    if ((parsed.version || 0) < SCHEMA_VERSION) {
+      console.warn(
+        `[storage] 检测到旧 schema (v${parsed.version || '?'})，已升级到 v${SCHEMA_VERSION}。` +
+        '原工作区数据已重置。'
+      );
+      safeRemove(WORKSPACE_KEY);
+      return null;
+    }
     return parsed.workspace ?? null;
   } catch {
     console.warn('storage: workspace JSON 解析失败');
