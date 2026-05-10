@@ -26,7 +26,7 @@ export function renderHeader() {
   const subtitleEl = document.getElementById('trip-subtitle');
   if (!hasActiveTrip()) {
     if (titleEl) titleEl.textContent = '还没有行程';
-    if (subtitleEl) subtitleEl.textContent = '点击左上角 + 号新建行程';
+    if (subtitleEl) subtitleEl.textContent = '点击添加第一个行程';
     return;
   }
   if (titleEl) titleEl.textContent = cleanHeaderText(trip.title);
@@ -115,12 +115,23 @@ export function renderItinerary(handlers) {
   if (!hasActiveTrip()) {
     container.innerHTML = `
       <div class="workspace-empty-state">
-        <button type="button" class="workspace-empty-create" aria-label="新建行程">+</button>
-        <p>点击左上角+号新建行程</p>
+        <div class="workspace-empty-actions">
+          <button type="button" class="workspace-empty-create" aria-label="新建空白行程">
+            <span class="workspace-empty-create-mark">+</span>
+            <span>新建空白行程</span>
+          </button>
+          <button type="button" class="workspace-empty-import" aria-label="AI 导入攻略">
+            <span class="workspace-empty-import-mark">AI</span>
+            <span>AI 导入攻略</span>
+          </button>
+        </div>
       </div>
     `;
     container.querySelector('.workspace-empty-create')?.addEventListener('click', () => {
       handlers.onCreateTrip?.();
+    });
+    container.querySelector('.workspace-empty-import')?.addEventListener('click', () => {
+      handlers.onImportGuide?.();
     });
     return;
   }
@@ -267,9 +278,9 @@ function createEventCard(day, event, eventIndex, handlers) {
     : `
         <button type="button" class="event-action-btn" data-action="edit" title="编辑">···</button>
         <button type="button" class="event-action-btn" data-action="add-after" title="后面添加">+</button>
+        <button type="button" class="event-action-btn danger" data-action="delete" title="删除">−</button>
         <button type="button" class="event-action-btn" data-action="move-up" title="上移" ${canMoveWithinTimeSlot(day, eventIndex, 'up') ? '' : 'disabled'}>↑</button>
         <button type="button" class="event-action-btn" data-action="move-down" title="下移" ${canMoveWithinTimeSlot(day, eventIndex, 'down') ? '' : 'disabled'}>↓</button>
-        <button type="button" class="event-action-btn danger" data-action="delete" title="删除">−</button>
       `;
   card.innerHTML = `
     <button type="button" class="drag-handle" draggable="true" aria-label="拖动排序" title="拖动排序">⋮⋮</button>

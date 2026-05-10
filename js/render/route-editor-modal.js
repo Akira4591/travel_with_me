@@ -79,7 +79,8 @@ function bindEvents(root, route) {
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     currentHandlers?.onConfirm?.(normalizeRouteToNext({
-      mode: modePicker.getValue()
+      mode: modePicker.getValue(),
+      manual: true
     }));
     closeRouteEditorModal();
   });

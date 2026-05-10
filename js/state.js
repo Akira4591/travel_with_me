@@ -653,13 +653,21 @@ function sortDayEventsByTimeSlot(day) {
     .map(item => item.event);
 }
 
-function normalizeDayRoutes(day) {
+function normalizeDayRoutes(day, sourceTrip = trip) {
   day.events.forEach((event, index) => {
     if (index === day.events.length - 1) {
       delete event.routeToNext;
       return;
     }
-    event.routeToNext = normalizeRouteToNext(event.routeToNext || { mode: 'driving' });
+    const current = normalizeRouteToNext(event.routeToNext || {});
+    if (current.manual) {
+      event.routeToNext = current;
+      return;
+    }
+    event.routeToNext = normalizeRouteToNext({
+      ...current,
+      mode: current.mode || 'walking'
+    });
   });
 }
 
@@ -725,7 +733,7 @@ function normalizeTrip(input, fallbackTitle = '旅行路线') {
     delete day.date; // 防御性清理：万一旧数据混进来，确保新 schema 干净
     day.events = Array.isArray(day.events) ? day.events.map(normalizeEvent) : [];
     sortDayEventsByTimeSlot(day);
-    normalizeDayRoutes(day);
+    normalizeDayRoutes(day, cloned);
   });
   if (!cloned.days.length) {
     cloned.days.push(createBlankDay());
@@ -802,7 +810,7 @@ function createEmptyReadTrip() {
   return {
     id: '',
     title: '',
-    subtitle: '点击左上角 + 号新建行程',
+    subtitle: '点击添加第一个行程',
     city: AppConfig.cityName,
     locations: {},
     days: [],

@@ -3,11 +3,13 @@ import { escapeHTML } from '../utils.js';
 let modalEl = null;
 let currentHandlers = null;
 let draft = null;
+let openActionEventId = null;
 
 export function openGuidePreviewModal({ draft: inputDraft, handlers }) {
   closeGuidePreviewModal();
   currentHandlers = handlers;
   draft = structuredClone(inputDraft);
+  openActionEventId = null;
   modalEl = createModal();
   document.body.appendChild(modalEl);
 }
@@ -18,6 +20,7 @@ export function closeGuidePreviewModal() {
   modalEl = null;
   currentHandlers = null;
   draft = null;
+  openActionEventId = null;
 }
 
 function createModal() {
@@ -92,6 +95,7 @@ function renderUnscheduledGroup(events) {
 
 function renderEventCard(event) {
   const status = event.matched ? '✔ 已匹配' : '× 未匹配';
+  const menuOpen = openActionEventId === event.id;
   const addr = event.matched
     ? (event.poi?.addr || event.poi?.district || '已选择地图地点')
     : '未匹配到地图地点，导入后可手动更换地点';
@@ -103,13 +107,25 @@ function renderEventCard(event) {
         ${event.matched && event.note ? `<div class="guide-preview-event-note">${escapeHTML(event.note)}</div>` : ''}
       </div>
       <div class="guide-preview-event-controls">
-        ${renderDaySelect(event)}
-        <button type="button" class="guide-preview-delete" title="删除">删除</button>
         <span class="guide-preview-match ${event.matched ? 'ok' : 'fail'}">${status}</span>
-        ${event.matched ? '' : '<button type="button" class="guide-preview-search-toggle">搜索地点</button>'}
+        <button type="button" class="guide-preview-action-toggle ${menuOpen ? 'active' : ''}" aria-label="更多操作" title="更多操作">···</button>
+        ${menuOpen ? renderActionMenu(event) : ''}
       </div>
       ${event.matched ? '' : renderFallbackSearch(event)}
     </article>
+  `;
+}
+
+function renderActionMenu(event) {
+  return `
+    <div class="guide-preview-action-menu">
+      <label class="guide-preview-action-field">
+        <span>日期</span>
+        ${renderDaySelect(event)}
+      </label>
+      ${event.matched ? '' : '<button type="button" class="guide-preview-search-toggle">搜索地点</button>'}
+      <button type="button" class="guide-preview-delete" title="删除">删除</button>
+    </div>
   `;
 }
 
@@ -167,11 +183,27 @@ function bindShellEvents(root) {
     if (e.target === root) closeGuidePreviewModal();
   });
   root.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeGuidePreviewModal();
+    if (e.key !== 'Escape') return;
+    if (openActionEventId) {
+      openActionEventId = null;
+      renderBody(root.querySelector('.guide-preview-body'));
+      return;
+    }
+    closeGuidePreviewModal();
   });
 }
 
 function bindBodyEvents(body) {
+  body.addEventListener('click', (e) => {
+    if (
+      openActionEventId &&
+      !e.target.closest('.guide-preview-action-menu') &&
+      !e.target.closest('.guide-preview-action-toggle')
+    ) {
+      openActionEventId = null;
+      renderBody(body);
+    }
+  });
   body.querySelector('.guide-preview-title').addEventListener('input', (e) => {
     draft.title = e.target.value;
   });
@@ -186,17 +218,25 @@ function bindBodyEvents(body) {
   body.querySelectorAll('.guide-preview-event').forEach(card => {
     const event = draft.events.find(item => item.id === card.dataset.eventId);
     if (!event) return;
-    card.querySelector('.guide-preview-day-select').addEventListener('change', (e) => {
-      event.day = e.target.value ? Number(e.target.value) : null;
+    card.querySelector('.guide-preview-action-toggle')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openActionEventId = openActionEventId === event.id ? null : event.id;
       renderBody(body);
     });
-    card.querySelector('.guide-preview-delete').addEventListener('click', () => {
+    card.querySelector('.guide-preview-day-select')?.addEventListener('change', (e) => {
+      event.day = e.target.value ? Number(e.target.value) : null;
+      openActionEventId = null;
+      renderBody(body);
+    });
+    card.querySelector('.guide-preview-delete')?.addEventListener('click', () => {
       event.deleted = true;
+      openActionEventId = null;
       renderBody(body);
     });
     card.querySelector('.guide-preview-search-toggle')?.addEventListener('click', () => {
-      event.searchOpen = !event.searchOpen;
+      event.searchOpen = true;
       event.searchKeyword ||= event.placeName;
+      openActionEventId = null;
       renderBody(body);
     });
     card.querySelector('.guide-preview-search-btn')?.addEventListener('click', async () => {

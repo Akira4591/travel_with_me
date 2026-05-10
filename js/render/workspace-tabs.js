@@ -63,9 +63,13 @@ function renderTripTab(trip, index, active) {
 
 function renderCreateTab(index) {
   return `
-    <div class="workspace-tab workspace-tab-add workspace-tab-create-combo" style="--slot: ${index + 1};" aria-label="新建行程">
-      <button type="button" class="workspace-tab-create-btn" data-create-trip aria-label="新建行程" title="新建行程">+</button>
-      <button type="button" class="workspace-tab-import-btn" data-import-guide aria-label="从攻略导入" title="从攻略导入">AI 导入</button>
+    <div class="workspace-tab-wrap workspace-tab-create-wrap" style="--slot: ${index + 1};">
+      <div class="workspace-tab workspace-tab-add" aria-label="新建行程">
+        <button type="button" class="workspace-tab-create-btn" data-create-trip aria-label="新建行程" title="新建行程">+</button>
+      </div>
+    </div>
+    <div class="workspace-tab-wrap workspace-tab-ai-wrap" style="--slot: ${index + 1};">
+      <button type="button" class="workspace-tab workspace-tab-ai-import" data-import-guide aria-label="从攻略导入" title="从攻略导入">AI 导入</button>
     </div>
   `;
 }

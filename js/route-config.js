@@ -28,7 +28,8 @@ export function normalizeRouteToNext(route = {}) {
   return {
     mode,
     ...(label ? { label } : {}),
-    ...(legs.length ? { legs } : {})
+    ...(legs.length ? { legs } : {}),
+    ...(route.manual === true || label || legs.length ? { manual: true } : {})
   };
 }
 

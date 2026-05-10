@@ -29,7 +29,7 @@ import {
   initMap, createAllMarkers, createOrUpdateMarker, removeMarker, clearAllMarkers,
   pruneMarkersToLocationIds, showEmptyMapView,
   showMarkersForDay, fitMarkers, fitSegment, focusLocation,
-  drawRoutePaths, clearRouteOverlays, highlightSegment
+  drawRoutePaths, clearRouteOverlays, highlightSegment, clearSegmentHighlight
 } from './render/map.js';
 import {
   renderHeader, renderTabs, renderItinerary,
@@ -52,6 +52,9 @@ import { buildTripShareImage, dataURLToBlob } from './share-image.js?v=20260508-
 import { loadWorkspace, saveWorkspace } from './storage.js';
 import { sleep } from './utils.js';
 import { inferIconId } from './render/icons.js';
+
+const GUIDE_MATCH_LIMIT = 40;
+const GUIDE_MATCH_TIMEOUT_MS = 8000;
 
 // ─── boot ──────────────────────────────────────────────
 
@@ -112,6 +115,7 @@ function getItineraryHandlers() {
   return {
     onEventClick: (dayId, event) => {
       getAppState().selectedEventRef = { dayId, eventId: event.id };
+      clearSegmentHighlight();
       focusLocation(event.locationId);
     },
     onRouteClick: (segment) => {
@@ -129,14 +133,18 @@ function getItineraryHandlers() {
     onDropEvent: handleEventDrop,
     onDeleteEvent: deleteEventFlow,
     onAddDay: openCreateDayFlow,
-    onCreateTrip: openCreateTripFlow
+    onCreateTrip: openCreateTripFlow,
+    onImportGuide: openGuideImportFlow
   };
 }
 
 function renderWorkspace() {
   renderWorkspaceTabs({
     onSelectTrip: (tripId) => {
-      if (switchTrip(tripId)) setStatus('已切换行程。');
+      if (switchTrip(tripId)) {
+        clearSegmentHighlight();
+        setStatus('已切换行程。');
+      }
     },
     onCreateTrip: openCreateTripFlow,
     onImportGuide: openGuideImportFlow,
@@ -182,30 +190,42 @@ function deleteTripFlow(tripId) {
   const ok = window.confirm(`删除“${target.title || '这个行程'}”？这个行程里的日期和地点都会一起删除。`);
   if (!ok) return;
   deleteTrip(tripId);
-  setStatus(hasActiveTrip() ? '行程已删除。' : '还没有行程。点击左上角 + 号新建行程。');
+  setStatus(hasActiveTrip() ? '行程已删除。' : '还没有行程。点击添加第一个行程。');
 }
 
 async function buildGuideDraft(extracted, source, onProgress) {
   const city = source.cityHint || extracted.city || '';
   const events = [];
   let matched = 0;
-  const total = extracted.events.length;
+  const warnings = [...(extracted.warnings || [])];
+  const normalizedEvents = normalizeGuideEventsFromSource(extracted.events || [], source.text || '', warnings);
+  const validEvents = normalizedEvents.filter(item => item?.place_name);
+  const eventsToMatch = validEvents.slice(0, GUIDE_MATCH_LIMIT);
+  if (validEvents.length > GUIDE_MATCH_LIMIT) {
+    warnings.push(`已保留前 ${GUIDE_MATCH_LIMIT} 个主路线地点，其余地点已忽略，可在导入后手动补充。`);
+  }
+  const total = eventsToMatch.length;
   // matching step 开始前先 yield 一帧让 UI 切换到"匹配地点"，避免 LLM 阶段一过就立刻冲到下一步
   onProgress?.('matching', total ? `准备匹配 ${total} 个地点...` : '正在整理...');
   await sleep(220);
 
   for (let index = 0; index < total; index += 1) {
-    const item = extracted.events[index];
+    const item = eventsToMatch[index];
     // detail 文本带上具体地点名——给用户视觉强信号，避免 step 切换被 1 秒一闪而过
     onProgress?.('matching', `正在匹配 ${item.place_name || '地点'} (${index + 1}/${total})`);
     setStatus(`正在匹配高德地点：${index + 1}/${total}（${item.place_name || ''}）`);
 
-    const poi = await matchGuidePlace({
-      placeName: item.place_name,
-      city,
-      note: item.note,
-      sourceQuote: item.source_quote
-    });
+    const poi = await withTimeout(
+      matchGuidePlace({
+        placeName: item.place_name,
+        city,
+        note: item.note,
+        sourceQuote: item.source_quote
+      }),
+      GUIDE_MATCH_TIMEOUT_MS,
+      null,
+      `匹配 ${item.place_name}`
+    );
     if (poi) matched += 1;
     events.push({
       id: `guide-${Date.now().toString(36)}-${index}`,
@@ -229,10 +249,184 @@ async function buildGuideDraft(extracted, source, onProgress) {
     cityHint: source.cityHint || '',
     sourceText: source.text || '',
     guideType: extracted.guide_type,
-    warnings: extracted.warnings || [],
+    warnings,
     events,
     matched
   };
+}
+
+function withTimeout(promise, ms, fallback, label = '异步任务') {
+  let settled = false;
+  let timerId;
+  return new Promise((resolve) => {
+    timerId = window.setTimeout(() => {
+      settled = true;
+      console.warn(`[guide-import] ${label} 超时，已跳过。`);
+      resolve(fallback);
+    }, ms);
+
+    Promise.resolve(promise).then((value) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timerId);
+      resolve(value);
+    }).catch((error) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timerId);
+      console.warn(`[guide-import] ${label} 失败，已跳过：`, error);
+      resolve(fallback);
+    });
+  });
+}
+
+function normalizeGuideEventsFromSource(events, sourceText, warnings) {
+  const routePlan = extractMainRoutePlan(sourceText);
+  if (!routePlan.length) return events;
+
+  const extractedByName = new Map();
+  for (const item of events || []) {
+    const key = normalizeGuidePlaceName(item?.place_name || '');
+    if (key && !extractedByName.has(key)) extractedByName.set(key, item);
+  }
+
+  const normalized = routePlan.map((routeItem) => {
+    const key = normalizeGuidePlaceName(routeItem.name);
+    const existing = extractedByName.get(key);
+    const note = compactGuideNote([routeItem.note, existing?.note].filter(Boolean).join('；'));
+    return {
+      ...existing,
+      place_name: routeItem.name,
+      day: routeItem.day,
+      time_slot: existing?.time_slot ?? null,
+      note,
+      source_quote: existing?.source_quote || routeItem.sourceQuote || routeItem.name
+    };
+  });
+
+  if (normalized.length && normalized.length < (events || []).length) {
+    warnings.push('已按主路线提取地点，沿途小店和机位已合并进备注。');
+  }
+  return normalized.length ? normalized : events;
+}
+
+function extractMainRoutePlan(sourceText) {
+  const text = String(sourceText || '');
+  const lines = text.split(/\r?\n/g).map(line => line.trim()).filter(Boolean);
+  const routeItems = [];
+  const noteByPlace = new Map();
+  let currentDay = null;
+  let routeLineCount = 0;
+
+  for (const line of lines) {
+    const dayFromHeader = parseRouteDay(line);
+    if (dayFromHeader) currentDay = dayFromHeader;
+
+    const routeText = extractRouteLineText(line);
+    if (routeText) {
+      routeLineCount += 1;
+      const day = currentDay || routeLineCount;
+      const points = routeText
+        .split(/[→>＞]+/g)
+        .map(cleanRoutePlaceName)
+        .filter(Boolean);
+
+      for (const point of points) {
+        routeItems.push({
+          name: point,
+          day,
+          note: '',
+          sourceQuote: line.slice(0, 80)
+        });
+      }
+      continue;
+    }
+
+    const note = parseRoutePointNote(line);
+    if (note) {
+      noteByPlace.set(normalizeGuidePlaceName(note.name), note.text);
+    }
+  }
+
+  const seen = new Set();
+  const result = [];
+  for (const item of routeItems) {
+    const key = `${item.day}:${normalizeGuidePlaceName(item.name)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const note = findRouteNoteForPlace(item.name, noteByPlace);
+    result.push({
+      ...item,
+      note: note ? compactGuideNote(note) : ''
+    });
+  }
+
+  return result.length >= 3 ? result : [];
+}
+
+function parseRouteDay(line) {
+  const alpha = line.match(/(?:^|[\s【\[])([ABC])\s*线/i);
+  if (alpha) return alpha[1].toUpperCase().charCodeAt(0) - 64;
+  const zhMap = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6 };
+  const route = line.match(/路线\s*([一二三四五六1-6])/);
+  if (route) return zhMap[route[1]] || Number(route[1]) || null;
+  const day = line.match(/(?:Day|DAY|D)\s*([1-9])/);
+  if (day) return Number(day[1]);
+  return null;
+}
+
+function extractRouteLineText(line) {
+  if (!/[→>＞]/.test(line)) return '';
+  const match = line.match(/(?:^|[▶▷\-—\s])(?:路线|行程|线路)\s*[：:]\s*(.+)$/);
+  if (!match) return '';
+  return match[1]
+    .replace(/[，,。；;].*$/, '')
+    .replace(/全程.*$/, '')
+    .trim();
+}
+
+function cleanRoutePlaceName(value) {
+  return String(value || '')
+    .replace(/^[\s✔✓✅📍🔥⭐▶▷\-—、]+/, '')
+    .replace(/\s*(?:路线|行程|线路)\s*$/, '')
+    .replace(/[（(].*?[）)]/g, '')
+    .replace(/[，,。；;：:].*$/, '')
+    .trim();
+}
+
+function parseRoutePointNote(line) {
+  const match = line.match(/^[\s✔✓✅📍🔥⭐\-—、]*([^：:]{2,24})[：:]\s*(.+)$/);
+  if (!match) return null;
+  const name = cleanRoutePlaceName(match[1]);
+  const text = compactGuideNote(match[2]);
+  if (!name || !text) return null;
+  return { name, text };
+}
+
+function findRouteNoteForPlace(placeName, noteByPlace) {
+  const placeKey = normalizeGuidePlaceName(placeName);
+  if (noteByPlace.has(placeKey)) return noteByPlace.get(placeKey);
+  for (const [key, note] of noteByPlace.entries()) {
+    if (key.startsWith(placeKey) || placeKey.startsWith(key)) return note;
+  }
+  return '';
+}
+
+function compactGuideNote(value) {
+  const parts = String(value || '')
+    .replace(/[✅✔✓📍🔥⭐]/g, '')
+    .split(/[，,、；;]+/g)
+    .map(item => item.trim())
+    .filter(Boolean);
+  const compact = Array.from(new Set(parts)).slice(0, 6).join('、');
+  return compact.length > 70 ? `${compact.slice(0, 70)}...` : compact;
+}
+
+function normalizeGuidePlaceName(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/[·•\-_—,，.。:：;；()（）【】\[\]《》"'“”‘’]/g, '');
 }
 
 // 攻略地点匹配：按 PRD §4.4 的降级链做 (Layer 3 source_quote 提名词已删，V1 只剩 2 层 + 兜底)
@@ -994,11 +1188,12 @@ function selectDay(dayId, { fitView = false, planRoutes = false } = {}) {
   updateActiveTab(dayId);
   updateVisibleDayGroups(dayId);
   clearAllRoutes();
+  clearSegmentHighlight();
 
   if (!hasActiveTrip()) {
     resetRouteCards();
     showEmptyMapView();
-    setStatus('还没有行程。点击左上角 + 号新建行程。');
+    setStatus('还没有行程。点击添加第一个行程。');
     syncEmptyWorkspaceUI();
     return;
   }
@@ -1083,13 +1278,49 @@ function dayDisplayLabel(day) {
 }
 
 async function searchSegment(segment, serial) {
+  if (!hasValidSegmentCoords(segment)) {
+    return buildEstimatedResult(asRouteModeSegment(segment, 'driving'));
+  }
+
+  if (!segment.routeToNext?.manual) {
+    return searchAutoSegment(segment, serial);
+  }
+
+  return searchModeSegment(segment, segment.mode, serial);
+}
+
+async function searchAutoSegment(segment, serial) {
+  const walking = await searchModeSegment(segment, 'walking', serial);
+  if (isStaleRouteResult(walking)) return walking;
+  if (walking.ok && Number(walking.detail?.duration || 0) <= 30 * 60) {
+    applySegmentMode(segment, 'walking');
+    return walking;
+  }
+
+  const transit = await searchModeSegment(segment, 'transit', serial);
+  if (isStaleRouteResult(transit)) return transit;
+  if (transit.ok) {
+    applySegmentMode(segment, 'transit');
+    return transit;
+  }
+
+  const driving = await searchModeSegment(segment, 'driving', serial);
+  if (isStaleRouteResult(driving)) return driving;
+  applySegmentMode(segment, 'driving');
+  return driving.ok || driving.estimated ? driving : buildEstimatedResult(asRouteModeSegment(segment, 'driving'));
+}
+
+async function searchModeSegment(segment, mode, serial) {
   const state = getAppState();
-  const service = createRouteService(state.AMap, state.map, segment.mode);
-  if (!service) return buildEstimatedResult(segment);
+  const targetSegment = asRouteModeSegment(segment, mode);
+  const service = createRouteService(state.AMap, state.map, mode);
+  if (!service) {
+    return buildEstimatedResult(targetSegment);
+  }
 
   state.routeServices.push(service);
 
-  const result = await searchRoute(state.AMap, service, segment);
+  const result = await searchRoute(state.AMap, service, targetSegment);
 
   // 如果当前规划已经过期（用户切走了），就丢弃
   if (serial !== state.routePlanningSerial) {
@@ -1097,6 +1328,34 @@ async function searchSegment(segment, serial) {
     return { ok: false, stale: true };
   }
   return result;
+}
+
+function asRouteModeSegment(segment, mode) {
+  return {
+    ...segment,
+    mode,
+    routeToNext: { ...(segment.routeToNext || {}), mode }
+  };
+}
+
+function applySegmentMode(segment, mode) {
+  segment.mode = mode;
+  segment.routeToNext = { ...(segment.routeToNext || {}), mode };
+}
+
+function isStaleRouteResult(result) {
+  return result?.stale === true;
+}
+
+function hasValidSegmentCoords(segment) {
+  return isValidLngLat(segment.fromLngLat) && isValidLngLat(segment.toLngLat);
+}
+
+function isValidLngLat(value) {
+  return Array.isArray(value) &&
+    value.length >= 2 &&
+    Number.isFinite(Number(value[0])) &&
+    Number.isFinite(Number(value[1]));
 }
 
 function clearAllRoutes() {
@@ -1115,7 +1374,7 @@ function clearAllRoutes() {
 
 async function resolveAllLocations() {
   if (!hasActiveTrip()) {
-    setStatus('还没有行程。点击左上角 + 号新建行程。');
+    setStatus('还没有行程。点击添加第一个行程。');
     return;
   }
   const state = getAppState();
