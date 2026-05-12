@@ -263,9 +263,9 @@ async function drawBrandBar(ctx, startY) {
   if (logo) ctx.drawImage(logo, CONTENT_X, startY, logoSize, logoSize);
 
   ctx.fillStyle = COLORS.ink3;
-  ctx.font = `500 ${L(11)}px ${FONT_SC}`;
+  ctx.font = `500 ${L(11)}px ${FONT_MONO}`;
   ctx.textBaseline = 'middle';
-  ctx.fillText('行迹 · 旅行手账', CONTENT_X + logoSize + L(7), startY + logoSize / 2);
+  ctx.fillText('Travel with me', CONTENT_X + logoSize + L(7), startY + logoSize / 2);
 
   ctx.fillStyle = COLORS.ink4;
   ctx.font = `500 ${L(10)}px ${FONT_MONO}`;
@@ -852,7 +852,7 @@ function drawFooter(ctx, startY) {
   ctx.font = `400 ${L(10)}px ${FONT_SC}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  ctx.fillText('由「行迹」生成', CONTENT_X + CONTENT_W / 2, y);
+  ctx.fillText('由 Travel with me 生成', CONTENT_X + CONTENT_W / 2, y);
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
 }
