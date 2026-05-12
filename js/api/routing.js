@@ -2,7 +2,7 @@
 // 路径规划：4 种交通方式的统一接口
 //
 // 输入一个 segment（from / to / mode），输出统一的 result：
-//   - 成功：{ ok: true, detail: { distance, duration, steps, label, icon }, paths: [...] }
+//   - 成功：{ ok: true, detail: { distance, duration, steps, label, icon, ... }, paths: [...] }
 //   - 估算：{ ok: false, estimated: true, detail: {...} }
 //   - 失败：{ ok: false }
 //
@@ -142,6 +142,7 @@ function extractRouteDetail(segment, result) {
 function extractTransitDetail(segment, result) {
   const plan = result.plans?.[0] || {};
   const steps = [];
+  let transitBoardings = 0;
 
   (plan.segments || []).forEach(seg => {
     const walkDistance = toNumber(seg.walking?.distance);
@@ -149,7 +150,9 @@ function extractTransitDetail(segment, result) {
       steps.push(`步行 ${walkDistance >= 1000 ? (walkDistance/1000).toFixed(1)+' 公里' : walkDistance+' 米'}`);
     }
 
-    getTransitLines(seg).forEach(line => {
+    const lines = getTransitLines(seg);
+    transitBoardings += lines.length;
+    lines.forEach(line => {
       const name = cleanText(line.name || line.lineName || '公共交通');
       const dep = getStopName(line.departure_stop || line.departureStop);
       const arr = getStopName(line.arrival_stop || line.arrivalStop);
@@ -157,6 +160,7 @@ function extractTransitDetail(segment, result) {
     });
 
     if (seg.railway) {
+      transitBoardings += 1;
       const name = cleanText(seg.railway.name || seg.railway.trip || '铁路');
       const dep = getStopName(seg.railway.departure_stop || seg.railway.departureStop);
       const arr = getStopName(seg.railway.arrival_stop || seg.railway.arrivalStop);
@@ -170,7 +174,9 @@ function extractTransitDetail(segment, result) {
     icon: getTransportIcon(segment.mode),
     distance: toNumber(plan.distance || result.distance),
     duration: toNumber(plan.time || plan.duration || result.time || result.duration),
-    steps: steps.length ? steps.slice(0, 8) : ['按高德推荐公共交通方案前往。']
+    steps: steps.length ? steps.slice(0, 8) : ['按高德推荐公共交通方案前往。'],
+    transitBoardings,
+    transitTransfers: Math.max(0, transitBoardings - 1)
   };
 }
 
@@ -247,6 +253,7 @@ function getTransitLines(seg) {
   ];
   return groups.reduce((all, item) => {
     if (Array.isArray(item)) all.push(...item);
+    else if (item) all.push(item);
     return all;
   }, []);
 }

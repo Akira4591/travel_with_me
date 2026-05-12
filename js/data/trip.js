@@ -125,11 +125,11 @@ export const initialTrip = {
       id: 'day-3',
       title: '朝阳水岸休闲',
       events: [
-        { id: 'd3-e0', title: '从酒店出发',         locationId: 'hotel',        icon: 'hotel', timeSlot: 'morning', routeToNext: { mode: 'transit'  } },
+        { id: 'd3-e0', title: '从酒店出发',         locationId: 'hotel',        icon: 'hotel', timeSlot: 'morning', routeToNext: { mode: 'driving'  } },
         { id: 'd3-e1', title: '亮马河漫步',         locationId: 'liangmahe',    icon: 'park', timeSlot: 'morning', routeToNext: { mode: 'walking'  } },
         { id: 'd3-e2', title: '蓝色港湾午餐',       locationId: 'solana',       icon: 'food', timeSlot: 'noon', routeToNext: { mode: 'walking'  } },
         { id: 'd3-e3', title: '逛商场 + 朝阳公园',  locationId: 'chaoyangpark', icon: 'park', timeSlot: 'afternoon', routeToNext: { mode: 'walking'  } },
-        { id: 'd3-e4', title: '蓝色港湾晚餐',       locationId: 'solana',       icon: 'food', timeSlot: 'evening', routeToNext: { mode: 'transit'  } },
+        { id: 'd3-e4', title: '蓝色港湾晚餐',       locationId: 'solana',       icon: 'food', timeSlot: 'evening', routeToNext: { mode: 'driving'  } },
         { id: 'd3-e5', title: '回酒店休息',         locationId: 'hotel',        icon: 'hotel', timeSlot: 'evening' }
       ]
     },

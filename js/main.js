@@ -1299,15 +1299,39 @@ async function searchAutoSegment(segment, serial) {
 
   const transit = await searchModeSegment(segment, 'transit', serial);
   if (isStaleRouteResult(transit)) return transit;
-  if (transit.ok) {
+
+  const driving = await searchModeSegment(segment, 'driving', serial);
+  if (isStaleRouteResult(driving)) return driving;
+
+  if (shouldUseTransitOverDriving(transit, driving)) {
     applySegmentMode(segment, 'transit');
     return transit;
   }
 
-  const driving = await searchModeSegment(segment, 'driving', serial);
-  if (isStaleRouteResult(driving)) return driving;
   applySegmentMode(segment, 'driving');
   return driving.ok || driving.estimated ? driving : buildEstimatedResult(asRouteModeSegment(segment, 'driving'));
+}
+
+const AUTO_ROUTE_MAX_TRANSIT_BOARDINGS = 3;
+const AUTO_ROUTE_DRIVING_TIME_ADVANTAGE_SECONDS = 15 * 60;
+const AUTO_ROUTE_TRANSIT_SLOW_RATIO = 1.6;
+
+function shouldUseTransitOverDriving(transit, driving) {
+  if (!transit?.ok) return false;
+
+  const boardings = Number(transit.detail?.transitBoardings || 0);
+  if (boardings >= AUTO_ROUTE_MAX_TRANSIT_BOARDINGS) return false;
+
+  if (!driving?.ok && !driving?.estimated) return true;
+
+  const transitDuration = Number(transit.detail?.duration || 0);
+  const drivingDuration = Number(driving.detail?.duration || 0);
+  if (transitDuration > 0 && drivingDuration > 0) {
+    if (transitDuration - drivingDuration >= AUTO_ROUTE_DRIVING_TIME_ADVANTAGE_SECONDS) return false;
+    if (transitDuration >= drivingDuration * AUTO_ROUTE_TRANSIT_SLOW_RATIO) return false;
+  }
+
+  return true;
 }
 
 async function searchModeSegment(segment, mode, serial) {
@@ -1427,8 +1451,6 @@ function syncEmptyWorkspaceUI() {
     shareBtn.disabled = empty;
     shareBtn.hidden = empty;
   }
-  const mapHint = document.getElementById('map-empty-hint');
-  if (mapHint) mapHint.hidden = !empty;
   if (empty) showEmptyMapView();
 }
 
