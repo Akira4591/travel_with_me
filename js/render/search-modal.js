@@ -13,26 +13,17 @@
 import { escapeHTML } from '../utils.js';
 import { bindIconPicker, inferIconId, renderIconPickerHTML, renderIconSVG } from './icons.js';
 import { TIME_SLOT_OPTIONS, normalizeTimeSlot } from '../time-slots.js';
-
-let modalEl = null;
-let currentHandlers = null;
+import { modalSingleton, setupModalCloseEvents } from './modal-base.js';
 
 export function openSearchModal(handlers) {
-  closeSearchModal();
-  currentHandlers = handlers;
+  openSearchModal.close();
+  handlers = handlers;
   modalEl = createModal(handlers);
   document.body.appendChild(modalEl);
   // 推迟到下一帧 focus，避免 focus 时 DOM 还没接到事件循环
   requestAnimationFrame(() => {
     modalEl?.querySelector('.modal-search-input')?.focus();
   });
-}
-
-export function closeSearchModal() {
-  if (!modalEl) return;
-  modalEl.remove();
-  modalEl = null;
-  currentHandlers = null;
 }
 
 // ─── 内部 ──────────────────────────────────────────────
@@ -121,7 +112,7 @@ function bindEvents(root) {
     const keyword = input.value.trim();
     if (!keyword) return;
     const isNearby = searchMode === 'nearby';
-    const runner = isNearby ? currentHandlers?.onNearbySearch : currentHandlers?.onSearch;
+    const runner = isNearby ? handlers?.onNearbySearch : handlers?.onSearch;
     if (!runner) return;
 
     selected = null;
@@ -199,22 +190,16 @@ function bindEvents(root) {
     }
   });
 
-  root.querySelector('.modal-close').addEventListener('click', closeSearchModal);
-  root.querySelector('.modal-cancel').addEventListener('click', closeSearchModal);
-  root.addEventListener('click', e => {
-    if (e.target === root) closeSearchModal();
-  });
-  root.addEventListener('keydown', e => {
-    if (e.key === 'Escape') closeSearchModal();
-  });
+  root.querySelector('.modal-close').addEventListener('click', openSearchModal.close);
+  root.querySelector('.modal-cancel').addEventListener('click', openSearchModal.close);
 
   form.addEventListener('submit', e => {
     e.preventDefault();
-    if (!selected || !currentHandlers?.onConfirm) return;
+    if (!selected || !handlers?.onConfirm) return;
     const title = form.querySelector('.modal-event-title').value.trim() || selected.name || '';
     if (!title) return;
 
-    currentHandlers.onConfirm({
+    handlers.onConfirm({
       place: selected,
       event: {
         title,
@@ -223,7 +208,7 @@ function bindEvents(root) {
         note: form.querySelector('.modal-event-note').value.trim()
       }
     });
-    closeSearchModal();
+    openSearchModal.close();
   });
 }
 

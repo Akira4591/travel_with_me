@@ -86,7 +86,7 @@ export function withTimeout(promise, ms, fallback, label = '异步任务') {
   return new Promise(resolve => {
     timerId = window.setTimeout(() => {
       settled = true;
-      console.warn(`[guide-import] ${label} 超时，已跳过。`);
+      log.warn(`guide import ${label} 超时`);
       resolve(fallback);
     }, ms);
 
@@ -101,7 +101,7 @@ export function withTimeout(promise, ms, fallback, label = '异步任务') {
         if (settled) return;
         settled = true;
         window.clearTimeout(timerId);
-        console.warn(`[guide-import] ${label} 失败，已跳过：`, error);
+        log.warn(`guide import ${label} 失败`, error);
         resolve(fallback);
       });
   });
@@ -275,7 +275,7 @@ export async function matchGuidePlace({ placeName, city, note, sourceQuote }) {
   const placesL1 = await searchGuidePlaces(placeName, city, 10);
   const bestL1 = pickBestMatch(placesL1, placeName, 0.55);
   // 日志默认开，方便用户/开发自助 debug；上线前可统一关
-  console.log(`[guide-match] L1 "${placeName}"`, {
+  log.debug(`L1 "${placeName}"`, {
     city,
     count: placesL1.length,
     candidates: placesL1.slice(0, 5).map(p => ({
@@ -292,7 +292,7 @@ export async function matchGuidePlace({ placeName, city, note, sourceQuote }) {
     const expandedKeyword = `${placeName} ${kw}`.trim();
     const placesL2 = await searchGuidePlaces(expandedKeyword, city, 8);
     const bestL2 = pickBestMatch(placesL2, placeName, 0.4);
-    console.log(`[guide-match] L2 "${expandedKeyword}"`, {
+    log.debug(`L2 "${expandedKeyword}"`, {
       count: placesL2.length,
       candidates: placesL2.slice(0, 3).map(p => ({
         name: p.name,
@@ -309,7 +309,7 @@ export async function matchGuidePlace({ placeName, city, note, sourceQuote }) {
     // L3 拿到 lnglat 后，反向再做一次 searchNearBy 补全 rating/cost/photo 等 rich metadata
     const enriched = await enrichGeocodedPOI(geocoded, placeName);
     if (enriched) {
-      console.log(`[guide-match] L3+enrich "${placeName}"`, {
+      log.debug(`L3+enrich "${placeName}"`, {
         addr: enriched.addr,
         rating: enriched.rating ?? null,
         cost: enriched.cost ?? null,
@@ -318,13 +318,13 @@ export async function matchGuidePlace({ placeName, city, note, sourceQuote }) {
       return enriched;
     }
     // enrich 失败也没关系，用纯 Geocoder 结果（无 photo/rating，但有坐标）
-    console.log(`[guide-match] L3 Geocoder "${placeName}" (无 enrich 数据)`, {
+    log.debug(`L3 Geocoder "${placeName}" (无 enrich)`, {
       addr: geocoded.addr
     });
     return geocoded;
   }
 
-  console.warn(`[guide-match] "${placeName}" 全部层级失败 → 标灰`);
+  log.warn(`"${placeName}" 全部层级失败 → 标灰`);
   return null;
 }
 
@@ -482,12 +482,12 @@ export async function searchGuidePlaces(keyword, city, pageSize = 8) {
 
   for (const cityArg of cityCandidates) {
     const places = await searchPlaces(AMap, keyword, { city: cityArg, pageSize });
-    console.log(
+    log.debug(
       `[guide-search] "${keyword}" tried city=${JSON.stringify(cityArg)} → count=${places.length}`,
       places.length ? `first="${places[0]?.name}"` : ''
     );
     if (places.length) return places;
   }
-  console.warn(`[guide-search] "${keyword}" 城市/全国搜索都 0 结果`, { tried: cityCandidates });
+  log.warn(`"${keyword}" 搜索 0 结果`, { tried: cityCandidates });
   return [];
 }

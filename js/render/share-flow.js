@@ -5,6 +5,9 @@ import { hasActiveTrip, getTrip } from '../state.js';
 import { setStatus } from './sidebar.js';
 import { buildTripShareImage, dataURLToBlob } from '../share-image.js';
 import { openShareModal, updateShareImage, setShareImageLoading } from './share-modal.js';
+import { createLogger } from '../logger.js';
+
+const log = createLogger('share-flow');
 
 function getDefaultShareOptions() {
   return {
@@ -42,7 +45,7 @@ async function copyShareImage(imageUrl) {
     await navigator.clipboard.write([new ClipboardItem({ 'image/png': dataURLToBlob(imageUrl) })]);
     setStatus('分享长图已复制。');
   } catch (error) {
-    console.warn('复制图片失败：', error);
+    log.warn('复制图片失败：', error);
     setStatus('复制图片失败，请使用"下载长图"。');
   }
 }
@@ -55,7 +58,7 @@ async function regenerateShareImage(options = {}) {
     updateShareImage(image.dataURL, image.filename);
     setStatus(`分享长图已重新生成（${formatShareOptionsStatus(shareOptions)}）。`);
   } catch (error) {
-    console.error('重新生成分享长图失败：', error);
+    log.error('重新生成分享长图失败：', error);
     setStatus('重新生成失败，请关闭后再试。');
     setShareImageLoading(false);
   }
@@ -83,7 +86,7 @@ export function bindShareButton() {
       });
       setStatus('分享长图已生成。');
     } catch (error) {
-      console.error('生成分享长图失败：', error);
+      log.error('生成分享长图失败：', error);
       setStatus('分享长图生成失败，请稍后再试。');
     }
   });

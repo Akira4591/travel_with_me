@@ -115,6 +115,7 @@ import {
 import { sleep } from './utils.js';
 import { inferIconId } from './render/icons.js';
 import { cleanGuideExtractedEvents } from './guide-import-cleanup.js';
+import { createLogger } from './logger.js';
 import {
   buildGuideDraft,
   withTimeout,
@@ -123,16 +124,16 @@ import {
   searchGuidePlaces
 } from './guide-import-flow.js';
 
+const log = createLogger('main');
+const logGuide = createLogger('guide-match');
+
 const GUIDE_MATCH_LIMIT = 40;
 const GUIDE_MATCH_TIMEOUT_MS = 8000;
 
 // ─── boot ──────────────────────────────────────────────
 
 // 启动 banner——刷新后 console 第一行能确认你拿到的是 v8c 代码（不是缓存）
-console.log(
-  '%c[trip-app] main.js v8e · L3 Geocoder + 反向 enrich (rating/photo)',
-  'color:#c95f4a;font-weight:bold'
-);
+log.info('main.js v8e · L3 Geocoder + enrich + annotations');
 
 let mobileViewSwitchBound = false;
 let dioramaInstance = null;
@@ -182,7 +183,7 @@ async function boot() {
     await resolveAllLocations();
     if (hasActiveTrip()) selectDay(getAppState().activeDayId, { fitView: false, planRoutes: true });
   } catch (error) {
-    console.error('高德地图加载失败：', error);
+    log.error('高德地图加载失败', error);
     setStatus('地图加载失败。请检查 Key、安全密钥、域名白名单和网络状态。');
   }
 }
