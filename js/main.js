@@ -96,6 +96,7 @@ import { openRouteEditorModal } from './render/route-editor-modal.js';
 import { openTripModal } from './render/trip-modal.js';
 import { openShareModal, updateShareImage, setShareImageLoading } from './render/share-modal.js';
 import { renderWorkspaceTabs, closeWorkspaceMenu } from './render/workspace-tabs.js';
+import { init3DToggle } from './render/toggle-3d.js';
 import { readSharedTripFromURL } from './share.js';
 import { buildTripShareImage, dataURLToBlob } from './share-image.js?v=20260508-r5';
 import {
@@ -121,6 +122,8 @@ console.log(
 );
 
 let mobileViewSwitchBound = false;
+let dioramaInstance = null;
+let threeDToggle = null;
 
 window.addEventListener('load', boot);
 bindMobileViewSwitch();
@@ -158,6 +161,7 @@ async function boot() {
     initMap(AMap);
     createAllMarkers();
     selectDay('all', { fitView: true, planRoutes: false });
+    setup3DToggle();
     syncEmptyWorkspaceUI();
 
     // 后台异步校准坐标，完成后重新设置当前选中的日期
@@ -252,6 +256,37 @@ function renderWorkspace() {
     onExportWorkspace: exportWorkspaceFlow,
     onImportWorkspace: importWorkspaceFlow
   });
+}
+
+function setup3DToggle() {
+  const map = getAppState().map;
+  if (!map || threeDToggle) return;
+  threeDToggle = init3DToggle({
+    map,
+    onEnter3D: enter3DView,
+    onExit3D: exit3DView
+  });
+}
+
+async function enter3DView() {
+  if (!hasActiveTrip() || !hasTripEventLocations()) {
+    throw new Error('3D view requires at least one resolved trip location.');
+  }
+  const container = document.getElementById('map-3d');
+  if (!container) throw new Error('3D container is missing.');
+
+  const { initDiorama, enter3DMode } = await import('./render/map-3d.js');
+  dioramaInstance = await initDiorama({ container });
+  await enter3DMode(dioramaInstance, {
+    trip: getTrip(),
+    activeDayId: getAppState().activeDayId
+  });
+}
+
+async function exit3DView() {
+  if (!dioramaInstance) return;
+  const { exit3DMode } = await import('./render/map-3d.js');
+  await exit3DMode(dioramaInstance);
 }
 
 function openCreateTripFlow() {

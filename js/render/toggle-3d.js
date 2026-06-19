@@ -71,6 +71,7 @@ export function init3DToggle({ map, onEnter3D, onExit3D }) {
 
   btn.addEventListener('click', async () => {
     if (transitioning) return;
+    const was3D = is3D;
     transitioning = true;
     btn.disabled = true;
 
@@ -82,6 +83,7 @@ export function init3DToggle({ map, onEnter3D, onExit3D }) {
       }
     } catch (err) {
       log.error('3D 切换失败', err);
+      recoverFailedTransition(was3D);
       setStatus('3D 视图切换失败，请稍后重试。');
     } finally {
       transitioning = false;
@@ -132,6 +134,22 @@ export function init3DToggle({ map, onEnter3D, onExit3D }) {
 
     updateButtonState(map.getZoom());
     setStatus('已切回 2D 视图。');
+  }
+
+  function recoverFailedTransition(was3D) {
+    if (was3D) return;
+
+    const mapEl = document.getElementById('map');
+    if (mapEl) mapEl.style.opacity = '1';
+
+    const statusPanel = document.getElementById('status-panel');
+    if (statusPanel) statusPanel.style.display = '';
+
+    btn.classList.remove('in-3d');
+    btn.querySelector('.map-3d-toggle-label').textContent = '3D 视图';
+    btn.querySelector('.map-3d-toggle-dot').style.background = '#c4a44a';
+    is3D = false;
+    updateButtonState(map.getZoom());
   }
 
   return {
