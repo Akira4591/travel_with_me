@@ -233,7 +233,7 @@ buildTripShareImage(trip, { includeRoutes })
 **理由**:
 
 - Three.js 体积极小（~120KB gzip），按需初始化，2D 模式下零开销
-- 可控的渲染预算（移动端 8K vertices，桌面端 16K）
+- 可控的渲染预算（桌面端 16K vertices，小屏/后置移动端 8K）
 - 不与高德 JS API 的内部渲染对象耦合
 - 2D 和 3D 模块互斥，`map.js` 与 `map-3d.js` 不共享渲染上下文
 
