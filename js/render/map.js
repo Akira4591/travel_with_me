@@ -48,6 +48,8 @@ export function createOrUpdateMarker(locationId, lnglat) {
   // 防御：lnglat 缺失时不创建 marker，避免给 AMap 喂 undefined
   if (!Array.isArray(lnglat) || lnglat.length < 2) return null;
   const state = getAppState();
+  if (!state.AMap || !state.map) return null;
+
   const existing = state.markers.get(locationId);
   if (existing) {
     existing.setPosition(lnglat);
