@@ -3,6 +3,7 @@
 //
 // 这个模块只负责 UI 和表单收集，不直接读写 state。
 
+import { createLogger } from '../logger.js';
 import { escapeHTML } from '../utils.js';
 import {
   bindIconPicker,
@@ -146,7 +147,7 @@ function bindEvents(root, initialLocation) {
     try {
       info = await handlers.onResolveAddress(selectedLocation.lnglat);
     } catch (err) {
-      console.warn('逆地理编码失败：', err);
+      log.warn('逆地理编码失败：', err);
     }
     if (!root?.isConnected) return;
 
@@ -212,7 +213,7 @@ function bindEvents(root, initialLocation) {
         setResultsState(resultsEl, 'idle', '');
       });
     } catch (err) {
-      console.error('搜索地点失败：', err);
+      log.error('搜索地点失败：', err);
       setResultsState(resultsEl, 'error', '<div class="modal-hint">搜索失败，请重试</div>');
     }
   };

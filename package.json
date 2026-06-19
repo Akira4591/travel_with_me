@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@hono/node-server": "^2.0.5",
+    "console-log-json": "^6.4.1",
     "hono": "^4.12.26"
   },
   "devDependencies": {

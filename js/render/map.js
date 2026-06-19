@@ -4,6 +4,7 @@
 // 这个模块是"地图的视图层"——只负责把 trip 数据投影到地图上
 // 不负责"何时切换日期"那种业务逻辑（那是 main.js / sidebar.js 的事）
 
+import { createLogger } from '../logger.js';
 import { AppConfig } from '../config.js';
 import {
   getAnnotations,
@@ -16,6 +17,9 @@ import {
 } from '../state.js';
 import { getAnnotationType } from '../annotations.js';
 import { escapeHTML, unique } from '../utils.js';
+import { createLogger } from '../logger.js';
+
+const log = createLogger('map');
 
 // ─── 初始化 ─────────────────────────────────────────────
 
@@ -85,7 +89,7 @@ export function clearAnnotationMarkers() {
     try {
       state.map?.remove(marker);
     } catch (err) {
-      console.warn('移除标记失败：', err);
+      log.warn('移除标记失败：', err);
     }
   });
   state.annotationMarkers.clear();
@@ -137,7 +141,7 @@ export function removeMarker(locationId) {
   try {
     state.map.remove(marker);
   } catch (err) {
-    console.warn('移除 Marker 失败：', err);
+    log.warn('移除 Marker 失败：', err);
   }
   state.markers.delete(locationId);
   state.markerList = state.markerList.filter(item => item !== marker);
@@ -149,7 +153,7 @@ export function clearAllMarkers() {
     try {
       state.map.remove(marker);
     } catch (err) {
-      console.warn('移除 Marker 失败：', err);
+      log.warn('移除 Marker 失败：', err);
     }
   });
   state.markers.clear();
@@ -207,6 +211,7 @@ function getVisibleMarkers(dayId) {
 // 每帧调 setZoomAndCenter(..., true) 让 AMap 立刻渲染当前帧。
 //
 // 视觉时长 + 曲线在这两个常量里调，动画感觉不对就改这两个值：
+const log = createLogger('map');
 const PAN_DURATION = 900;
 const EASE = t => 1 - Math.pow(1 - t, 3); // ease-out-cubic
 const FIT_PADDING = [60, 60, 60, 60];
@@ -392,7 +397,7 @@ function safeRemoveOverlay(map, overlay) {
   try {
     map.remove(overlay);
   } catch (err) {
-    console.warn('清除自绘路线失败：', err);
+    log.warn('清除自绘路线失败：', err);
   }
 }
 

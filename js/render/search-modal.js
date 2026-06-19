@@ -10,6 +10,7 @@
 //
 // 设计成单例：同时只能开一个弹窗，重复 open 会先关掉旧的
 
+import { createLogger } from '../logger.js';
 import { escapeHTML } from '../utils.js';
 import { bindIconPicker, inferIconId, renderIconPickerHTML, renderIconSVG } from './icons.js';
 import { TIME_SLOT_OPTIONS, normalizeTimeSlot } from '../time-slots.js';
@@ -145,7 +146,7 @@ function bindEvents(root) {
         titleInput.select();
       });
     } catch (err) {
-      console.error('搜索地点失败：', err);
+      log.error('搜索地点失败：', err);
       setResultsState(resultsEl, 'error', '<div class="modal-hint">搜索失败，请重试</div>');
     }
   };
