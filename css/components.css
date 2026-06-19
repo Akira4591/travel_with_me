@@ -2135,6 +2135,16 @@
   display: none;
 }
 
+.share-options-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-soft);
+}
+
 .share-options-row {
   display: inline-flex;
   align-items: center;

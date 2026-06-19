@@ -98,17 +98,19 @@ const LOCATION_PIN_PATHS =
 // ─── 入口 ─────────────────────────────────────────────
 
 export async function buildTripShareImage(trip, options = {}) {
-  const includeRoutes = !!options.includeRoutes;
-  // Day 模型已从绝对日期迁移为数组顺序，不能再按旧 date 字段排序。
-  const orderedDays = [...(trip.days || [])];
-  const locations = collectTripLocations(trip);
+  const shareOptions = normalizeShareOptions(options);
+  const includeRoutes = shareOptions.includeRoutes;
+  const includeNotes = shareOptions.includeNotes;
+  // Day 顺序沿用 trip 数组；未排期地点只在用户明确勾选后加入分享图。
+  const orderedDays = buildShareDays(trip, shareOptions);
+  const locations = collectTripLocations(trip, orderedDays);
   const totalStops = orderedDays.reduce((sum, day) => sum + (day.events?.length || 0), 0);
   const viewport = getMapViewport(locations, CONTENT_W, MAP_H);
 
   // 测量
   const measureCanvas = document.createElement('canvas');
   const mctx = measureCanvas.getContext('2d');
-  const layout = measureLayout(mctx, trip, orderedDays, { includeRoutes });
+  const layout = measureLayout(mctx, trip, orderedDays, { includeRoutes, includeNotes });
 
   const totalH = PAGE_PAD_TOP + layout.cardHeight + PAGE_PAD_BOTTOM;
 
@@ -126,7 +128,7 @@ export async function buildTripShareImage(trip, options = {}) {
   y = drawStats(ctx, locations.length, orderedDays.length, totalStops, y);
   y = await drawMap(ctx, locations, viewport, y);
   y = drawMapStrip(ctx, locations.length, y);
-  y = await drawDays(ctx, trip, orderedDays, y, layout);
+  y = await drawDays(ctx, trip, orderedDays, y, layout, { includeNotes });
   y = drawSummary(ctx, y);
   drawFooter(ctx, y);
 
@@ -148,6 +150,7 @@ export function dataURLToBlob(dataURL) {
 
 function measureLayout(ctx, trip, days, opts = {}) {
   const includeRoutes = !!opts.includeRoutes;
+  const includeNotes = opts.includeNotes !== false;
 
   // 卡片内的固定高度（按各 section 分别累加）
   const brand = L(18) + L(14); // logo 高 18 + mb 14
@@ -160,7 +163,7 @@ function measureLayout(ctx, trip, days, opts = {}) {
   const dayHeights = days.map((day, idx) => {
     const headH = L(DAY_BADGE_FONT_SIZE * 1.18) + L(3.4) * 2 + L(8);
     const events = day.events || [];
-    const itemHeights = events.map(event => measureItemHeight(ctx, trip, event));
+    const itemHeights = events.map(event => measureItemHeight(ctx, trip, event, { includeNotes }));
 
     // 元素流：事件 + （可选）路线块，按发生顺序排
     const elements = [];
@@ -190,7 +193,8 @@ function measureLayout(ctx, trip, days, opts = {}) {
   return { cardHeight, dayHeights };
 }
 
-function measureItemHeight(ctx, trip, event) {
+function measureItemHeight(ctx, trip, event, options = {}) {
+  const includeNotes = options.includeNotes !== false;
   const loc = trip.locations?.[event.locationId] || {};
   const padV = L(EVENT_CARD_PAD_Y);
   const innerW =
@@ -228,7 +232,7 @@ function measureItemHeight(ctx, trip, event) {
     `400 ${L(EVENT_LOCATION_FONT_SIZE)}px ${FONT_SC}`
   ).slice(0, 2);
 
-  const note = String(event.note || '').trim();
+  const note = includeNotes ? String(event.note || '').trim() : '';
   const noteLines = note
     ? wrapText(ctx, note, innerW, `400 ${L(EVENT_NOTE_FONT_SIZE)}px ${FONT_SC}`).slice(0, 2)
     : [];
@@ -498,7 +502,8 @@ function drawMapStrip(ctx, count, y) {
 
 // ─── 各日时间轴 ───────────────────────────────────────
 
-async function drawDays(ctx, trip, days, startY, layout) {
+async function drawDays(ctx, trip, days, startY, layout, options = {}) {
+  const includeNotes = options.includeNotes !== false;
   // 预加载所有 event 图标（按 iconId 缓存，避免重复编码）
   const iconCache = new Map();
   const allIconIds = new Set();
@@ -557,7 +562,9 @@ async function drawDays(ctx, trip, days, startY, layout) {
     elements.forEach((el, i) => {
       if (el.kind === 'event') {
         drawTimelineNode(ctx, timelineX, y + el.height / 2, globalIndex);
-        drawEventCard(ctx, trip, el.event, CONTENT_X + L(26), y, el.height, iconCache);
+        drawEventCard(ctx, trip, el.event, CONTENT_X + L(26), y, el.height, iconCache, {
+          includeNotes
+        });
         globalIndex += 1;
       } else if (el.kind === 'route') {
         drawRouteBlock(ctx, el.event.routeToNext?.mode, CONTENT_X + L(26), y, el.height);
@@ -572,7 +579,7 @@ async function drawDays(ctx, trip, days, startY, layout) {
 
 function drawDayHead(ctx, day, y, dayIndex = 0) {
   // V5：badge 显示 "Day N"（之前是日期+周几），title 在 badge 右侧
-  const badgeText = `Day ${dayIndex + 1}`;
+  const badgeText = day.shareLabel || `Day ${dayIndex + 1}`;
 
   ctx.font = `700 ${L(DAY_BADGE_FONT_SIZE)}px ${FONT_SC}`;
   const badgeTextW = ctx.measureText(badgeText).width;
@@ -655,7 +662,8 @@ function drawTimelineNode(ctx, x, y, index) {
   ctx.textBaseline = 'alphabetic';
 }
 
-function drawEventCard(ctx, trip, event, x, y, h, iconCache) {
+function drawEventCard(ctx, trip, event, x, y, h, iconCache, options = {}) {
+  const includeNotes = options.includeNotes !== false;
   const cardW = CONTENT_X + CONTENT_W - x;
   const cardR = L(10);
 
@@ -722,7 +730,7 @@ function drawEventCard(ctx, trip, event, x, y, h, iconCache) {
     `400 ${L(EVENT_LOCATION_FONT_SIZE)}px ${FONT_SC}`
   ).slice(0, 2);
 
-  const note = String(event.note || '').trim();
+  const note = includeNotes ? String(event.note || '').trim() : '';
   const noteLines = note
     ? wrapText(ctx, note, textW, `400 ${L(EVENT_NOTE_FONT_SIZE)}px ${FONT_SC}`).slice(0, 2)
     : [];
@@ -906,15 +914,40 @@ function drawFooter(ctx, startY) {
 
 // ─── 数据处理工具 ─────────────────────────────────────
 
+function normalizeShareOptions(options = {}) {
+  return {
+    includeRoutes: !!options.includeRoutes,
+    includeNotes: options.includeNotes !== false,
+    includeUnscheduled: !!options.includeUnscheduled
+  };
+}
+
+function buildShareDays(trip, options = {}) {
+  const days = [...(trip.days || [])].map(day => ({
+    ...day,
+    events: [...(day.events || [])]
+  }));
+  const unscheduledEvents = trip.unscheduled || [];
+  if (options.includeUnscheduled && unscheduledEvents.length) {
+    days.push({
+      id: 'share-unscheduled',
+      title: '待安排地点',
+      shareLabel: '待安排',
+      events: [...unscheduledEvents]
+    });
+  }
+  return days;
+}
+
 function buildDateRange(days) {
   // V5：days[].date 字段已删除，副标题改为显示总天数
   if (!days?.length) return '暂无安排';
   return `共 ${days.length} 天`;
 }
 
-function collectTripLocations(trip) {
+function collectTripLocations(trip, days = trip.days || []) {
   const ids = [];
-  (trip.days || []).forEach(day => {
+  (days || []).forEach(day => {
     (day.events || []).forEach(event => {
       if (event.locationId && !ids.includes(event.locationId)) ids.push(event.locationId);
     });

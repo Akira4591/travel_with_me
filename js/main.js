@@ -932,12 +932,12 @@ function bindShareButton() {
     }
     setStatus('正在生成分享长图...');
     try {
-      const includeRoutes = false; // 默认不勾选交通方式
-      const image = await buildTripShareImage(getTrip(), { includeRoutes });
+      const shareOptions = getDefaultShareOptions();
+      const image = await buildTripShareImage(getTrip(), shareOptions);
       openShareModal({
         imageUrl: image.dataURL,
         filename: image.filename,
-        includeRoutes,
+        shareOptions,
         handlers: {
           onDownload: downloadShareImage,
           onCopyImage: copyShareImage,
@@ -952,17 +952,34 @@ function bindShareButton() {
   });
 }
 
-async function regenerateShareImage(includeRoutes) {
+function getDefaultShareOptions() {
+  return {
+    includeRoutes: false,
+    includeNotes: true,
+    includeUnscheduled: false
+  };
+}
+
+async function regenerateShareImage(options = {}) {
   if (!hasActiveTrip()) return;
+  const shareOptions = { ...getDefaultShareOptions(), ...options };
   try {
-    const image = await buildTripShareImage(getTrip(), { includeRoutes });
+    const image = await buildTripShareImage(getTrip(), shareOptions);
     updateShareImage(image.dataURL, image.filename);
-    setStatus(includeRoutes ? '分享长图已重新生成（含交通方式）。' : '分享长图已重新生成。');
+    setStatus(`分享长图已重新生成（${formatShareOptionsStatus(shareOptions)}）。`);
   } catch (error) {
     console.error('重新生成分享长图失败：', error);
     setStatus('重新生成失败，请关闭后再试。');
     setShareImageLoading(false);
   }
+}
+
+function formatShareOptionsStatus(options) {
+  const parts = [];
+  if (options.includeNotes) parts.push('含备注');
+  if (options.includeRoutes) parts.push('含交通方式');
+  if (options.includeUnscheduled) parts.push('含未排期');
+  return parts.length ? parts.join('、') : '仅公开行程骨架';
 }
 
 function downloadShareImage(imageUrl, filename) {
