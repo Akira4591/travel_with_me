@@ -12,6 +12,7 @@
     "check": "npm run format:check && npm run lint",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "test:guide-import": "node scripts/evaluate-guide-import.mjs",
     "test:watch": "vitest"
   },
   "dependencies": {
