@@ -2823,6 +2823,50 @@
 /* ─── Mobile overrides ──────────────────────────────── */
 
 @media (max-width: 767px) {
+  .workspace-tabs {
+    padding: 8px 10px 0;
+  }
+
+  .workspace-tab-wrap {
+    max-width: min(240px, 58vw);
+  }
+
+  .workspace-tab {
+    max-width: min(220px, 56vw);
+    border-radius: 10px 10px 0 0;
+  }
+
+  .header {
+    padding: 16px 14px 10px;
+  }
+
+  .header-top {
+    align-items: center;
+  }
+
+  .trip-title-display {
+    font-size: 18px;
+  }
+
+  .share-trip-btn {
+    padding: 7px 10px;
+    font-size: 12px;
+  }
+
+  .tabs-container {
+    flex-wrap: nowrap;
+    padding: 10px 14px;
+  }
+
+  .itinerary-list {
+    padding: 0 14px 18px;
+  }
+
+  .day-title {
+    margin-inline: -14px;
+    padding-inline: 14px;
+  }
+
   .card-actions {
     opacity: 1;
     position: static;

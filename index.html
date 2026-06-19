@@ -23,9 +23,22 @@
     </script>
   </head>
 
-  <body>
+  <body data-mobile-view="list">
     <div class="workspace-shell">
       <div class="workspace-tabs" id="workspace-tabs"></div>
+      <div class="mobile-view-switch" role="tablist" aria-label="移动端视图切换">
+        <button
+          type="button"
+          class="mobile-view-btn active"
+          data-mobile-view="list"
+          aria-selected="true"
+        >
+          行程
+        </button>
+        <button type="button" class="mobile-view-btn" data-mobile-view="map" aria-selected="false">
+          地图
+        </button>
+      </div>
       <div class="app-layout">
         <div class="sidebar">
           <div class="header">

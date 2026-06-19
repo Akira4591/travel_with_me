@@ -85,7 +85,8 @@ npm run dev
 
 ```bash
 npm run check       # Prettier 格式检查 + ESLint
-npm test            # 运行单元测试（43 tests, 5 suites）
+npm test            # 运行单元测试（48 tests, 6 suites）
+npm run test:e2e    # 运行 Playwright 桌面 + 移动端 smoke tests
 npm run test:watch  # 测试持续监听模式
 ```
 

@@ -12,6 +12,8 @@ Travel With Me 的 BFF 层提供以下端点：
 
 AI 导入、地图服务代理和瓦片代理会检查显式 `Origin` / `Referer`。默认允许同源请求；如需允许其他正式域名，使用 `ALLOWED_ORIGINS` 配置，多个域名用逗号或空格分隔。
 
+BFF 会返回基础安全响应头，包括 `X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy` 和最小权限策略。外部地图、字体和 3D 资源仍按当前前端白名单/浏览器策略加载。
+
 ---
 
 ## `GET /_ai/status`

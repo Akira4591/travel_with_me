@@ -120,7 +120,10 @@ console.log(
   'color:#c95f4a;font-weight:bold'
 );
 
+let mobileViewSwitchBound = false;
+
 window.addEventListener('load', boot);
+bindMobileViewSwitch();
 
 async function boot() {
   const savedWorkspace = await loadWorkspace();
@@ -164,6 +167,37 @@ async function boot() {
     console.error('高德地图加载失败：', error);
     setStatus('地图加载失败。请检查 Key、安全密钥、域名白名单和网络状态。');
   }
+}
+
+function bindMobileViewSwitch() {
+  if (mobileViewSwitchBound) return;
+  mobileViewSwitchBound = true;
+  document.body.dataset.mobileView ||= 'list';
+  document.querySelectorAll('[data-mobile-view]').forEach(button => {
+    button.addEventListener('click', () => setMobileView(button.dataset.mobileView));
+  });
+  syncMobileViewButtons();
+}
+
+function setMobileView(view) {
+  const nextView = view === 'map' ? 'map' : 'list';
+  document.body.dataset.mobileView = nextView;
+  syncMobileViewButtons();
+  if (nextView === 'map' && getAppState().map) {
+    setTimeout(() => {
+      getAppState().map?.resize?.();
+      selectDay(getAppState().activeDayId, { fitView: true, planRoutes: false });
+    }, 50);
+  }
+}
+
+function syncMobileViewButtons() {
+  const activeView = document.body.dataset.mobileView || 'list';
+  document.querySelectorAll('[data-mobile-view]').forEach(button => {
+    const active = button.dataset.mobileView === activeView;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-selected', String(active));
+  });
 }
 
 function renderAll() {

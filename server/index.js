@@ -15,6 +15,8 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { Hono } from 'hono';
+import { bodyLimit } from 'hono/body-limit';
+import { secureHeaders } from 'hono/secure-headers';
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 
@@ -54,6 +56,21 @@ if (!DEEPSEEK_KEY) {
 
 const app = new Hono();
 
+app.use(
+  '*',
+  secureHeaders({
+    crossOriginOpenerPolicy: false,
+    crossOriginResourcePolicy: false,
+    referrerPolicy: 'strict-origin-when-cross-origin',
+    strictTransportSecurity: false,
+    permissionsPolicy: {
+      geolocation: ['self'],
+      camera: [],
+      microphone: []
+    }
+  })
+);
+
 // ─── AI 攻略导入 ────────────────────────────────────────
 
 app.get(`${AI_PREFIX}/status`, c => {
@@ -66,6 +83,15 @@ app.get(`${AI_PREFIX}/status`, c => {
         : ''
   });
 });
+
+app.use(
+  `${AI_PREFIX}/extract-guide`,
+  bodyLimit({
+    maxSize: MAX_AI_BODY_BYTES,
+    onError: c =>
+      c.json({ error: 'REQUEST_TOO_LARGE', message: '请求体过大，请缩短攻略文本后重试。' }, 413)
+  })
+);
 
 app.post(`${AI_PREFIX}/extract-guide`, async c => {
   const sourceRejected = rejectUntrustedSource(c);
