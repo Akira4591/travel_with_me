@@ -18,12 +18,6 @@ import {
 } from './api/geocode.js';
 import { extractGuideText, getGuideImportStatus } from './api/guide-import.js';
 import {
-  createRouteService,
-  searchRoute,
-  buildEstimatedResult,
-  safeClearService
-} from './api/routing.js';
-import {
   getAppState,
   getTrip,
   getDay,
@@ -70,7 +64,6 @@ import {
   fitMarkers,
   fitSegment,
   focusLocation,
-  drawRoutePaths,
   clearRouteOverlays,
   highlightSegment,
   clearSegmentHighlight
@@ -81,13 +74,8 @@ import {
   renderItinerary,
   updateActiveTab,
   updateVisibleDayGroups,
-  setRouteCardLoading,
-  updateRouteCardOk,
-  updateRouteCardEstimated,
-  updateRouteCardError,
   resetRouteCards,
-  setStatus,
-  buildRouteSegments
+  setStatus
 } from './render/sidebar.js?v=20260509-v6';
 import { openSearchModal } from './render/search-modal.js?v=20260509-v5';
 import { openEventEditorModal } from './render/event-editor-modal.js?v=20260509-v6';
@@ -96,14 +84,12 @@ import { openGuidePreviewModal } from './render/guide-preview-modal.js';
 import { openDayEditorModal } from './render/day-editor-modal.js';
 import { openRouteEditorModal } from './render/route-editor-modal.js';
 import { openTripModal } from './render/trip-modal.js';
-import { openShareModal, updateShareImage, setShareImageLoading } from './render/share-modal.js';
 import { bindShareButton } from './render/share-flow.js';
 import { openAnnotationModal } from './render/annotation-modal.js';
 import { renderWorkspaceTabs, closeWorkspaceMenu } from './render/workspace-tabs.js';
 import { init3DToggle } from './render/toggle-3d.js';
-import { scheduleRoutePlanning, clearAllRoutes, dayDisplayLabel } from './route-planner.js';
+import { scheduleRoutePlanning, clearAllRoutes } from './route-planner.js';
 import { readSharedTripFromURL } from './share.js';
-import { buildTripShareImage, dataURLToBlob } from './share-image.js?v=20260508-r5';
 import {
   getLastWorkspaceLoadInfo,
   importWorkspace,
@@ -114,21 +100,10 @@ import {
 } from './storage.js';
 import { sleep } from './utils.js';
 import { inferIconId } from './render/icons.js';
-import { cleanGuideExtractedEvents } from './guide-import-cleanup.js';
 import { createLogger } from './logger.js';
-import {
-  buildGuideDraft,
-  withTimeout,
-  normalizeGuideEventsFromSource,
-  matchGuidePlace,
-  searchGuidePlaces
-} from './guide-import-flow.js';
+import { buildGuideDraft, searchGuidePlaces } from './guide-import-flow.js';
 
 const log = createLogger('main');
-const logGuide = createLogger('guide-match');
-
-const GUIDE_MATCH_LIMIT = 40;
-const GUIDE_MATCH_TIMEOUT_MS = 8000;
 
 // ─── boot ──────────────────────────────────────────────
 

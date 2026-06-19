@@ -13,7 +13,8 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:guide-import": "node scripts/evaluate-guide-import.mjs",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepare": "husky"
   },
   "dependencies": {
     "@hono/node-server": "^2.0.5",
@@ -23,8 +24,28 @@
     "@eslint/js": "^9.39.1",
     "@playwright/test": "^1.61.0",
     "eslint": "^9.39.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.7",
     "prettier": "^3.7.4",
     "vitest": "^4.1.9"
+  },
+  "lint-staged": {
+    "*.js": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "*.css": [
+      "prettier --write"
+    ],
+    "*.md": [
+      "prettier --write"
+    ],
+    "*.json": [
+      "prettier --write"
+    ],
+    "*.html": [
+      "prettier --write"
+    ]
   },
   "engines": {
     "node": ">=18"
