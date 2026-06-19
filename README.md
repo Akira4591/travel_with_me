@@ -18,6 +18,7 @@ Trip App 是一个中文旅行路线规划 Web App，用来创建多条旅行路
 - [项目成熟度评估](docs/project-delivery-maturity-review.md)：从完整互联网研发流程判断当前进度和阶段门槛。
 - [Codex 自用提示词](docs/codex-self-prompts.md)：后续迭代时用于自检、重构、验收和文档同步的工作提示词。
 - [技术特性实现评分表](docs/technical-feature-implementation-scorecard.md)：逐项比较可选实现方式、加权评分并保留真实开发步骤。
+- [UI 视觉风格守则](docs/ui-visual-style-guide.md)：锁定当前颜色、图标、布局、圆角、阴影和后续新增 UI 的审查清单。
 - [3D 地形实现研究](docs/3d-terrain-implementation-research.md)：2D 抬升、地形融化、高程数据、相机和动效实现路径。
 - [架构文档](ARCHITECTURE.md)：当前系统架构、ADR、模块边界和 3D 设计规范。
 - [商业化策略](commercialization-solutions.md)：商业化缺口、方案取舍、阶段路线和暂不做清单。
