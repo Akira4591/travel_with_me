@@ -25,6 +25,15 @@ const SEEDED_WORKSPACE = {
           resolved: true,
           photo: '',
           type: '餐饮服务;咖啡厅'
+        },
+        loc_unscheduled: {
+          name: '备选书店',
+          query: '备选书店',
+          addr: '北京市东城区备选路 8 号',
+          lnglat: [116.409, 39.91],
+          resolved: true,
+          photo: '',
+          type: '购物服务;书店'
         }
       },
       days: [
@@ -51,7 +60,15 @@ const SEEDED_WORKSPACE = {
           ]
         }
       ],
-      unscheduled: []
+      unscheduled: [
+        {
+          id: 'event_unscheduled',
+          title: '备选书店',
+          icon: 'bookstore',
+          note: '只在空闲时考虑',
+          locationId: 'loc_unscheduled'
+        }
+      ]
     }
   ],
   activeTripId: 'trip-s1-desktop'
@@ -584,5 +601,21 @@ test('desktop can open share image preview from seeded trip', async ({ page, isM
   await page.getByRole('button', { name: '分享长图' }).click();
   await expect(page.getByRole('dialog', { name: '分享长图' })).toBeVisible({ timeout: 15_000 });
   await expect(page.locator('.share-image-preview img')).toHaveAttribute('src', /^data:image\/png/);
+  await expect(page.locator('.share-include-notes')).toBeChecked();
+  await expect(page.locator('.share-include-routes')).not.toBeChecked();
+  await expect(page.locator('.share-include-unscheduled')).not.toBeChecked();
+
+  const firstSrc = await page.locator('.share-image-preview img').getAttribute('src');
+  await page.locator('.share-include-notes').uncheck();
+  await expect(page.locator('.share-image-loading')).toBeHidden({ timeout: 15_000 });
+  await expect(page.locator('.share-image-preview img')).not.toHaveAttribute('src', firstSrc || '');
+
+  const secondSrc = await page.locator('.share-image-preview img').getAttribute('src');
+  await page.locator('.share-include-unscheduled').check();
+  await expect(page.locator('.share-image-loading')).toBeHidden({ timeout: 15_000 });
+  await expect(page.locator('.share-image-preview img')).not.toHaveAttribute(
+    'src',
+    secondSrc || ''
+  );
   await expect(page.getByRole('button', { name: '下载长图' })).toBeVisible();
 });

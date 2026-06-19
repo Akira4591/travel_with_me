@@ -6,13 +6,21 @@ let currentHandlers = null;
 let currentImageUrl = null;
 let currentFilename = null;
 let isRegenerating = false;
+let currentOptions = null;
 
-export function openShareModal({ imageUrl, filename, includeRoutes = false, handlers }) {
+export function openShareModal({
+  imageUrl,
+  filename,
+  includeRoutes = false,
+  shareOptions = null,
+  handlers
+}) {
   closeShareModal();
   currentHandlers = handlers;
   currentImageUrl = imageUrl;
   currentFilename = filename;
   isRegenerating = false;
+  currentOptions = normalizeShareOptions(shareOptions || { includeRoutes });
 
   modalEl = document.createElement('div');
   modalEl.className = 'modal-overlay';
@@ -23,10 +31,20 @@ export function openShareModal({ imageUrl, filename, includeRoutes = false, hand
         <button type="button" class="modal-close" aria-label="关闭">×</button>
       </div>
       <div class="modal-body share-image-body">
-        <label class="share-options-row">
-          <input type="checkbox" class="share-include-routes" ${includeRoutes ? 'checked' : ''} />
-          <span>包含交通方式</span>
-        </label>
+        <div class="share-options-panel" aria-label="分享内容">
+          <label class="share-options-row">
+            <input type="checkbox" class="share-option-input share-include-notes" data-share-option="includeNotes" ${currentOptions.includeNotes ? 'checked' : ''} />
+            <span>包含备注</span>
+          </label>
+          <label class="share-options-row">
+            <input type="checkbox" class="share-option-input share-include-routes" data-share-option="includeRoutes" ${currentOptions.includeRoutes ? 'checked' : ''} />
+            <span>包含交通方式</span>
+          </label>
+          <label class="share-options-row">
+            <input type="checkbox" class="share-option-input share-include-unscheduled" data-share-option="includeUnscheduled" ${currentOptions.includeUnscheduled ? 'checked' : ''} />
+            <span>包含未排期地点</span>
+          </label>
+        </div>
         <div class="share-image-preview">
           <img src="${imageUrl}" alt="行程分享长图预览" />
           <div class="share-image-loading" hidden>正在重新生成...</div>
@@ -52,6 +70,7 @@ export function closeShareModal() {
   currentImageUrl = null;
   currentFilename = null;
   isRegenerating = false;
+  currentOptions = null;
 }
 
 // 由 main.js 在 onRegenerate 拿到新图后调用
@@ -73,8 +92,9 @@ function setLoading(loading) {
   if (!modalEl) return;
   const overlay = modalEl.querySelector('.share-image-loading');
   if (overlay) overlay.hidden = !loading;
-  const checkbox = modalEl.querySelector('.share-include-routes');
-  if (checkbox) checkbox.disabled = loading;
+  modalEl.querySelectorAll('.share-option-input').forEach(input => {
+    input.disabled = loading;
+  });
   const downloadBtn = modalEl.querySelector('.share-download-btn');
   const copyBtn = modalEl.querySelector('.share-copy-image-btn');
   if (downloadBtn) downloadBtn.disabled = loading;
@@ -94,10 +114,16 @@ function bindEvents(root) {
     currentHandlers?.onCopyImage?.(currentImageUrl);
   });
 
-  root.querySelector('.share-include-routes').addEventListener('change', e => {
-    if (isRegenerating) return;
-    setLoading(true);
-    currentHandlers?.onRegenerate?.(e.target.checked);
+  root.querySelectorAll('.share-option-input').forEach(input => {
+    input.addEventListener('change', e => {
+      if (isRegenerating) return;
+      currentOptions = {
+        ...currentOptions,
+        [e.target.dataset.shareOption]: e.target.checked
+      };
+      setLoading(true);
+      currentHandlers?.onRegenerate?.({ ...currentOptions });
+    });
   });
 
   root.addEventListener('click', e => {
@@ -106,4 +132,12 @@ function bindEvents(root) {
   root.addEventListener('keydown', e => {
     if (e.key === 'Escape') closeShareModal();
   });
+}
+
+function normalizeShareOptions(options = {}) {
+  return {
+    includeRoutes: !!options.includeRoutes,
+    includeNotes: options.includeNotes !== false,
+    includeUnscheduled: !!options.includeUnscheduled
+  };
 }
