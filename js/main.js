@@ -838,6 +838,7 @@ function importGuideDraft(draft) {
     const poi = event.poi;
     const name = poi?.name || event.placeName;
     const addr = buildDisplayAddress(poi || {}) || poi?.addr || '';
+    const eventTitle = String(event.title || event.placeName || '').trim() || event.placeName;
     const locationId = addLocation({
       name,
       query: event.placeName,
@@ -851,9 +852,9 @@ function importGuideDraft(draft) {
       tag: poi?.tag || ''
     });
     const payload = {
-      title: event.placeName,
+      title: eventTitle,
       icon: inferIconId({
-        title: event.placeName,
+        title: eventTitle,
         name,
         addr,
         type: poi?.type,
