@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { cleanGuideExtractedEvents } from '../js/guide-import-cleanup.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_INPUT = path.join(ROOT, 'tests', 'fixtures', 'guide-import-evaluation', 'cases.json');
@@ -113,10 +114,11 @@ function evaluateCase(testCase) {
 }
 
 function normalizeActualEvents(events) {
-  return events
+  return cleanGuideExtractedEvents(events)
     .map(event => ({
       placeName: String(event.place_name || event.placeName || '').trim(),
       day: normalizeDay(event.day),
+      timeSlot: String(event.time_slot || event.timeSlot || '').trim(),
       note: String(event.note || '').trim()
     }))
     .filter(event => event.placeName);
