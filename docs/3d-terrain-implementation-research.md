@@ -835,7 +835,25 @@ terrainConfidence
 
 - 真实 DEM tile / Terrain-RGB 解码。
 - 侧裙独立几何和顶点级融化动画。
-- label 避让、功能标记、坡度/高差摘要和 3D 分享导出。
+- label 避让、标记聚焦相机、长按轮盘和 3D 视频导出。
+
+### S2-5 实现状态（2026-06-19）
+
+已落地：
+
+- `js/annotations.js`：定义 6 类功能标记（入口、观景、补给、交通、风险、备注），并统一规范化 `id,type,lnglat,elevation,title,note,createdAt`。
+- `js/state.js`：`trip.annotations[]` 已进入唯一状态源，支持新增、更新、删除和旧数据自动补空数组。
+- `js/render/map-3d.js`：新增 annotation layer，按类型上色，并通过 `TerrainModel.heightAt(x,z)` 贴合地形；支持 Raycaster 点击地形反算 `lnglat`。
+- `js/render/annotation-modal.js`：轻量编辑面板已能保存类型、标题和备注。
+- `js/render/map.js`：2D 地图已同步显示 annotation marker。
+- `js/share-image.js` / `js/render/share-modal.js`：分享图已支持用户选择是否包含 3D 标记。
+- 3D 地形摘要已展示模式、可信度和高差；`flat-fallback` 时不输出坡度结论。
+- Playwright 已在 3D smoke 中断言 seeded annotation、点击新增 annotation、地形摘要和分享图标记选项。
+
+仍待后续：
+
+- 标记聚焦相机、label 避让和长按轮盘。
+- 真实 DEM tile / Terrain-RGB 下的坡度分段和高程剖面。
 
 ### Step 1: 模式决策
 

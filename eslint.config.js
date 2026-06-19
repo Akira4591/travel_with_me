@@ -54,6 +54,7 @@ export default [
         RegExp: 'readonly',
         Promise: 'readonly',
         Error: 'readonly',
+        DOMException: 'readonly',
         parseInt: 'readonly',
         parseFloat: 'readonly',
         isNaN: 'readonly',

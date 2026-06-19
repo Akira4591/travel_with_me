@@ -4,9 +4,22 @@
 // 这个模块是"地图的视图层"——只负责把 trip 数据投影到地图上
 // 不负责"何时切换日期"那种业务逻辑（那是 main.js / sidebar.js 的事）
 
+import { createLogger } from '../logger.js';
 import { AppConfig } from '../config.js';
-import { getAppState, getTrip, getLocation, getMarker, setMap, setInfoWindow } from '../state.js';
+import {
+  getAnnotations,
+  getAppState,
+  getTrip,
+  getLocation,
+  getMarker,
+  setMap,
+  setInfoWindow
+} from '../state.js';
+import { getAnnotationType } from '../annotations.js';
 import { escapeHTML, unique } from '../utils.js';
+import { createLogger } from '../logger.js';
+
+const log = createLogger('map');
 
 // ─── 初始化 ─────────────────────────────────────────────
 
@@ -42,6 +55,45 @@ export function createAllMarkers() {
     if (!Array.isArray(loc.lnglat) || loc.lnglat.length < 2) return;
     createOrUpdateMarker(locationId, loc.lnglat);
   });
+}
+
+export function renderAnnotationMarkers() {
+  const state = getAppState();
+  if (!state.AMap || !state.map) return [];
+  clearAnnotationMarkers();
+  getAnnotations().forEach(annotation => {
+    if (!Array.isArray(annotation.lnglat) || annotation.lnglat.length < 2) return;
+    const type = getAnnotationType(annotation.type);
+    const content = document.createElement('div');
+    content.className = `annotation-marker annotation-marker-${type.id}`;
+    content.style.setProperty('--annotation-color', type.color);
+    content.innerHTML = '<span></span>';
+    const marker = new state.AMap.Marker({
+      position: annotation.lnglat,
+      content,
+      offset: new state.AMap.Pixel(-11, -11),
+      zIndex: 260
+    });
+    marker._contentEl = content;
+    marker.on('click', () => openAnnotationInfoWindow(annotation.id));
+    state.annotationMarkers.set(annotation.id, marker);
+    state.annotationMarkerList.push(marker);
+    state.map.add(marker);
+  });
+  return state.annotationMarkerList;
+}
+
+export function clearAnnotationMarkers() {
+  const state = getAppState();
+  state.annotationMarkerList.forEach(marker => {
+    try {
+      state.map?.remove(marker);
+    } catch (err) {
+      log.warn('移除标记失败：', err);
+    }
+  });
+  state.annotationMarkers.clear();
+  state.annotationMarkerList = [];
 }
 
 export function createOrUpdateMarker(locationId, lnglat) {
@@ -80,10 +132,16 @@ export function removeMarker(locationId) {
   const marker = state.markers.get(locationId);
   if (!marker) return;
 
+  // 清理可能正在运行的 pulse 定时器
+  if (marker._pulseTimerId) {
+    clearTimeout(marker._pulseTimerId);
+    marker._pulseTimerId = null;
+  }
+
   try {
     state.map.remove(marker);
   } catch (err) {
-    console.warn('移除 Marker 失败：', err);
+    log.warn('移除 Marker 失败：', err);
   }
   state.markers.delete(locationId);
   state.markerList = state.markerList.filter(item => item !== marker);
@@ -95,11 +153,12 @@ export function clearAllMarkers() {
     try {
       state.map.remove(marker);
     } catch (err) {
-      console.warn('移除 Marker 失败：', err);
+      log.warn('移除 Marker 失败：', err);
     }
   });
   state.markers.clear();
   state.markerList = [];
+  clearAnnotationMarkers();
 }
 
 export function pruneMarkersToLocationIds(locationIds) {
@@ -152,6 +211,7 @@ function getVisibleMarkers(dayId) {
 // 每帧调 setZoomAndCenter(..., true) 让 AMap 立刻渲染当前帧。
 //
 // 视觉时长 + 曲线在这两个常量里调，动画感觉不对就改这两个值：
+const log = createLogger('map');
 const PAN_DURATION = 900;
 const EASE = t => 1 - Math.pow(1 - t, 3); // ease-out-cubic
 const FIT_PADDING = [60, 60, 60, 60];
@@ -264,6 +324,21 @@ export function openInfoWindow(locationId) {
   state.infoWindow.open(state.map, marker.getPosition());
 }
 
+export function openAnnotationInfoWindow(annotationId) {
+  const state = getAppState();
+  const annotation = getAnnotations().find(item => item.id === annotationId);
+  const marker = state.annotationMarkers.get(annotationId);
+  if (!annotation || !marker) return;
+  const type = getAnnotationType(annotation.type);
+  state.infoWindow.setContent(`
+    <div class="info-window-content">
+      <h3 class="info-window-title">${escapeHTML(annotation.title || type.label)}</h3>
+      <p class="info-window-addr">${escapeHTML(type.label)}${annotation.note ? ` · ${escapeHTML(annotation.note)}` : ''}</p>
+    </div>
+  `);
+  state.infoWindow.open(state.map, marker.getPosition());
+}
+
 // ─── Polyline（画路线） ─────────────────────────────────
 // 每段路线按 segmentId 存进 state.routeOverlays（Map），方便点击某段时高亮"它"
 // 而不是其他段。
@@ -295,7 +370,7 @@ function addPolyline(path, color, dashed) {
     isOutline: true,
     outlineColor: '#ffffff',
     borderWeight: 2,
-    strokeColor: color || '#ef4444',
+    strokeColor: color || '#c4a44a',
     strokeOpacity: ROUTE_DEFAULT.strokeOpacity,
     strokeWeight: ROUTE_DEFAULT.strokeWeight,
     strokeStyle: dashed ? 'dashed' : 'solid',
@@ -322,7 +397,7 @@ function safeRemoveOverlay(map, overlay) {
   try {
     map.remove(overlay);
   } catch (err) {
-    console.warn('清除自绘路线失败：', err);
+    log.warn('清除自绘路线失败：', err);
   }
 }
 
@@ -364,7 +439,7 @@ export function highlightSegment(segmentId) {
           const halo = new state.AMap.Polyline({
             path,
             isOutline: false,
-            strokeColor: entry.color || '#ef4444',
+            strokeColor: entry.color || '#c4a44a',
             strokeOpacity: 0.22,
             strokeWeight: 18,
             strokeStyle: 'solid',
@@ -428,9 +503,9 @@ function pulseMarkerByLocationId(locationId) {
   const marker = getAppState().markers.get(locationId);
   const el = marker?._contentEl;
   if (!el) return;
-  // 把动画做成"重新触发"：先移除再下一帧加，否则连续点同一段不会重放
   el.classList.remove('pulse');
-  void el.offsetWidth; // 强制 reflow
+  void el.offsetWidth;
   el.classList.add('pulse');
-  setTimeout(() => el.classList.remove('pulse'), PULSE_DURATION_MS);
+  const pid = setTimeout(() => el.classList.remove('pulse'), PULSE_DURATION_MS);
+  marker._pulseTimerId = pid; // 供 removeMarker 清理
 }

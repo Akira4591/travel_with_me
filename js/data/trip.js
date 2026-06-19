@@ -18,6 +18,7 @@
 //  * @property {Object<string, Location>} locations - 地点主表，按 ID 索引
 //  * @property {Day[]} days - 按序排列的每日行程
 //  * @property {Event[]} unscheduled - 未排期事件
+//  * @property {Annotation[]} annotations - 3D/地图功能标记
 //  */
 //
 // /**
@@ -59,6 +60,17 @@
 //  * @property {string} [label] - 自定义展示名称
 //  * @property {Array<{mode: string, label: string}>} [legs] - 组合步骤
 //  * @property {boolean} [manual] - 是否用户手动设置
+//  */
+//
+// /**
+//  * @typedef {object} Annotation
+//  * @property {string} id
+//  * @property {'entrance'|'viewpoint'|'supply'|'transfer'|'risk'|'note'} type
+//  * @property {[number, number]} lnglat
+//  * @property {number|null} elevation
+//  * @property {string} title
+//  * @property {string} note
+//  * @property {string} createdAt
 //  */
 //
 //
@@ -314,5 +326,9 @@ export const initialTrip = {
   // - AI 攻略导入识别出的"推荐合集"（无 day 归属）落到这里
   // - 用户可通过 day/timeSlot select 把它们移到具体 day
   // - 不画 routeToNext
-  unscheduled: []
+  unscheduled: [],
+
+  // S2-5：3D 功能标记容器。当前先建立可持久化模型和渲染层；
+  // 点击创建、编辑面板、分享图包含标记在后续批次接入。
+  annotations: []
 };

@@ -1,30 +1,18 @@
 import { TIME_SLOT_OPTIONS, normalizeTimeSlot } from '../time-slots.js';
 import { escapeHTML } from '../utils.js';
+import { modalSingleton, setupModalCloseEvents } from './modal-base.js';
 
-let modalEl = null;
-let currentHandlers = null;
 let draft = null;
 let openActionEventId = null;
 
-export function openGuidePreviewModal({ draft: inputDraft, handlers }) {
-  closeGuidePreviewModal();
-  currentHandlers = handlers;
+export const openGuidePreviewModal = modalSingleton(({ draft: inputDraft, handlers }) => {
   draft = structuredClone(inputDraft);
   openActionEventId = null;
-  modalEl = createModal();
-  document.body.appendChild(modalEl);
-}
+  const root = createModal(handlers);
+  document.body.appendChild(root);
+});
 
-export function closeGuidePreviewModal() {
-  if (!modalEl) return;
-  modalEl.remove();
-  modalEl = null;
-  currentHandlers = null;
-  draft = null;
-  openActionEventId = null;
-}
-
-function createModal() {
+function createModal(handlers) {
   const root = document.createElement('div');
   root.className = 'modal-overlay';
   root.innerHTML = `
@@ -206,10 +194,8 @@ function renderTimeSlotSelect(event) {
 }
 
 function bindShellEvents(root) {
-  root.querySelector('.modal-close').addEventListener('click', closeGuidePreviewModal);
-  root.addEventListener('click', e => {
-    if (e.target === root) closeGuidePreviewModal();
-  });
+  root.querySelector('.modal-close').addEventListener('click', openGuidePreviewModal.close);
+
   root.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
     if (openActionEventId) {
@@ -217,7 +203,7 @@ function bindShellEvents(root) {
       renderBody(root.querySelector('.guide-preview-body'));
       return;
     }
-    closeGuidePreviewModal();
+    openGuidePreviewModal.close();
   });
 }
 
@@ -236,12 +222,12 @@ function bindBodyEvents(body) {
     draft.title = e.target.value;
   });
   body.querySelector('.guide-preview-back').addEventListener('click', () => {
-    currentHandlers?.onBack?.(draft);
-    closeGuidePreviewModal();
+    handlers?.onBack?.(draft);
+    openGuidePreviewModal.close();
   });
   body.querySelector('.guide-preview-confirm').addEventListener('click', () => {
-    currentHandlers?.onConfirm?.(structuredClone(draft));
-    closeGuidePreviewModal();
+    handlers?.onConfirm?.(structuredClone(draft));
+    openGuidePreviewModal.close();
   });
   body.querySelectorAll('.guide-preview-event').forEach(card => {
     const event = draft.events.find(item => item.id === card.dataset.eventId);
@@ -279,14 +265,14 @@ function bindBodyEvents(body) {
     });
     card.querySelector('.guide-preview-search-btn')?.addEventListener('click', async () => {
       const keyword = card.querySelector('.guide-preview-search-input')?.value.trim();
-      if (!keyword || !currentHandlers?.onSearchPlace) return;
+      if (!keyword || !handlers?.onSearchPlace) return;
       event.searchKeyword = keyword;
       event.searching = true;
       event.searchError = '';
       event.searchResults = [];
       renderBody(body);
       try {
-        const places = await currentHandlers.onSearchPlace(keyword, draft.city);
+        const places = await handlers.onSearchPlace(keyword, draft.city);
         event.searchResults = Array.isArray(places) ? places : [];
         event.searchError = event.searchResults.length ? '' : '没有找到结果，换个关键词试试';
       } catch {

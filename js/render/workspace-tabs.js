@@ -5,6 +5,7 @@ import { getWorkspace, MAX_TRIPS } from '../state.js';
 import { escapeHTML } from '../utils.js';
 
 let menuEl = null;
+let menuDocListener = null; // 外部 close 时清理
 
 export function renderWorkspaceTabs(handlers = {}) {
   const root = document.getElementById('workspace-tabs');
@@ -43,6 +44,10 @@ export function renderWorkspaceTabs(handlers = {}) {
 export function closeWorkspaceMenu() {
   menuEl?.remove();
   menuEl = null;
+  if (menuDocListener) {
+    document.removeEventListener('click', menuDocListener);
+    menuDocListener = null;
+  }
 }
 
 function renderTripTab(trip, index, active) {
@@ -108,6 +113,7 @@ function createMenu(anchor, tripId, handlers) {
         document.removeEventListener('click', close);
       }
     };
+    menuDocListener = close;
     document.addEventListener('click', close);
   }, 0);
 

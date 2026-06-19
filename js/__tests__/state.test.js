@@ -97,6 +97,59 @@ describe('moveEventBetweenContainers', () => {
   });
 });
 
+describe('annotations', () => {
+  it('normalizes missing annotations on old trips', () => {
+    state.initWorkspace({
+      trips: [
+        {
+          id: 'old-trip',
+          title: '旧路线',
+          locations: {},
+          days: []
+        }
+      ],
+      activeTripId: 'old-trip'
+    });
+
+    expect(state.getTrip().annotations).toEqual([]);
+    expect(state.getAnnotations()).toEqual([]);
+  });
+
+  it('adds, updates, and removes a 3D annotation', () => {
+    const annotationId = state.addAnnotation({
+      type: 'viewpoint',
+      lnglat: [116.405, 39.912],
+      elevation: 32,
+      title: 'View deck',
+      note: 'Sunset angle'
+    });
+
+    expect(annotationId).toBeTruthy();
+    expect(state.getAnnotations()).toHaveLength(1);
+    expect(state.getAnnotations()[0]).toMatchObject({
+      id: annotationId,
+      type: 'viewpoint',
+      lnglat: [116.405, 39.912],
+      elevation: 32,
+      title: 'View deck',
+      note: 'Sunset angle'
+    });
+
+    expect(state.updateAnnotation(annotationId, { type: 'risk', title: 'Steep turn' })).toBe(true);
+    expect(state.getAnnotations()[0]).toMatchObject({
+      type: 'risk',
+      title: 'Steep turn'
+    });
+
+    expect(state.removeAnnotation(annotationId)).toBe(true);
+    expect(state.getAnnotations()).toHaveLength(0);
+  });
+
+  it('rejects invalid annotation coordinates', () => {
+    expect(state.addAnnotation({ lnglat: [999, 39.9] })).toBeNull();
+  });
+});
+
 describe('getAppState', () => {
   it('returns runtime state object', () => {
     const appState = state.getAppState();

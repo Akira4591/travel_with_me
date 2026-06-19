@@ -32,5 +32,11 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Security audit
+        run: npm audit --audit-level=high
+
       - name: Test
         run: npm test
+
+      - name: AI guide import evaluation
+        run: npm run test:guide-import

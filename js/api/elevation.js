@@ -5,8 +5,16 @@
 // 文档: https://open-meteo.com/en/docs/elevation-api
 //
 // 使用方式:
-//   import { fetchElevationGrid } from './api/elevation.js';
+//   import { createLogger } from '../logger.js';
+import { fetchElevationGrid } from './api/elevation.js';
 //   const grid = await fetchElevationGrid(center, span, resolution);
+
+const log = createLogger('elevation');
+import { createLogger } from '../logger.js';
+const log = createLogger('elevation');
+
+import { createLogger } from "../logger.js";
+const log = createLogger("elevation");
 
 const ELEVATION_API = 'https://api.open-meteo.com/v1/elevation';
 const MAX_LOCATIONS_PER_REQUEST = 100;
@@ -111,7 +119,7 @@ export async function fetchElevationGrid({ center, span, resolution = 40 }) {
     gridCache.set(cacheKey, grid);
     return grid;
   } catch (err) {
-    console.warn('[elevation] 获取高程数据失败，使用平坦地形:', err.message);
+    log.warn('[elevation] 获取高程数据失败，使用平坦地形:', err.message);
     return null;
   }
 }

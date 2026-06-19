@@ -59,6 +59,23 @@ const app = new Hono();
 app.use(
   '*',
   secureHeaders({
+    contentSecurityPolicy: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", 'https://cdn.jsdelivr.net', 'https://webapi.amap.com'],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+      imgSrc: ["'self'", 'data:', 'https:', 'blob:'],
+      connectSrc: [
+        "'self'",
+        'https://restapi.amap.com',
+        'https://api.open-meteo.com',
+        'https://api.deepseek.com'
+      ],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"],
+      frameAncestors: ["'none'"]
+    },
     crossOriginOpenerPolicy: false,
     crossOriginResourcePolicy: false,
     referrerPolicy: 'strict-origin-when-cross-origin',
@@ -66,7 +83,8 @@ app.use(
     permissionsPolicy: {
       geolocation: ['self'],
       camera: [],
-      microphone: []
+      microphone: [],
+      payment: []
     }
   })
 );

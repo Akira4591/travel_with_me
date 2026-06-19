@@ -3,6 +3,7 @@
 //
 // 这个模块只负责 UI 和表单收集，不直接读写 state。
 
+import { createLogger } from '../logger.js';
 import { escapeHTML } from '../utils.js';
 import {
   bindIconPicker,
@@ -12,31 +13,18 @@ import {
   renderIconSVG
 } from './icons.js';
 import { TIME_SLOT_OPTIONS, normalizeTimeSlot } from '../time-slots.js';
+import { modalSingleton, setupModalCloseEvents } from './modal-base.js';
 
-let modalEl = null;
-let currentHandlers = null;
+export const openEventEditorModal = modalSingleton(({ event, location, handlers }) => {
+  const root = createModal(event, location, handlers);
+  document.body.appendChild(root);
+  requestAnimationFrame(() => root.querySelector('.editor-title-input')?.focus());
+});
 
-export function openEventEditorModal({ event, location, handlers }) {
-  closeEventEditorModal();
-  currentHandlers = handlers;
-  modalEl = createModal(event, location);
-  document.body.appendChild(modalEl);
-  requestAnimationFrame(() => {
-    modalEl?.querySelector('.editor-title-input')?.focus();
-  });
-}
-
-export function closeEventEditorModal() {
-  if (!modalEl) return;
-  modalEl.remove();
-  modalEl = null;
-  currentHandlers = null;
-}
-
-function createModal(event, location) {
-  const anchorName = currentHandlers?.nearbyAnchor?.name || '';
-  const radiusKm = Math.round(Number(currentHandlers?.nearbyAnchor?.radius || 5000) / 1000);
-  const maxResults = Number(currentHandlers?.nearbyAnchor?.maxResults || 4);
+function createModal(event, location, handlers) {
+  const anchorName = handlers?.nearbyAnchor?.name || '';
+  const radiusKm = Math.round(Number(handlers?.nearbyAnchor?.radius || 5000) / 1000);
+  const maxResults = Number(handlers?.nearbyAnchor?.maxResults || 4);
   const nearbyHintHTML = anchorName
     ? `以「<span class="search-nearby-anchor"></span>」为中心搜索 ${radiusKm}km 内附近最多 ${maxResults} 个地点`
     : '当前地点还没有坐标，将基于关键词全城搜索';
@@ -59,7 +47,7 @@ function createModal(event, location) {
         </div>
         <div class="modal-form-row date-form-row">
           <label>日期</label>
-          ${renderContainerPickerHTML(currentHandlers?.containerOptions || [], currentHandlers?.currentContainerId || '')}
+          ${renderContainerPickerHTML(handlers?.containerOptions || [], handlers?.currentContainerId || '')}
         </div>
         <div class="modal-form-row time-form-row">
           <label>时间</label>
@@ -151,17 +139,17 @@ function bindEvents(root, initialLocation) {
   // 已有地点常常只存了名称（addr === name），这里按需异步逆地理回填详细地址。
   // 注意 modal 关闭后 resultsEl 已不在 DOM 树里，所有异步回调要先确认 modal 还活着。
   const ensureAddressForCurrent = async () => {
-    if (!hasPoorAddress(selectedLocation) || !currentHandlers?.onResolveAddress) return;
+    if (!hasPoorAddress(selectedLocation) || !handlers?.onResolveAddress) return;
     if (!Array.isArray(selectedLocation.lnglat) || selectedLocation.lnglat.length < 2) return;
 
     renderCard('loading');
     let info;
     try {
-      info = await currentHandlers.onResolveAddress(selectedLocation.lnglat);
+      info = await handlers.onResolveAddress(selectedLocation.lnglat);
     } catch (err) {
-      console.warn('逆地理编码失败：', err);
+      log.warn('逆地理编码失败：', err);
     }
-    if (!modalEl) return; // 弹窗已关闭
+    if (!root?.isConnected) return;
 
     const composed = composeAddress(info, selectedLocation.name);
     if (composed) selectedLocation.addr = composed;
@@ -172,7 +160,7 @@ function bindEvents(root, initialLocation) {
     const keyword = searchInput.value.trim();
     if (!keyword) return;
     const isNearby = searchMode === 'nearby';
-    const runner = isNearby ? currentHandlers?.onNearbySearch : currentHandlers?.onSearch;
+    const runner = isNearby ? handlers?.onNearbySearch : handlers?.onSearch;
     if (!runner) return;
 
     selectedPlace = null;
@@ -225,7 +213,7 @@ function bindEvents(root, initialLocation) {
         setResultsState(resultsEl, 'idle', '');
       });
     } catch (err) {
-      console.error('搜索地点失败：', err);
+      log.error('搜索地点失败：', err);
       setResultsState(resultsEl, 'error', '<div class="modal-hint">搜索失败，请重试</div>');
     }
   };
@@ -270,24 +258,18 @@ function bindEvents(root, initialLocation) {
     }
   });
 
-  root.querySelector('.modal-close').addEventListener('click', closeEventEditorModal);
-  root.querySelector('.modal-cancel').addEventListener('click', closeEventEditorModal);
-  root.addEventListener('click', e => {
-    if (e.target === root) closeEventEditorModal();
-  });
-  root.addEventListener('keydown', e => {
-    if (e.key === 'Escape') closeEventEditorModal();
-  });
+  root.querySelector('.modal-close').addEventListener('click', openEventEditorModal.close);
+  root.querySelector('.modal-cancel').addEventListener('click', openEventEditorModal.close);
 
   form.addEventListener('submit', e => {
     e.preventDefault();
-    if (!currentHandlers?.onConfirm) return;
+    if (!handlers?.onConfirm) return;
 
     const lng = Number(selectedLocation.lnglat?.[0]);
     const lat = Number(selectedLocation.lnglat?.[1]);
     if (!Number.isFinite(lng) || !Number.isFinite(lat)) return;
 
-    currentHandlers.onConfirm({
+    handlers.onConfirm({
       event: {
         title: root.querySelector('.editor-title-input').value.trim(),
         icon: iconPicker.getValue(),
@@ -305,7 +287,7 @@ function bindEvents(root, initialLocation) {
       },
       selectedPlace
     });
-    closeEventEditorModal();
+    openEventEditorModal.close();
   });
 }
 

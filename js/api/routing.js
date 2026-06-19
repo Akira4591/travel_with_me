@@ -56,7 +56,7 @@ export async function searchRoute(AMap, service, segment) {
     if (attempt < maxAttempts) await sleep(450 * attempt);
   }
 
-  console.warn('路线规划失败，使用估算兜底：', segment, lastResult?.status, lastResult?.raw);
+  log.warn('路线规划失败，使用估算兜底：', segment, lastResult?.status, lastResult?.raw);
   return buildEstimatedResult(segment);
 }
 
@@ -117,7 +117,7 @@ export function safeClearService(service) {
     try {
       service.clear();
     } catch (err) {
-      console.warn('清除路线服务失败：', err);
+      log.warn('清除路线服务失败：', err);
     }
   }
 }
