@@ -821,6 +821,22 @@ terrainConfidence
 
 ## 14. 推荐实现顺序
 
+### S2-4 实现状态（2026-06-19）
+
+已落地：
+
+- `js/render/terrain-mode.js`：`chooseTerrainMode()` 已输出 Micro Street、Citywalk、Scenic Park、Hiking、Region Overview，并给出 `terrainGrid`、`routeSamples`、`dataSource`、`labelBudget`。
+- `js/render/terrain-model.js`：`TerrainModel` 已包含 `bounds`、`grid`、`heightAt(x,z)`、`mesh`、`sideSkirts`、`terrainConfidence` 和高程指标。
+- `js/api/elevation.js`：Open-Meteo 高程请求已改为 100 点分块 + 内存缓存，避免大网格单次请求。
+- `js/render/map-3d.js`：terrain、建筑、路线、marker 已统一使用 `heightAt(x,z)` 贴地；建筑高度改为稳定 hash；自动环绕在用户拖动后 6 秒恢复。
+- Playwright 已断言进入 3D 后存在 `data-terrain-mode` 和非 fallback 的 `data-terrain-confidence`。
+
+仍待后续：
+
+- 真实 DEM tile / Terrain-RGB 解码。
+- 侧裙独立几何和顶点级融化动画。
+- label 避让、功能标记、坡度/高差摘要和 3D 分享导出。
+
 ### Step 1: 模式决策
 
 - 实现 `chooseTerrainMode()` 文档级算法。

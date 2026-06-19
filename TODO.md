@@ -156,12 +156,13 @@
 - 分享图在桌面端预览、下载稳定，导出的图片适合在移动社交平台传播。
 - 分享内容不泄露未选择展示的信息。
 
-### 4. 3D Diorama 价值验证
+### 4. 3D Diorama 价值验证（S2-4 已完成首批地形模型）
 
 - 明确 3D 的最小可用价值：路线空间理解、地形感知、上下文标记。
-- 按 `docs/3d-terrain-implementation-research.md` 完成 `chooseTerrainMode()` 的设计落地：Micro Street、Citywalk、Scenic Park、Hiking、Region Overview。
-- 明确高程数据分层：Open-Meteo MVP、DEM tile 进阶、失败时 flat terrain 降级。
-- 完成 `TerrainModel` 规格：`bounds`、`grid`、`heightAt(x,z)`、`mesh`、`sideSkirts`、`terrainConfidence`。
+- 已按 `docs/3d-terrain-implementation-research.md` 完成 `chooseTerrainMode()` 首批落地：Micro Street、Citywalk、Scenic Park、Hiking、Region Overview。
+- 已完成 Open-Meteo 分块请求与内存缓存；失败时进入 `flat-fallback` 地形降级。
+- 已完成 `TerrainModel` 首批规格：`bounds`、`grid`、`heightAt(x,z)`、`mesh`、`sideSkirts`、`terrainConfidence`。
+- 已让 3D terrain、建筑、路线、marker 统一通过 `heightAt(x,z)` 贴地。
 - 实现点击添加标记和长按轮盘前，先完成交互设计稿、数据模型和验收路径。
 - 定义 6 类功能标记与现有 POI icon 的关系。
 - 明确 3D 分享图/视频导出的后续边界。
