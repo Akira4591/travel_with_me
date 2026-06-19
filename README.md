@@ -164,8 +164,7 @@ trip-app/
 ├── css/
 │   ├── tokens.css            # 设计令牌
 │   ├── layout.css            # 布局骨架
-│   ├── components.css        # UI 组件
-│   └── app.css               # 全局样式（逐模块迁移中）
+│   └── components.css        # UI 组件
 └── js/
     ├── main.js               # 启动流程和业务编排
     ├── state.js              # workspace/trip 唯一状态源

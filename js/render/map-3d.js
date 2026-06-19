@@ -54,9 +54,9 @@ const ROUTE_LIFT = 8; // 路线在地形上方的偏移
 const DIORAMA_SLICE_THICKNESS = 20;
 const PARTICLE_COUNT = 50;
 
-// 空闲环视
-const IDLE_RESUME_DELAY = 6000; // 用户拖动后 6s 恢复极慢环视
-const AUTO_ROTATE_SPEED = 0.18; // 度/秒
+// 空闲环视 (ADR-6: 用户拖动后 20-30s 恢复环视, ~4.8 deg/s)
+const IDLE_RESUME_DELAY = 25000; // 用户拖动后 25s 恢复环视
+const AUTO_ROTATE_SPEED = 2.0; // OrbitControls 单位, ~30s/圈, 视觉约 4.8 deg/s
 
 // 浮升动画参数 (ADR-6 §四)
 const EMERGE_DURATION = 1400;

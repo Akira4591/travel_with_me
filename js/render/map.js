@@ -128,6 +128,12 @@ export function removeMarker(locationId) {
   const marker = state.markers.get(locationId);
   if (!marker) return;
 
+  // 清理可能正在运行的 pulse 定时器
+  if (marker._pulseTimerId) {
+    clearTimeout(marker._pulseTimerId);
+    marker._pulseTimerId = null;
+  }
+
   try {
     state.map.remove(marker);
   } catch (err) {
@@ -359,7 +365,7 @@ function addPolyline(path, color, dashed) {
     isOutline: true,
     outlineColor: '#ffffff',
     borderWeight: 2,
-    strokeColor: color || '#ef4444',
+    strokeColor: color || '#c4a44a',
     strokeOpacity: ROUTE_DEFAULT.strokeOpacity,
     strokeWeight: ROUTE_DEFAULT.strokeWeight,
     strokeStyle: dashed ? 'dashed' : 'solid',
@@ -428,7 +434,7 @@ export function highlightSegment(segmentId) {
           const halo = new state.AMap.Polyline({
             path,
             isOutline: false,
-            strokeColor: entry.color || '#ef4444',
+            strokeColor: entry.color || '#c4a44a',
             strokeOpacity: 0.22,
             strokeWeight: 18,
             strokeStyle: 'solid',
@@ -492,9 +498,9 @@ function pulseMarkerByLocationId(locationId) {
   const marker = getAppState().markers.get(locationId);
   const el = marker?._contentEl;
   if (!el) return;
-  // 把动画做成"重新触发"：先移除再下一帧加，否则连续点同一段不会重放
   el.classList.remove('pulse');
-  void el.offsetWidth; // 强制 reflow
+  void el.offsetWidth;
   el.classList.add('pulse');
-  setTimeout(() => el.classList.remove('pulse'), PULSE_DURATION_MS);
+  const pid = setTimeout(() => el.classList.remove('pulse'), PULSE_DURATION_MS);
+  marker._pulseTimerId = pid; // 供 removeMarker 清理
 }

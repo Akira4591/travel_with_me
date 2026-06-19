@@ -35,6 +35,28 @@ export function init3DToggle({ map, onEnter3D, onExit3D }) {
   let is3D = false;
   let transitioning = false;
 
+  // ─── 60s 闲置自动回 2D (ADR-6 性能策略) ──────────────
+
+  const IDLE_RETURN_DELAY = 60000; // 60s 无操作自动切回 2D
+  let idleReturnTimer = null;
+
+  function resetIdleReturnTimer() {
+    if (idleReturnTimer) clearTimeout(idleReturnTimer);
+    if (!is3D) return;
+    idleReturnTimer = setTimeout(async () => {
+      if (!is3D || transitioning) return;
+      log.info('60s 无操作，自动切回 2D');
+      await exit3DFlow();
+    }, IDLE_RETURN_DELAY);
+  }
+
+  function clearIdleReturnTimer() {
+    if (idleReturnTimer) {
+      clearTimeout(idleReturnTimer);
+      idleReturnTimer = null;
+    }
+  }
+
   // ─── 按钮状态机 ──────────────────────────────
 
   function updateButtonState(zoom) {
@@ -111,6 +133,10 @@ export function init3DToggle({ map, onEnter3D, onExit3D }) {
     const statusPanel = document.getElementById('status-panel');
     if (statusPanel) statusPanel.style.display = 'none';
 
+    // 启动 60s 闲置自动回退计时器
+    startIdleDetection();
+    resetIdleReturnTimer();
+
     setStatus('3D 视图已就绪 · 拖拽旋转 · 捏合缩放 · 点击「2D」切回');
   }
 
@@ -132,8 +158,19 @@ export function init3DToggle({ map, onEnter3D, onExit3D }) {
     const statusPanel = document.getElementById('status-panel');
     if (statusPanel) statusPanel.style.display = '';
 
+    clearIdleReturnTimer();
     updateButtonState(map.getZoom());
     setStatus('已切回 2D 视图。');
+  }
+
+  // ─── 用户交互检测 ──────────────────────────────
+
+  function startIdleDetection() {
+    const canvas3D = document.getElementById('map-3d');
+    if (!canvas3D) return;
+    ['pointerdown', 'wheel', 'touchstart'].forEach(evt => {
+      canvas3D.addEventListener(evt, resetIdleReturnTimer, { passive: true });
+    });
   }
 
   function recoverFailedTransition(was3D) {
