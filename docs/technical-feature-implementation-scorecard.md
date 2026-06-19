@@ -319,12 +319,13 @@
 
 真实开发步骤：
 
-1. 在 trip 模型预留 `annotations[]`：`id,type,lnglat,elevation,title,note,createdAt`。
-2. 建立 6 类标记：入口、观景、餐饮/补给、交通、风险、备注。
-3. 3D raycast 命中地形后反算 lnglat，创建临时 marker。
-4. 弹出轻量编辑面板，确认后写入 state。
-5. 2D 地图同步显示 3D 标记。
-6. 分享图可选择包含标记。
+1. 在 trip 模型预留 `annotations[]`：`id,type,lnglat,elevation,title,note,createdAt`。（S2-5 已完成）
+2. 建立 6 类标记：入口、观景、餐饮/补给、交通、风险、备注。（S2-5 已完成）
+3. 3D 渲染层读取 `trip.annotations`，按类型上色并通过 `TerrainModel.heightAt(x,z)` 贴地。（S2-5 已完成）
+4. 3D raycast 命中地形后反算 lnglat，创建临时 marker。（S2-5 已完成）
+5. 弹出轻量编辑面板，确认后写入 state。（S2-5 已完成）
+6. 2D 地图同步显示 3D 标记。（S2-5 已完成）
+7. 分享图可选择包含标记。（S2-5 已完成）
 
 验收标准：
 

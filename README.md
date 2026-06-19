@@ -21,6 +21,7 @@ Trip App 是一个中文旅行路线规划 Web App，用来创建多条旅行路
 - [UI 视觉风格守则](docs/ui-visual-style-guide.md)：锁定当前颜色、图标、布局、圆角、阴影和后续新增 UI 的审查清单。
 - [3D 地形实现研究](docs/3d-terrain-implementation-research.md)：2D 抬升、地形融化、高程数据、相机和动效实现路径。
 - [AI 导入评测](docs/guide-import-evaluation.md)：攻略导入召回率、误提取率、day 准确率和 note 覆盖率的离线评测。
+- [S2 差距审查](docs/s2-completion-gap-review.md)：S2 已修复项、仍需真实用户验证项和后续阶段判断。
 - [架构文档](ARCHITECTURE.md)：当前系统架构、ADR、模块边界和 3D 设计规范。
 - [商业化策略](commercialization-solutions.md)：商业化缺口、方案取舍、阶段路线和暂不做清单。
 - [Roadmap](TODO.md)：按 P0/P1/P2/P3 组织的执行 backlog。
@@ -175,6 +176,7 @@ trip-app/
     ├── time-slots.js         # 时间块定义和排序
     ├── share.js              # 旧 #trip= 链接兼容
     ├── share-image.js        # Canvas 分享长图生成
+    ├── annotations.js        # 3D/地图功能标记类型与规范化
     ├── data/
     │   └── trip.js           # 五一北京演示数据 + JSDoc typedef
     ├── api/
@@ -192,6 +194,8 @@ trip-app/
     │   ├── sidebar.js
     │   ├── map.js            # 2D 地图渲染
     │   ├── map-3d.js         # 3D diorama 渲染
+    │   ├── terrain-mode.js   # 3D 场景精度模式决策
+    │   ├── terrain-model.js  # 地形高度采样与可信度模型
     │   ├── toggle-3d.js      # 2D/3D 切换
     │   ├── search-modal.js
     │   ├── event-editor-modal.js
@@ -278,7 +282,18 @@ trip = {
       ]
     }
   ],
-  unscheduled: []
+  unscheduled: [],
+  annotations: [
+    {
+      id,
+      type, // entrance | viewpoint | supply | transfer | risk | note
+      lnglat,
+      elevation,
+      title,
+      note,
+      createdAt
+    }
+  ]
 }
 ```
 
@@ -332,7 +347,7 @@ AI 导入入口在顶部行程标签栏中与新建 `+` 并列显示；空工作
 
 - localStorage 只适合本机草稿；已支持本地 JSON 导出/导入，但不支持跨设备自动同步。
 - 分享长图是当前主分享方式；旧 `#trip=` 长链接只做兼容。
-- AI 导入仍是 MVP，地点抽取和备注质量需要继续用真实攻略评测；路线合集已做主路线清洗，但仍需继续积累 bad case。
+- AI 导入已有 12 个种子评测 case 和离线质量门禁；仍需继续采集真实用户攻略与 bad case。
 - 组合交通方式目前主要用于展示说明，地图仍按一个高德基础 mode 规划。
 - 默认示例不再内置坐标，首次解析依赖高德 POI/Geocoder 返回结果。
 - 跨天/未排期拖拽已支持桌面端基础交互；移动端触控拖拽不再作为当前开发主线。
@@ -340,8 +355,8 @@ AI 导入入口在顶部行程标签栏中与新建 `+` 并列显示；空工作
 
 ## 后续 TODO
 
-1. 分享图继续美化：地图、事件卡密度、交通方式展示、字体层级、整体旅行手账感。
-2. 让别人真正使用：确定无登录/登录、localStorage/云端保存、短链接分享、继续编辑策略。
-3. 桌面端 Web 私测体验：核心业务 E2E、宽屏编辑效率、地图联动、分享预览和 3D 入口。
+1. 真实用户评测：补 20-30 篇真实攻略、分享图反馈和 3D 标记使用记录。
+2. 3D 深化：标记聚焦相机、label 避让、长按轮盘、DEM tile 和坡度分段。
+3. 分享传播：只读短链接、复制到我的行程、撤销分享和打开统计。
 4. 交通方式模型升级：支持中转点/途经点，让组合交通能映射到真实分段路线。
 5. 数据同步：在 localStorage 基础上增加可选云端保存。

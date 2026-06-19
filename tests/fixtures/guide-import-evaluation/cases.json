@@ -443,5 +443,183 @@
         }
       ]
     }
+  },
+  {
+    "id": "guangzhou-family-weekend",
+    "title": "广州亲子周末",
+    "cityHint": "广州",
+    "sourceText": "周六上午先去广东省博物馆，孩子喜欢恐龙展。中午去花城汇吃饭，下午到广州塔下面拍照，晚上珠江夜游。周日如果不累，可以去越秀公园。不要把儿童推车、雨衣清单加入地点。",
+    "expected": {
+      "guideType": "mixed",
+      "events": [
+        { "placeName": "广东省博物馆", "day": 1, "noteKeywords": ["恐龙展"] },
+        { "placeName": "花城汇", "day": 1, "noteKeywords": ["吃饭"] },
+        { "placeName": "广州塔", "day": 1, "noteKeywords": ["拍照"] },
+        { "placeName": "珠江夜游", "day": 1, "noteKeywords": ["晚上"] },
+        { "placeName": "越秀公园", "day": 2, "noteKeywords": ["不累"] }
+      ],
+      "forbiddenPlaceNames": ["儿童推车", "雨衣清单"]
+    },
+    "modelOutput": {
+      "guide_type": "mixed",
+      "city": "广州",
+      "title_suggestion": "广州亲子周末",
+      "events": [
+        { "day": 1, "place_name": "广东省博物馆", "note": "上午看恐龙展" },
+        { "day": 1, "place_name": "花城汇", "note": "中午吃饭" },
+        { "day": 1, "place_name": "广州塔", "note": "下午在塔下拍照" },
+        { "day": 1, "place_name": "珠江夜游", "note": "晚上游船" },
+        { "day": 2, "place_name": "越秀公园", "note": "不累再去" }
+      ]
+    }
+  },
+  {
+    "id": "xian-history-route",
+    "title": "西安历史两日",
+    "cityHint": "西安",
+    "sourceText": "D1 上午陕西历史博物馆，记得提前预约；下午大雁塔，晚上大唐不夜城。D2 去秦始皇帝陵博物院，回市区后钟楼鼓楼二选一，回民街只当晚餐备选。",
+    "expected": {
+      "guideType": "daily_itinerary",
+      "events": [
+        { "placeName": "陕西历史博物馆", "day": 1, "noteKeywords": ["预约"] },
+        { "placeName": "大雁塔", "day": 1, "noteKeywords": ["下午"] },
+        { "placeName": "大唐不夜城", "day": 1, "noteKeywords": ["晚上"] },
+        { "placeName": "秦始皇帝陵博物院", "day": 2, "noteKeywords": ["D2"] },
+        { "placeName": "钟楼鼓楼", "day": 2, "noteKeywords": ["二选一"] },
+        { "placeName": "回民街", "day": 2, "noteKeywords": ["晚餐备选"] }
+      ]
+    },
+    "modelOutput": {
+      "guide_type": "daily_itinerary",
+      "city": "西安",
+      "title_suggestion": "西安历史两日",
+      "events": [
+        { "day": 1, "place_name": "陕西历史博物馆", "note": "上午参观，提前预约" },
+        { "day": 1, "place_name": "大雁塔", "note": "下午前往" },
+        { "day": 1, "place_name": "大唐不夜城", "note": "晚上逛" },
+        { "day": 2, "place_name": "秦始皇帝陵博物院", "note": "D2 重点" },
+        { "day": 2, "place_name": "钟楼鼓楼", "note": "二选一" },
+        { "day": 2, "place_name": "回民街", "note": "晚餐备选" }
+      ]
+    }
+  },
+  {
+    "id": "suzhou-garden-slow-travel",
+    "title": "苏州园林慢游",
+    "cityHint": "苏州",
+    "sourceText": "第一天拙政园和苏州博物馆放一起，下午平江路喝茶。第二天留给虎丘，傍晚去山塘街。不要把汉服租赁、摄影师微信写进行程。",
+    "expected": {
+      "guideType": "daily_itinerary",
+      "events": [
+        { "placeName": "拙政园", "day": 1, "noteKeywords": ["第一天"] },
+        { "placeName": "苏州博物馆", "day": 1, "noteKeywords": ["放一起"] },
+        { "placeName": "平江路", "day": 1, "noteKeywords": ["喝茶"] },
+        { "placeName": "虎丘", "day": 2, "noteKeywords": ["第二天"] },
+        { "placeName": "山塘街", "day": 2, "noteKeywords": ["傍晚"] }
+      ],
+      "forbiddenPlaceNames": ["汉服租赁", "摄影师微信"]
+    },
+    "modelOutput": {
+      "guide_type": "daily_itinerary",
+      "city": "苏州",
+      "title_suggestion": "苏州园林慢游",
+      "events": [
+        { "day": 1, "place_name": "拙政园", "note": "第一天参观" },
+        { "day": 1, "place_name": "苏州博物馆", "note": "和拙政园放一起" },
+        { "day": 1, "place_name": "平江路", "note": "下午喝茶" },
+        { "day": 2, "place_name": "虎丘", "note": "第二天" },
+        { "day": 2, "place_name": "山塘街", "note": "傍晚前往" }
+      ]
+    }
+  },
+  {
+    "id": "chongqing-night-food",
+    "title": "重庆夜景美食",
+    "cityHint": "重庆",
+    "sourceText": "不是按天排的清单：解放碑适合住宿，八一路好吃街吃小吃，洪崖洞看夜景，千厮门大桥拍照，鹅岭二厂适合下午拍照。火锅店名单先不定。",
+    "expected": {
+      "guideType": "recommendation_list",
+      "events": [
+        { "placeName": "解放碑", "day": null, "noteKeywords": ["住宿"] },
+        { "placeName": "八一路好吃街", "day": null, "noteKeywords": ["小吃"] },
+        { "placeName": "洪崖洞", "day": null, "noteKeywords": ["夜景"] },
+        { "placeName": "千厮门大桥", "day": null, "noteKeywords": ["拍照"] },
+        { "placeName": "鹅岭二厂", "day": null, "noteKeywords": ["下午"] }
+      ]
+    },
+    "modelOutput": {
+      "guide_type": "recommendation_list",
+      "city": "重庆",
+      "title_suggestion": "重庆夜景美食收藏",
+      "events": [
+        { "day": null, "place_name": "解放碑", "note": "适合住宿" },
+        { "day": null, "place_name": "八一路好吃街", "note": "吃小吃" },
+        { "day": null, "place_name": "洪崖洞", "note": "看夜景" },
+        { "day": null, "place_name": "千厮门大桥", "note": "拍照" },
+        { "day": null, "place_name": "鹅岭二厂", "note": "下午拍照" }
+      ]
+    }
+  },
+  {
+    "id": "qingdao-coastline",
+    "title": "青岛海岸线一日",
+    "cityHint": "青岛",
+    "sourceText": "上午栈桥出发，沿着海边到小青岛公园，中午大学路附近吃饭，下午去八大关和第二海水浴场，傍晚五四广场。啤酒品牌和伴手礼清单不用导入。",
+    "expected": {
+      "guideType": "daily_itinerary",
+      "events": [
+        { "placeName": "栈桥", "day": 1, "noteKeywords": ["上午"] },
+        { "placeName": "小青岛公园", "day": 1, "noteKeywords": ["海边"] },
+        { "placeName": "大学路", "day": 1, "noteKeywords": ["吃饭"] },
+        { "placeName": "八大关", "day": 1, "noteKeywords": ["下午"] },
+        { "placeName": "第二海水浴场", "day": 1, "noteKeywords": ["下午"] },
+        { "placeName": "五四广场", "day": 1, "noteKeywords": ["傍晚"] }
+      ],
+      "forbiddenPlaceNames": ["啤酒品牌", "伴手礼清单"]
+    },
+    "modelOutput": {
+      "guide_type": "daily_itinerary",
+      "city": "青岛",
+      "title_suggestion": "青岛海岸线一日",
+      "events": [
+        { "day": 1, "place_name": "栈桥", "note": "上午出发" },
+        { "day": 1, "place_name": "小青岛公园", "note": "沿海边到达" },
+        { "day": 1, "place_name": "大学路", "note": "中午附近吃饭" },
+        { "day": 1, "place_name": "八大关", "note": "下午" },
+        { "day": 1, "place_name": "第二海水浴场", "note": "下午" },
+        { "day": 1, "place_name": "五四广场", "note": "傍晚" }
+      ]
+    }
+  },
+  {
+    "id": "dali-lake-mountain",
+    "title": "大理湖山三日",
+    "cityHint": "大理",
+    "sourceText": "Day1 大理古城入住，晚上人民路。Day2 上午才村码头看洱海，下午喜洲古镇。Day3 苍山洗马潭索道，如果天气不好改去崇圣寺三塔。不要把防晒霜、氧气瓶写成地点。",
+    "expected": {
+      "guideType": "mixed",
+      "events": [
+        { "placeName": "大理古城", "day": 1, "noteKeywords": ["入住"] },
+        { "placeName": "人民路", "day": 1, "noteKeywords": ["晚上"] },
+        { "placeName": "才村码头", "day": 2, "noteKeywords": ["洱海"] },
+        { "placeName": "喜洲古镇", "day": 2, "noteKeywords": ["下午"] },
+        { "placeName": "苍山洗马潭索道", "day": 3, "noteKeywords": ["天气"] },
+        { "placeName": "崇圣寺三塔", "day": 3, "noteKeywords": ["改去"] }
+      ],
+      "forbiddenPlaceNames": ["防晒霜", "氧气瓶"]
+    },
+    "modelOutput": {
+      "guide_type": "mixed",
+      "city": "大理",
+      "title_suggestion": "大理湖山三日",
+      "events": [
+        { "day": 1, "place_name": "大理古城", "note": "入住" },
+        { "day": 1, "place_name": "人民路", "note": "晚上逛" },
+        { "day": 2, "place_name": "才村码头", "note": "上午看洱海" },
+        { "day": 2, "place_name": "喜洲古镇", "note": "下午" },
+        { "day": 3, "place_name": "苍山洗马潭索道", "note": "天气好再去" },
+        { "day": 3, "place_name": "崇圣寺三塔", "note": "天气不好改去" }
+      ]
+    }
   }
 ]

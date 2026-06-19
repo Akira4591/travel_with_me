@@ -35,7 +35,8 @@ Trip
   ├─ id, title, subtitle, city
   ├─ locations: { [id]: Location }   地点主表
   ├─ days: Day[]                     按序排列
-  └─ unscheduled: Event[]            未排期事件池
+  ├─ unscheduled: Event[]            未排期事件池
+  └─ annotations: Annotation[]       3D/地图功能标记
 
 Day
   ├─ id, title
@@ -45,6 +46,11 @@ Event
   ├─ id, title, icon, timeSlot, note
   ├─ locationId  (→ Location)
   └─ routeToNext? (→ RouteConfig)
+
+Annotation
+  ├─ id, type, title, note, createdAt
+  ├─ lnglat
+  └─ elevation?
 ```
 
 详细 JSDoc typedef 见 `js/data/trip.js`。
@@ -244,6 +250,7 @@ buildTripShareImage(trip, { includeRoutes })
 - 地形数据分层：Ground（高程）/ Network（路网）/ POI / Presentation，每层独立降级
 - 3D 模块仅在 zoom ≥ 14 时允许激活，闲置 > 60s 自动切回 2D
 - 所有 3D 对象通过 `TerrainModel.heightAt(x,z)` 贴地，建筑高度由 `locationId` hash 生成保持稳定
+- 3D 功能标记写入 `trip.annotations[]`，当前支持入口、观景、补给、交通、风险、备注 6 类
 
 **权衡**: 放弃真实城市 3D 建筑复刻，放弃 Cesium 级别的全球地形流式加载。高程数据 MVP 阶段用 Open-Meteo（90m 分辨率），景区/徒步场景应升级到 DEM tile。
 
@@ -306,11 +313,11 @@ buildTripShareImage(trip, { includeRoutes })
 - `map-3d.js` 独立于 `map.js`——两者互斥，不共享渲染上下文
 - `geo-project.js` 是纯数学模块，不依赖 Three.js 或 state
 - `toggle-3d.js` 监听 AMap zoom 事件，协调 2D↔3D 切换
-- `map-interact.js` 使用 Three.js Raycaster 对 diorama 做点击/长按检测
-- `radial-menu.js` 是 HTML/CSS overlay，不依赖 Three.js
+- `map-3d.js` 当前内置 Three.js Raycaster 点击检测；后续长按轮盘成熟后再拆 `map-interact.js`
+- `annotation-modal.js` 是 HTML modal，不依赖 Three.js；后续 radial menu 单独拆分
 - state.js 依赖叶子模块（data/config/time-slots/route-config）
 - 3D 模块仅在用户主动触发 + zoom ≥ 14 时初始化，其余时间零开销
-- 新增标记（viewpoint/rest/meetup/transfer/alert/custom）与现有 13 种 POI icon 互不冲突
+- 新增标记（entrance/viewpoint/supply/transfer/risk/note）与现有 13 种 POI icon 互不冲突
 
 ---
 

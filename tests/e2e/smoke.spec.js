@@ -68,6 +68,17 @@ const SEEDED_WORKSPACE = {
           note: '只在空闲时考虑',
           locationId: 'loc_unscheduled'
         }
+      ],
+      annotations: [
+        {
+          id: 'ann_view_cafe',
+          type: 'viewpoint',
+          lnglat: [116.405, 39.912],
+          elevation: 42,
+          title: '胡同视角',
+          note: '适合作为 3D 标记回归点',
+          createdAt: '2026-06-19T00:00:00.000Z'
+        }
       ]
     }
   ],
@@ -576,6 +587,17 @@ test('desktop can enter and exit nonblank 3D map view', async ({ page, isMobile 
     'data-terrain-confidence',
     /sampled|low-relief/
   );
+  await expect(page.locator('#map-3d')).toHaveAttribute('data-elevation-range', '7');
+  await expect(page.locator('.terrain-insight-panel')).toBeVisible();
+  await expect(page.locator('#map-3d')).toHaveAttribute('data-annotation-count', '1');
+  await page.locator('#map-3d canvas').click({ position: { x: 360, y: 260 } });
+  await expect(page.getByRole('dialog', { name: '添加 3D 标记' })).toBeVisible({
+    timeout: 10_000
+  });
+  await page.locator('.annotation-type-input').selectOption('risk');
+  await page.locator('.annotation-title-input').fill('坡道路口');
+  await page.getByRole('button', { name: '保存' }).click();
+  await expect(page.locator('#map-3d')).toHaveAttribute('data-annotation-count', '2');
   await expect
     .poll(async () =>
       page.locator('#map-3d canvas').evaluate(canvas => {
@@ -609,6 +631,7 @@ test('desktop can open share image preview from seeded trip', async ({ page, isM
   await expect(page.locator('.share-include-notes')).toBeChecked();
   await expect(page.locator('.share-include-routes')).not.toBeChecked();
   await expect(page.locator('.share-include-unscheduled')).not.toBeChecked();
+  await expect(page.locator('.share-include-annotations')).not.toBeChecked();
 
   const firstSrc = await page.locator('.share-image-preview img').getAttribute('src');
   await page.locator('.share-include-notes').uncheck();
@@ -622,5 +645,9 @@ test('desktop can open share image preview from seeded trip', async ({ page, isM
     'src',
     secondSrc || ''
   );
+  const thirdSrc = await page.locator('.share-image-preview img').getAttribute('src');
+  await page.locator('.share-include-annotations').check();
+  await expect(page.locator('.share-image-loading')).toBeHidden({ timeout: 15_000 });
+  await expect(page.locator('.share-image-preview img')).not.toHaveAttribute('src', thirdSrc || '');
   await expect(page.getByRole('button', { name: '下载长图' })).toBeVisible();
 });

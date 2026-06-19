@@ -53,6 +53,7 @@ import {
   moveEventInDay,
   reorderEventInDay,
   moveEventBetweenContainers,
+  addAnnotation,
   updateRouteToNext,
   on
 } from './state.js';
@@ -60,6 +61,7 @@ import {
   initMap,
   createAllMarkers,
   createOrUpdateMarker,
+  renderAnnotationMarkers,
   removeMarker,
   clearAllMarkers,
   pruneMarkersToLocationIds,
@@ -95,6 +97,7 @@ import { openDayEditorModal } from './render/day-editor-modal.js';
 import { openRouteEditorModal } from './render/route-editor-modal.js';
 import { openTripModal } from './render/trip-modal.js';
 import { openShareModal, updateShareImage, setShareImageLoading } from './render/share-modal.js';
+import { openAnnotationModal } from './render/annotation-modal.js';
 import { renderWorkspaceTabs, closeWorkspaceMenu } from './render/workspace-tabs.js';
 import { init3DToggle } from './render/toggle-3d.js';
 import { readSharedTripFromURL } from './share.js';
@@ -161,6 +164,7 @@ async function boot() {
 
     initMap(AMap);
     createAllMarkers();
+    renderAnnotationMarkers();
     selectDay('all', { fitView: true, planRoutes: false });
     setup3DToggle();
     syncEmptyWorkspaceUI();
@@ -280,7 +284,8 @@ async function enter3DView() {
   dioramaInstance = await initDiorama({ container });
   await enter3DMode(dioramaInstance, {
     trip: getTrip(),
-    activeDayId: getAppState().activeDayId
+    activeDayId: getAppState().activeDayId,
+    onAnnotationRequest: open3DAnnotationFlow
   });
 }
 
@@ -288,6 +293,32 @@ async function exit3DView() {
   if (!dioramaInstance) return;
   const { exit3DMode } = await import('./render/map-3d.js');
   await exit3DMode(dioramaInstance);
+}
+
+function open3DAnnotationFlow(draft) {
+  openAnnotationModal({
+    annotation: {
+      type: 'note',
+      title: '3D 标记',
+      note: '',
+      ...draft
+    },
+    handlers: {
+      onSubmit: async annotation => {
+        const id = addAnnotation(annotation);
+        if (!id) {
+          setStatus('标记保存失败，请重新选择位置。');
+          return;
+        }
+        renderAnnotationMarkers();
+        if (dioramaInstance) {
+          const { refresh3DAnnotations } = await import('./render/map-3d.js');
+          refresh3DAnnotations(dioramaInstance, { trip: getTrip() });
+        }
+        setStatus('3D 标记已保存。');
+      }
+    }
+  });
 }
 
 function openCreateTripFlow() {
@@ -956,7 +987,8 @@ function getDefaultShareOptions() {
   return {
     includeRoutes: false,
     includeNotes: true,
-    includeUnscheduled: false
+    includeUnscheduled: false,
+    includeAnnotations: false
   };
 }
 
@@ -979,6 +1011,7 @@ function formatShareOptionsStatus(options) {
   if (options.includeNotes) parts.push('含备注');
   if (options.includeRoutes) parts.push('含交通方式');
   if (options.includeUnscheduled) parts.push('含未排期');
+  if (options.includeAnnotations) parts.push('含 3D 标记');
   return parts.length ? parts.join('、') : '仅公开行程骨架';
 }
 
@@ -1411,6 +1444,10 @@ function handleTripChanged(payload) {
     payload.removedLocationIds?.forEach(removeMarker);
   }
 
+  if (payload.kind?.startsWith('annotation:')) {
+    renderAnnotationMarkers();
+  }
+
   pruneMapMarkersToTripEvents();
   // prune 之后兜底重建：处理 'location:added' → prune 把刚加的 marker 删掉的时序问题。
   // 等紧随其后的 'event:added' 触发本函数时，这里会重新创建丢失的 marker。
@@ -1441,6 +1478,7 @@ function handleTripReplaced() {
   clearAllRoutes();
   clearAllMarkers();
   createAllMarkers();
+  renderAnnotationMarkers();
   selectDay('all', { fitView: true, planRoutes: false });
   syncEmptyWorkspaceUI();
 }

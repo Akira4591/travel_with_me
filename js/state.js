@@ -15,6 +15,7 @@ import { AppConfig } from './config.js';
 // V5：date 字段已删除，addDaysISO/isISODate/todayISO 全部不再使用
 import { getTimeSlotRank, normalizeTimeSlot } from './time-slots.js';
 import { normalizeRouteToNext } from './route-config.js';
+import { normalizeAnnotation } from './annotations.js';
 
 // ─── 内部状态（不直接导出） ─────────────────────────────
 
@@ -33,6 +34,8 @@ const appState = {
   routePlanningTimer: null,
   markers: new Map(),
   markerList: [],
+  annotationMarkers: new Map(),
+  annotationMarkerList: [],
   routeServices: [],
   // routeOverlays: 按 segmentId 索引，每段可能由多条 Polyline 拼成 + 1 条高亮时叠加的发光环。
   // { polylines: Polyline[], halo: Polyline[], color: string }
@@ -164,6 +167,10 @@ export function getLocation(locationId) {
 
 export function getAllLocationIds() {
   return Object.keys(getTrip().locations);
+}
+
+export function getAnnotations() {
+  return trip?.annotations || [];
 }
 
 // ─── trip 写（mutator） ────────────────────────────────
@@ -564,6 +571,53 @@ export function moveEventBetweenContainers(eventId, target = {}) {
   return true;
 }
 
+export function addAnnotation(annotation = {}) {
+  if (!trip) return null;
+  if (!Array.isArray(trip.annotations)) trip.annotations = [];
+  const id = annotation.id || generateAnnotationId();
+  const normalized = normalizeAnnotation(
+    {
+      ...annotation,
+      id,
+      createdAt: annotation.createdAt || new Date().toISOString()
+    },
+    { id }
+  );
+  if (!normalized) return null;
+  trip.annotations.push(normalized);
+  emit('trip:changed', { kind: 'annotation:added', annotationId: id });
+  return id;
+}
+
+export function updateAnnotation(annotationId, patch = {}) {
+  if (!trip?.annotations) return false;
+  const index = trip.annotations.findIndex(annotation => annotation.id === annotationId);
+  if (index < 0) return false;
+  const current = trip.annotations[index];
+  const normalized = normalizeAnnotation(
+    {
+      ...current,
+      ...patch,
+      id: current.id,
+      createdAt: current.createdAt
+    },
+    current
+  );
+  if (!normalized) return false;
+  trip.annotations[index] = normalized;
+  emit('trip:changed', { kind: 'annotation:updated', annotationId });
+  return true;
+}
+
+export function removeAnnotation(annotationId) {
+  if (!trip?.annotations) return false;
+  const index = trip.annotations.findIndex(annotation => annotation.id === annotationId);
+  if (index < 0) return false;
+  trip.annotations.splice(index, 1);
+  emit('trip:changed', { kind: 'annotation:removed', annotationId });
+  return true;
+}
+
 export function replaceTrip(newTrip) {
   const normalized = normalizeTrip(newTrip);
   if (!workspace.trips.length) {
@@ -680,6 +734,10 @@ function generateDayId() {
   return `day-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4).toString(36)}`;
 }
 
+function generateAnnotationId() {
+  return `ann-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4).toString(36)}`;
+}
+
 function uniqueLocationIds(events) {
   return Array.from(new Set(events.map(event => event.locationId).filter(Boolean)));
 }
@@ -742,6 +800,13 @@ function normalizeTrip(input, fallbackTitle = '旅行路线') {
   cloned.unscheduled = Array.isArray(cloned.unscheduled)
     ? cloned.unscheduled.map(normalizeUnscheduledEvent)
     : [];
+  cloned.annotations = Array.isArray(cloned.annotations)
+    ? cloned.annotations
+        .map((annotation, index) =>
+          normalizeAnnotation(annotation, { id: annotation?.id || `ann-${index + 1}` })
+        )
+        .filter(Boolean)
+    : [];
   return cloned;
 }
 
@@ -795,7 +860,8 @@ function createBlankTrip(title) {
       subtitle: '点击下方行程卡片，右侧地图将自动飞跃至对应地点',
       city: AppConfig.cityName,
       locations: {},
-      days: [createBlankDay()]
+      days: [createBlankDay()],
+      annotations: []
     },
     '新的旅行路线'
   );
@@ -817,7 +883,8 @@ function createEmptyReadTrip() {
     city: AppConfig.cityName,
     locations: {},
     days: [],
-    unscheduled: []
+    unscheduled: [],
+    annotations: []
   };
 }
 

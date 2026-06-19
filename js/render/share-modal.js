@@ -44,6 +44,10 @@ export function openShareModal({
             <input type="checkbox" class="share-option-input share-include-unscheduled" data-share-option="includeUnscheduled" ${currentOptions.includeUnscheduled ? 'checked' : ''} />
             <span>包含未排期地点</span>
           </label>
+          <label class="share-options-row">
+            <input type="checkbox" class="share-option-input share-include-annotations" data-share-option="includeAnnotations" ${currentOptions.includeAnnotations ? 'checked' : ''} />
+            <span>包含 3D 标记</span>
+          </label>
         </div>
         <div class="share-image-preview">
           <img src="${imageUrl}" alt="行程分享长图预览" />
@@ -138,6 +142,7 @@ function normalizeShareOptions(options = {}) {
   return {
     includeRoutes: !!options.includeRoutes,
     includeNotes: options.includeNotes !== false,
-    includeUnscheduled: !!options.includeUnscheduled
+    includeUnscheduled: !!options.includeUnscheduled,
+    includeAnnotations: !!options.includeAnnotations
   };
 }

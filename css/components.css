@@ -1000,6 +1000,35 @@
   animation: marker-pulse 1.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.annotation-marker {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--annotation-color, #c4a44a) 18%, #fcfaf5);
+  border: 2px solid var(--annotation-color, #c4a44a);
+  box-shadow:
+    0 8px 18px rgba(43, 37, 27, 0.22),
+    0 0 0 4px rgba(252, 250, 245, 0.72);
+}
+
+.annotation-marker span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--annotation-color, #c4a44a);
+}
+
+.annotation-marker-risk {
+  border-radius: 6px;
+  transform: rotate(45deg);
+}
+
+.annotation-marker-risk span {
+  transform: rotate(-45deg);
+}
+
 @keyframes marker-pulse {
   0% {
     transform: scale(1);
@@ -1134,6 +1163,7 @@
 }
 
 .modal-form-row input,
+.modal-form-row select,
 .modal-form-row textarea {
   flex: 1;
   padding: 8px 10px;
@@ -1150,6 +1180,7 @@
 }
 
 .modal-form-row input:focus,
+.modal-form-row select:focus,
 .modal-form-row textarea:focus {
   outline: none;
   border-color: var(--accent);
@@ -2779,6 +2810,42 @@
   display: block;
   width: 100%;
   height: 100%;
+}
+
+.terrain-insight-panel {
+  position: absolute;
+  left: 18px;
+  bottom: 18px;
+  max-width: min(360px, calc(100% - 36px));
+  padding: 10px 12px;
+  border: 1px solid rgba(232, 224, 211, 0.28);
+  border-radius: 8px;
+  background: rgba(32, 29, 24, 0.76);
+  color: #fcfaf5;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.22);
+  pointer-events: none;
+}
+
+.terrain-insight-title {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.terrain-insight-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 10px;
+  line-height: 1.2;
+  color: rgba(252, 250, 245, 0.78);
+}
+
+.terrain-insight-meta span {
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: rgba(252, 250, 245, 0.1);
 }
 
 /* 3D 切换按钮 — 右下角 */

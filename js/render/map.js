@@ -5,7 +5,16 @@
 // 不负责"何时切换日期"那种业务逻辑（那是 main.js / sidebar.js 的事）
 
 import { AppConfig } from '../config.js';
-import { getAppState, getTrip, getLocation, getMarker, setMap, setInfoWindow } from '../state.js';
+import {
+  getAnnotations,
+  getAppState,
+  getTrip,
+  getLocation,
+  getMarker,
+  setMap,
+  setInfoWindow
+} from '../state.js';
+import { getAnnotationType } from '../annotations.js';
 import { escapeHTML, unique } from '../utils.js';
 
 // ─── 初始化 ─────────────────────────────────────────────
@@ -42,6 +51,45 @@ export function createAllMarkers() {
     if (!Array.isArray(loc.lnglat) || loc.lnglat.length < 2) return;
     createOrUpdateMarker(locationId, loc.lnglat);
   });
+}
+
+export function renderAnnotationMarkers() {
+  const state = getAppState();
+  if (!state.AMap || !state.map) return [];
+  clearAnnotationMarkers();
+  getAnnotations().forEach(annotation => {
+    if (!Array.isArray(annotation.lnglat) || annotation.lnglat.length < 2) return;
+    const type = getAnnotationType(annotation.type);
+    const content = document.createElement('div');
+    content.className = `annotation-marker annotation-marker-${type.id}`;
+    content.style.setProperty('--annotation-color', type.color);
+    content.innerHTML = '<span></span>';
+    const marker = new state.AMap.Marker({
+      position: annotation.lnglat,
+      content,
+      offset: new state.AMap.Pixel(-11, -11),
+      zIndex: 260
+    });
+    marker._contentEl = content;
+    marker.on('click', () => openAnnotationInfoWindow(annotation.id));
+    state.annotationMarkers.set(annotation.id, marker);
+    state.annotationMarkerList.push(marker);
+    state.map.add(marker);
+  });
+  return state.annotationMarkerList;
+}
+
+export function clearAnnotationMarkers() {
+  const state = getAppState();
+  state.annotationMarkerList.forEach(marker => {
+    try {
+      state.map?.remove(marker);
+    } catch (err) {
+      console.warn('移除标记失败：', err);
+    }
+  });
+  state.annotationMarkers.clear();
+  state.annotationMarkerList = [];
 }
 
 export function createOrUpdateMarker(locationId, lnglat) {
@@ -100,6 +148,7 @@ export function clearAllMarkers() {
   });
   state.markers.clear();
   state.markerList = [];
+  clearAnnotationMarkers();
 }
 
 export function pruneMarkersToLocationIds(locationIds) {
@@ -259,6 +308,21 @@ export function openInfoWindow(locationId) {
     <div class="info-window-content">
       <h3 class="info-window-title">${escapeHTML(loc.name)}</h3>
       <p class="info-window-addr">${escapeHTML(loc.addr || loc.query || loc.name)}</p>
+    </div>
+  `);
+  state.infoWindow.open(state.map, marker.getPosition());
+}
+
+export function openAnnotationInfoWindow(annotationId) {
+  const state = getAppState();
+  const annotation = getAnnotations().find(item => item.id === annotationId);
+  const marker = state.annotationMarkers.get(annotationId);
+  if (!annotation || !marker) return;
+  const type = getAnnotationType(annotation.type);
+  state.infoWindow.setContent(`
+    <div class="info-window-content">
+      <h3 class="info-window-title">${escapeHTML(annotation.title || type.label)}</h3>
+      <p class="info-window-addr">${escapeHTML(type.label)}${annotation.note ? ` · ${escapeHTML(annotation.note)}` : ''}</p>
     </div>
   `);
   state.infoWindow.open(state.map, marker.getPosition());

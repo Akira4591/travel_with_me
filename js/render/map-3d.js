@@ -16,6 +16,7 @@ import { fetchElevationGrid } from '../api/elevation.js';
 import { createLogger } from '../logger.js';
 import { chooseTerrainMode } from './terrain-mode.js';
 import { createTerrainModel } from './terrain-model.js';
+import { getAnnotationType } from '../annotations.js';
 
 const log = createLogger('map-3d');
 
@@ -34,6 +35,7 @@ const C = {
   markerActive: '#D4A830',
   markerInactive: '#B0A590',
   markerStem: '#9E9685',
+  annotationStem: '#EFE8D6',
   bgTop: '#1A1917',
   bgBottom: '#2D2A26',
   particle: '#FCFAF5',
@@ -46,6 +48,8 @@ const BUILDING_MIN_HEIGHT = 3; // 最小建筑高度 (scene units)
 const BUILDING_MAX_HEIGHT = 25;
 const MARKER_STEM_HEIGHT = 15;
 const MARKER_HEAD_RADIUS = 2.8;
+const ANNOTATION_STEM_HEIGHT = 11;
+const ANNOTATION_HEAD_RADIUS = 2.2;
 const ROUTE_LIFT = 8; // 路线在地形上方的偏移
 const DIORAMA_SLICE_THICKNESS = 20;
 const PARTICLE_COUNT = 50;
@@ -57,6 +61,7 @@ const AUTO_ROTATE_SPEED = 0.18; // 度/秒
 // 浮升动画参数 (ADR-6 §四)
 const EMERGE_DURATION = 1400;
 const EXIT_DURATION = 900;
+const CLICK_MOVE_TOLERANCE = 6;
 
 // ─── 状态 ──────────────────────────────────────────────
 
@@ -73,6 +78,7 @@ let instance = null; // 单例
  * @property {THREE.Mesh} terrainMesh
  * @property {THREE.Group} buildingGroup
  * @property {THREE.Group} markerGroup
+ * @property {THREE.Group} annotationGroup
  * @property {THREE.Group} routeGroup
  * @property {import('./geo-project.js').GeoProjection} proj
  * @property {Function} dispose
@@ -128,6 +134,33 @@ export async function initDiorama({ container }) {
   controls.autoRotateSpeed = AUTO_ROTATE_SPEED;
   controls.update();
 
+  const raycaster = new THREE.Raycaster();
+  const pointer = new THREE.Vector2();
+  let pointerDown = null;
+  renderer.domElement.addEventListener('pointerdown', event => {
+    pointerDown = { x: event.clientX, y: event.clientY };
+  });
+  renderer.domElement.addEventListener('click', event => {
+    if (!instance?.terrainMesh || !instance?.proj || !instance?.terrainModel) return;
+    if (pointerDown) {
+      const dx = event.clientX - pointerDown.x;
+      const dy = event.clientY - pointerDown.y;
+      if (Math.sqrt(dx * dx + dy * dy) > CLICK_MOVE_TOLERANCE) return;
+    }
+    const rect = renderer.domElement.getBoundingClientRect();
+    pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
+    raycaster.setFromCamera(pointer, camera);
+    const [hit] = raycaster.intersectObject(instance.terrainMesh, false);
+    if (!hit) return;
+    const lnglat = instance.proj.toLngLat({ x: hit.point.x, z: hit.point.z });
+    instance.onAnnotationRequest?.({
+      lnglat,
+      elevation: Math.round(instance.proj.unitsToMeters(hit.point.y)),
+      terrainY: hit.point.y
+    });
+  });
+
   // Diorama 根容器 (用于整体抬升)
   const dioramaGroup = new THREE.Group();
   scene.add(dioramaGroup);
@@ -173,9 +206,11 @@ export async function initDiorama({ container }) {
     terrainMesh: null,
     buildingGroup: null,
     markerGroup: null,
+    annotationGroup: null,
     routeGroup: null,
     sliceEdge: null,
     terrainModel: null,
+    onAnnotationRequest: null,
     proj: null,
     particles,
     _animId: animId,
@@ -203,8 +238,9 @@ export async function initDiorama({ container }) {
  * @param {string} options.activeDayId — 当前选中的 day ID ('all' | day.id)
  * @returns {Promise<void>}
  */
-export async function enter3DMode(diorama, { trip, activeDayId }) {
+export async function enter3DMode(diorama, { trip, activeDayId, onAnnotationRequest = null }) {
   const { dioramaGroup, camera, controls, renderer, container } = diorama;
+  diorama.onAnnotationRequest = onAnnotationRequest;
 
   // 1. 收集地点坐标
   const locations = collectDayLocations(trip, activeDayId);
@@ -241,6 +277,8 @@ export async function enter3DMode(diorama, { trip, activeDayId }) {
   diorama.terrainModel = terrainModel;
   container.dataset.terrainMode = terrainMode.id;
   container.dataset.terrainConfidence = terrainModel.terrainConfidence;
+  container.dataset.elevationRange = String(Math.round(terrainModel.metrics.range || 0));
+  renderTerrainInsight(container, terrainMode, terrainModel, locations.length);
 
   if (diorama.terrainMesh) {
     dioramaGroup.remove(diorama.terrainMesh);
@@ -270,7 +308,15 @@ export async function enter3DMode(diorama, { trip, activeDayId }) {
   diorama.markerGroup = buildMarkerGroup(proj, trip, activeDayId, terrainModel);
   dioramaGroup.add(diorama.markerGroup);
 
-  // 8. 构建切片边缘
+  // 8. 构建 3D 功能标记
+  if (diorama.annotationGroup) {
+    dioramaGroup.remove(diorama.annotationGroup);
+  }
+  diorama.annotationGroup = buildAnnotationGroup(proj, trip, terrainModel);
+  container.dataset.annotationCount = String(diorama.annotationGroup.userData.count || 0);
+  dioramaGroup.add(diorama.annotationGroup);
+
+  // 9. 构建切片边缘
   if (diorama.sliceEdge) {
     dioramaGroup.remove(diorama.sliceEdge);
   }
@@ -278,7 +324,7 @@ export async function enter3DMode(diorama, { trip, activeDayId }) {
   terrainModel.sideSkirts = diorama.sliceEdge;
   dioramaGroup.add(diorama.sliceEdge);
 
-  // 9. 显示容器，开始浮升动画
+  // 10. 显示容器，开始浮升动画
   container.hidden = false;
   renderer.setSize(container.clientWidth, container.clientHeight);
 
@@ -316,14 +362,30 @@ export async function exit3DMode(diorama) {
     diorama.terrainMesh,
     diorama.buildingGroup,
     diorama.markerGroup,
+    diorama.annotationGroup,
     diorama.routeGroup,
     diorama.sliceEdge
   ].forEach(obj => {
     if (obj) dioramaGroup.remove(obj);
   });
   diorama.terrainModel = null;
+  diorama.annotationGroup = null;
   diorama.sliceEdge = null;
+  delete container.dataset.annotationCount;
+  delete container.dataset.elevationRange;
+  container.querySelector('.terrain-insight-panel')?.remove();
   container.hidden = true;
+}
+
+export function refresh3DAnnotations(diorama, { trip }) {
+  if (!diorama?.proj || !diorama?.terrainModel || !diorama?.dioramaGroup) return 0;
+  if (diorama.annotationGroup) {
+    diorama.dioramaGroup.remove(diorama.annotationGroup);
+  }
+  diorama.annotationGroup = buildAnnotationGroup(diorama.proj, trip, diorama.terrainModel);
+  diorama.container.dataset.annotationCount = String(diorama.annotationGroup.userData.count || 0);
+  diorama.dioramaGroup.add(diorama.annotationGroup);
+  return diorama.annotationGroup.userData.count || 0;
 }
 
 // ─── 地形构建 ──────────────────────────────────────────
@@ -544,6 +606,125 @@ function buildMarkerGroup(proj, trip, activeDayId, terrainModel) {
   }
 
   return group;
+}
+
+function buildAnnotationGroup(proj, trip, terrainModel) {
+  const group = new THREE.Group();
+  const stemMat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(C.annotationStem),
+    roughness: 0.45,
+    metalness: 0.15
+  });
+  const annotations = Array.isArray(trip.annotations) ? trip.annotations : [];
+  const materialCache = new Map();
+  let count = 0;
+
+  for (const annotation of annotations) {
+    if (!isValidLngLat(annotation?.lnglat)) continue;
+    const type = getAnnotationType(annotation.type);
+    const { x, z } = proj.toScene(annotation.lnglat);
+    const terrainY = terrainModel.heightAt(x, z);
+    const marker = new THREE.Group();
+
+    const stem = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.25, 0.34, ANNOTATION_STEM_HEIGHT, 8),
+      stemMat
+    );
+    stem.position.y = ANNOTATION_STEM_HEIGHT / 2;
+    marker.add(stem);
+
+    const head = new THREE.Mesh(
+      createAnnotationHeadGeometry(type.id),
+      getAnnotationMaterial(materialCache, type)
+    );
+    head.position.y = ANNOTATION_STEM_HEIGHT + ANNOTATION_HEAD_RADIUS;
+    head.castShadow = true;
+    marker.add(head);
+
+    const halo = new THREE.Mesh(
+      new THREE.TorusGeometry(3.4, 0.18, 8, 24),
+      getAnnotationHaloMaterial(materialCache, type)
+    );
+    halo.rotation.x = -Math.PI / 2;
+    halo.position.y = 0.2;
+    marker.add(halo);
+
+    marker.position.set(x, terrainY, z);
+    marker.userData = {
+      annotationId: annotation.id,
+      type: type.id,
+      title: annotation.title
+    };
+    group.add(marker);
+    count += 1;
+  }
+
+  group.userData = { count };
+  return group;
+}
+
+function renderTerrainInsight(container, terrainMode, terrainModel, poiCount) {
+  const existing = container.querySelector('.terrain-insight-panel');
+  existing?.remove();
+  const panel = document.createElement('div');
+  panel.className = 'terrain-insight-panel';
+  const range = Math.round(terrainModel.metrics.range || 0);
+  const confidence = terrainModel.terrainConfidence;
+  const confidenceLabel =
+    confidence === 'sampled'
+      ? '采样地形'
+      : confidence === 'low-relief'
+        ? '低起伏'
+        : confidence === 'estimated'
+          ? '估算地形'
+          : '平面降级';
+  const claim = confidence === 'flat-fallback' ? '不输出坡度结论' : `高差约 ${range}m`;
+  panel.innerHTML = `
+    <div class="terrain-insight-title">${terrainMode.label}</div>
+    <div class="terrain-insight-meta">
+      <span>${confidenceLabel}</span>
+      <span>${claim}</span>
+      <span>${poiCount} 点</span>
+    </div>
+  `;
+  container.appendChild(panel);
+}
+
+function createAnnotationHeadGeometry(typeId) {
+  if (typeId === 'risk') return new THREE.ConeGeometry(ANNOTATION_HEAD_RADIUS, 5, 3);
+  if (typeId === 'transfer') return new THREE.BoxGeometry(3.8, 3.8, 3.8);
+  if (typeId === 'entrance') return new THREE.CylinderGeometry(2.2, 2.2, 3.4, 6);
+  return new THREE.SphereGeometry(ANNOTATION_HEAD_RADIUS, 16, 16);
+}
+
+function getAnnotationMaterial(cache, type) {
+  const key = `head:${type.id}`;
+  if (!cache.has(key)) {
+    cache.set(
+      key,
+      new THREE.MeshStandardMaterial({
+        color: new THREE.Color(type.color),
+        roughness: 0.28,
+        metalness: 0.18
+      })
+    );
+  }
+  return cache.get(key);
+}
+
+function getAnnotationHaloMaterial(cache, type) {
+  const key = `halo:${type.id}`;
+  if (!cache.has(key)) {
+    cache.set(
+      key,
+      new THREE.MeshBasicMaterial({
+        color: new THREE.Color(type.color),
+        transparent: true,
+        opacity: 0.26
+      })
+    );
+  }
+  return cache.get(key);
 }
 
 // ─── 切片边缘 ──────────────────────────────────────────
