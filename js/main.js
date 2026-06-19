@@ -98,7 +98,14 @@ import { openShareModal, updateShareImage, setShareImageLoading } from './render
 import { renderWorkspaceTabs, closeWorkspaceMenu } from './render/workspace-tabs.js';
 import { readSharedTripFromURL } from './share.js';
 import { buildTripShareImage, dataURLToBlob } from './share-image.js?v=20260508-r5';
-import { loadWorkspace, saveWorkspace } from './storage.js';
+import {
+  getLastWorkspaceLoadInfo,
+  importWorkspace,
+  loadWorkspace,
+  parseWorkspaceImport,
+  saveWorkspace,
+  stringifyWorkspaceExport
+} from './storage.js';
 import { sleep } from './utils.js';
 import { inferIconId } from './render/icons.js';
 
@@ -117,6 +124,7 @@ window.addEventListener('load', boot);
 
 async function boot() {
   const savedWorkspace = await loadWorkspace();
+  const workspaceLoadInfo = getLastWorkspaceLoadInfo();
   const sharedTrip = readSharedTripFromURL();
   initWorkspace(savedWorkspace, sharedTrip);
   await persistWorkspace();
@@ -124,6 +132,11 @@ async function boot() {
   renderWorkspace();
   renderHeader();
   setStatus('正在加载高德地图 JS API 2.0...');
+  if (workspaceLoadInfo.status === 'migrated') {
+    setStatus('已兼容旧版本地数据，并保存恢复快照。正在加载地图...');
+  } else if (workspaceLoadInfo.status === 'parse-error' || workspaceLoadInfo.status === 'invalid') {
+    setStatus('本地数据异常，已保存恢复快照并启动默认行程。');
+  }
   bindShareButton();
 
   // 订阅 trip 变更：编辑模式下任何 mutator 都会触发，UI 自动重渲
@@ -201,7 +214,9 @@ function renderWorkspace() {
     onCreateTrip: openCreateTripFlow,
     onImportGuide: openGuideImportFlow,
     onRenameTrip: openRenameTripFlow,
-    onDeleteTrip: deleteTripFlow
+    onDeleteTrip: deleteTripFlow,
+    onExportWorkspace: exportWorkspaceFlow,
+    onImportWorkspace: importWorkspaceFlow
   });
 }
 
@@ -1185,6 +1200,95 @@ function countLocationReferences(locationId) {
     event => event.locationId === locationId
   ).length;
   return dayCount + unscheduledCount;
+}
+
+function exportWorkspaceFlow() {
+  const content = stringifyWorkspaceExport(getWorkspace());
+  const date = new Date().toISOString().slice(0, 10);
+  downloadTextFile(`travel-with-me-workspace-${date}.json`, content, 'application/json');
+  setStatus('工作区 JSON 已导出。');
+}
+
+async function importWorkspaceFlow() {
+  const file = await pickJSONFile();
+  if (!file) return;
+
+  let text;
+  try {
+    text = await readFileAsText(file);
+  } catch {
+    setStatus('读取导入文件失败。');
+    return;
+  }
+
+  const parsed = parseWorkspaceImport(text);
+  if (!parsed.ok) {
+    setStatus(parsed.message || '导入文件格式不正确。');
+    return;
+  }
+
+  const tripCount = parsed.workspace.trips.length;
+  const confirmed = window.confirm(
+    `将导入 ${tripCount} 条旅行路线，并替换当前本地工作区。当前数据会先保存恢复快照。是否继续？`
+  );
+  if (!confirmed) return;
+
+  const result = await importWorkspace(parsed.workspace);
+  if (!result.ok) {
+    setStatus(result.message || '导入失败，请检查文件格式。');
+    return;
+  }
+
+  initWorkspace(parsed.workspace);
+  await persistWorkspace();
+  clearAllMarkers();
+  clearRouteOverlays();
+  resetRouteCards();
+  renderHeader();
+  renderAll();
+  if (getAppState().map) {
+    createAllMarkers();
+    selectDay('all', { fitView: true, planRoutes: false });
+  }
+  setStatus(result.recoveryKey ? '工作区已导入，原数据已保存恢复快照。' : '工作区已导入。');
+}
+
+function downloadTextFile(filename, content, type = 'text/plain') {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function pickJSONFile() {
+  return new Promise(resolve => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json,.json';
+    input.addEventListener(
+      'change',
+      () => {
+        resolve(input.files?.[0] || null);
+        input.remove();
+      },
+      { once: true }
+    );
+    input.click();
+  });
+}
+
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener('load', () => resolve(String(reader.result || '')));
+    reader.addEventListener('error', () => reject(reader.error));
+    reader.readAsText(file, 'utf-8');
+  });
 }
 
 // ─── trip 变更订阅 ──────────────────────────────────────

@@ -86,6 +86,8 @@ function createMenu(anchor, tripId, handlers) {
   menu.style.left = `${Math.max(8, rect.right - 150)}px`;
   menu.innerHTML = `
     <button type="button" data-action="rename">修改名称</button>
+    <button type="button" data-action="export">导出工作区 JSON</button>
+    <button type="button" data-action="import">导入工作区 JSON</button>
     <button type="button" class="danger" data-action="delete">删除行程</button>
   `;
 
@@ -94,6 +96,8 @@ function createMenu(anchor, tripId, handlers) {
     if (!action) return;
     closeWorkspaceMenu();
     if (action === 'rename') handlers.onRenameTrip?.(tripId);
+    if (action === 'export') handlers.onExportWorkspace?.();
+    if (action === 'import') handlers.onImportWorkspace?.();
     if (action === 'delete') handlers.onDeleteTrip?.(tripId);
   });
 
