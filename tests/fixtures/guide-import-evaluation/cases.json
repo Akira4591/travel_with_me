@@ -360,5 +360,88 @@
         }
       ]
     }
+  },
+  {
+    "id": "noise-heavy-model-output",
+    "title": "模型误抽取噪声项",
+    "cityHint": "上海",
+    "sourceText": "Day1 上午住在人民广场附近，先去武康路拍照，再去安福路逛店，晚上到外滩看夜景。正文后面附了相机、口红色号、穿搭和酒店优惠码，这些都不是行程地点。",
+    "expected": {
+      "guideType": "daily_itinerary",
+      "events": [
+        {
+          "placeName": "人民广场",
+          "day": 1,
+          "noteKeywords": ["住在"]
+        },
+        {
+          "placeName": "武康路",
+          "day": 1,
+          "noteKeywords": ["拍照"]
+        },
+        {
+          "placeName": "安福路",
+          "day": 1,
+          "noteKeywords": ["逛店"]
+        },
+        {
+          "placeName": "外滩",
+          "day": 1,
+          "noteKeywords": ["夜景"]
+        }
+      ],
+      "forbiddenPlaceNames": ["相机", "口红色号", "穿搭", "酒店优惠码"]
+    },
+    "modelOutput": {
+      "guide_type": "daily_itinerary",
+      "city": "上海",
+      "title_suggestion": "上海一日拍照路线",
+      "events": [
+        {
+          "day": 1,
+          "time_slot": "morning",
+          "place_name": "人民广场",
+          "note": "住在附近"
+        },
+        {
+          "day": 1,
+          "time_slot": "morning",
+          "place_name": "武康路",
+          "note": "上午拍照"
+        },
+        {
+          "day": 1,
+          "time_slot": "afternoon",
+          "place_name": "安福路",
+          "note": "下午逛店"
+        },
+        {
+          "day": 1,
+          "time_slot": "evening",
+          "place_name": "外滩",
+          "note": "晚上看夜景"
+        },
+        {
+          "day": 1,
+          "place_name": "相机",
+          "note": "作者设备"
+        },
+        {
+          "day": 1,
+          "place_name": "口红色号",
+          "note": "妆造信息"
+        },
+        {
+          "day": 1,
+          "place_name": "穿搭",
+          "note": "非地点"
+        },
+        {
+          "day": 1,
+          "place_name": "酒店优惠码",
+          "note": "广告"
+        }
+      ]
+    }
   }
 ]

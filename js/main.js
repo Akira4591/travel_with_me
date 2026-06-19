@@ -109,6 +109,7 @@ import {
 } from './storage.js';
 import { sleep } from './utils.js';
 import { inferIconId } from './render/icons.js';
+import { cleanGuideExtractedEvents } from './guide-import-cleanup.js';
 
 const GUIDE_MATCH_LIMIT = 40;
 const GUIDE_MATCH_TIMEOUT_MS = 8000;
@@ -336,10 +337,9 @@ async function buildGuideDraft(extracted, source, onProgress) {
   const events = [];
   let matched = 0;
   const warnings = [...(extracted.warnings || [])];
-  const normalizedEvents = normalizeGuideEventsFromSource(
-    extracted.events || [],
-    source.text || '',
-    warnings
+  const normalizedEvents = cleanGuideExtractedEvents(
+    normalizeGuideEventsFromSource(extracted.events || [], source.text || '', warnings),
+    { warnings }
   );
   const validEvents = normalizedEvents.filter(item => item?.place_name);
   const eventsToMatch = validEvents.slice(0, GUIDE_MATCH_LIMIT);
@@ -375,7 +375,7 @@ async function buildGuideDraft(extracted, source, onProgress) {
       id: `guide-${Date.now().toString(36)}-${index}`,
       placeName: item.place_name,
       day: Number.isInteger(item.day) && item.day > 0 ? item.day : null,
-      timeSlot: '',
+      timeSlot: item.time_slot || '',
       note: poi ? item.note || '' : '',
       sourceQuote: item.source_quote || '',
       poi,

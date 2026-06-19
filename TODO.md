@@ -13,7 +13,7 @@
 | 检查项                          | 结果       | 说明                                                                                                     |
 | ------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------- |
 | `npm.cmd test`                  | 通过       | 6 个测试文件，48 个测试通过                                                                              |
-| `npm.cmd run test:guide-import` | 通过       | 5 个 AI 导入种子样例，27 个标注地点；召回、day、note、类型识别均通过当前阈值                             |
+| `npm.cmd run test:guide-import` | 通过       | 6 个 AI 导入种子样例，31 个标注地点；召回、day、note、类型识别均通过当前阈值                             |
 | `npm.cmd run check`             | 通过       | Prettier 与 ESLint 均通过                                                                                |
 | `npm.cmd run test:e2e`          | 通过       | Playwright 10 passed / 8 skipped；桌面核心路径、AI 导入、添加地点、导入导出、3D 入口和移动端基础回归通过 |
 | Git 工作区                      | 基线已提交 | 后续改动继续分批提交，避免误回滚用户内容                                                                 |
@@ -118,7 +118,7 @@
 
 ### 1. AI 攻略导入评测集（框架已建立，真实样例继续扩充）
 
-- 已建立 `tests/fixtures/guide-import-evaluation/cases.json` 种子样例集，覆盖按日 citywalk、混合攻略、推荐合集、广告噪声和跨城路线。
+- 已建立 `tests/fixtures/guide-import-evaluation/cases.json` 种子样例集，覆盖按日 citywalk、混合攻略、推荐合集、广告噪声、跨城路线和模型坏输出兜底。
 - 已增加 `npm.cmd run test:guide-import`，输出召回率、误提取率、day 准确率、note 关键词覆盖率、攻略类型准确率和 forbidden hits。
 - 继续收集 20-30 篇真实中文攻略。
 - 继续标注地点召回、误提取、day 归属、note 有用性。
