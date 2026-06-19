@@ -2443,7 +2443,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
-  align-items: center;
+  align-items: start;
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 10px 12px;
@@ -2462,12 +2462,59 @@
   color: var(--text);
 }
 
+.guide-preview-edit-field {
+  display: grid;
+  gap: 5px;
+}
+
+.guide-preview-edit-field span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.guide-preview-event-title-input,
+.guide-preview-event-note-input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+.guide-preview-event-title-input {
+  min-height: 34px;
+  padding: 0 10px;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.guide-preview-event-note-input {
+  min-height: 58px;
+  resize: vertical;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.guide-preview-event-title-input:focus,
+.guide-preview-event-note-input:focus {
+  outline: none;
+  border-color: rgba(226, 92, 61, 0.45);
+  box-shadow: 0 0 0 3px rgba(226, 92, 61, 0.12);
+}
+
 .guide-preview-event-addr,
 .guide-preview-event-note {
   margin-top: 3px;
   font-size: 12px;
   color: var(--muted);
   line-height: 1.45;
+}
+
+.guide-preview-note-field {
+  margin-top: 8px;
 }
 
 .guide-preview-event-controls {

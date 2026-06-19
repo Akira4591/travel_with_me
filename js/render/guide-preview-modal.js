@@ -1,3 +1,4 @@
+import { TIME_SLOT_OPTIONS, normalizeTimeSlot } from '../time-slots.js';
 import { escapeHTML } from '../utils.js';
 
 let modalEl = null;
@@ -94,17 +95,23 @@ function renderUnscheduledGroup(events) {
 }
 
 function renderEventCard(event) {
-  const status = event.matched ? '✔ 已匹配' : '× 未匹配';
+  const status = event.matched ? '✓ 已匹配' : '× 未匹配';
   const menuOpen = openActionEventId === event.id;
   const addr = event.matched
     ? event.poi?.addr || event.poi?.district || '已选择地图地点'
-    : '未匹配到地图地点，导入后可手动更换地点';
+    : '未匹配到地图地点，导入后可手动搜索绑定';
   return `
     <article class="guide-preview-event ${event.matched ? '' : 'unmatched'}" data-event-id="${escapeHTML(event.id)}">
       <div class="guide-preview-event-main">
-        <div class="guide-preview-event-title">${escapeHTML(event.placeName)}</div>
+        <label class="guide-preview-edit-field">
+          <span>标题</span>
+          <input type="text" class="guide-preview-event-title-input" value="${escapeHTML(getEventTitle(event))}" aria-label="编辑日程标题" />
+        </label>
         <div class="guide-preview-event-addr">${escapeHTML(addr)}</div>
-        ${event.matched && event.note ? `<div class="guide-preview-event-note">${escapeHTML(event.note)}</div>` : ''}
+        <label class="guide-preview-edit-field guide-preview-note-field">
+          <span>备注</span>
+          <textarea class="guide-preview-event-note-input" aria-label="编辑日程备注" rows="2">${escapeHTML(event.note || '')}</textarea>
+        </label>
       </div>
       <div class="guide-preview-event-controls">
         <span class="guide-preview-match ${event.matched ? 'ok' : 'fail'}">${status}</span>
@@ -122,6 +129,10 @@ function renderActionMenu(event) {
       <label class="guide-preview-action-field">
         <span>日期</span>
         ${renderDaySelect(event)}
+      </label>
+      <label class="guide-preview-action-field">
+        <span>时间</span>
+        ${renderTimeSlotSelect(event)}
       </label>
       ${event.matched ? '' : '<button type="button" class="guide-preview-search-toggle">搜索地点</button>'}
       <button type="button" class="guide-preview-delete" title="删除">删除</button>
@@ -177,12 +188,21 @@ function renderPlacePhoto(place) {
 function renderDaySelect(event) {
   const maxDay = getMaxDay();
   const options = ['<option value="">未排期</option>'];
-  for (let day = 1; day <= maxDay; day += 1) {
+  for (let day = 1; day <= maxDay + 1; day += 1) {
     options.push(
       `<option value="${day}" ${event.day === day ? 'selected' : ''}>Day ${day}</option>`
     );
   }
   return `<select class="guide-preview-day-select" aria-label="选择日期">${options.join('')}</select>`;
+}
+
+function renderTimeSlotSelect(event) {
+  const value = normalizeTimeSlot(event.timeSlot || '');
+  const options = TIME_SLOT_OPTIONS.map(
+    option =>
+      `<option value="${escapeHTML(option.id)}" ${option.id === value ? 'selected' : ''}>${escapeHTML(option.label)}</option>`
+  );
+  return `<select class="guide-preview-time-slot-select" aria-label="选择时间">${options.join('')}</select>`;
 }
 
 function bindShellEvents(root) {
@@ -226,6 +246,12 @@ function bindBodyEvents(body) {
   body.querySelectorAll('.guide-preview-event').forEach(card => {
     const event = draft.events.find(item => item.id === card.dataset.eventId);
     if (!event) return;
+    card.querySelector('.guide-preview-event-title-input')?.addEventListener('input', e => {
+      event.title = e.target.value;
+    });
+    card.querySelector('.guide-preview-event-note-input')?.addEventListener('input', e => {
+      event.note = e.target.value;
+    });
     card.querySelector('.guide-preview-action-toggle')?.addEventListener('click', e => {
       e.stopPropagation();
       openActionEventId = openActionEventId === event.id ? null : event.id;
@@ -234,6 +260,10 @@ function bindBodyEvents(body) {
     card.querySelector('.guide-preview-day-select')?.addEventListener('change', e => {
       event.day = e.target.value ? Number(e.target.value) : null;
       openActionEventId = null;
+      renderBody(body);
+    });
+    card.querySelector('.guide-preview-time-slot-select')?.addEventListener('change', e => {
+      event.timeSlot = normalizeTimeSlot(e.target.value || '');
       renderBody(body);
     });
     card.querySelector('.guide-preview-delete')?.addEventListener('click', () => {
@@ -279,7 +309,6 @@ function bindBodyEvents(body) {
         if (!place) return;
         event.poi = place;
         event.matched = true;
-        event.note = '';
         event.searchOpen = false;
         event.searchResults = [];
         event.searchError = '';
@@ -291,6 +320,10 @@ function bindBodyEvents(body) {
 
 function getMaxDay() {
   return Math.max(1, ...draft.events.map(event => Number(event.day) || 0));
+}
+
+function getEventTitle(event) {
+  return String(event.title || event.placeName || '').trim();
 }
 
 function getGuideTypeText(type) {

@@ -511,11 +511,27 @@ test('desktop can import an AI guide through the preview flow', async ({ page, i
 
   await expect(page.getByRole('dialog', { name: '导入预览' })).toBeVisible({ timeout: 20_000 });
   await expect(page.locator('.guide-preview-event')).toHaveCount(2);
+
+  const previewEvents = page.locator('.guide-preview-event');
+  await previewEvents.nth(0).locator('.guide-preview-event-title-input').fill('S2 改名颐和园');
+  await previewEvents.nth(0).locator('.guide-preview-event-note-input').fill('S2 预览备注已修正');
+  await previewEvents.nth(1).locator('.guide-preview-action-toggle').click();
+  await previewEvents.nth(1).locator('.guide-preview-day-select').selectOption('2');
+  await page.locator('.guide-preview-event').nth(1).locator('.guide-preview-action-toggle').click();
+  await page
+    .locator('.guide-preview-event')
+    .nth(1)
+    .locator('.guide-preview-time-slot-select')
+    .selectOption('evening');
+
   await page.locator('.guide-preview-confirm').click();
 
   await expect(page.locator('#trip-title-text')).toHaveText('S1 AI 导入路线');
-  await expect(page.getByText('颐和园', { exact: true })).toBeVisible();
+  await expect(page.getByText('S2 改名颐和园')).toBeVisible();
+  await expect(page.getByText('S2 预览备注已修正')).toBeVisible();
   await expect(page.getByText('鼓楼', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Day 2' }).click();
+  await expect(page.getByText('晚上')).toBeVisible();
 });
 
 test('desktop can enter and exit nonblank 3D map view', async ({ page, isMobile }) => {
