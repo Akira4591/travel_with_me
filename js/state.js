@@ -53,7 +53,11 @@ export function on(event, fn) {
 
 function emit(event, payload) {
   listeners.get(event)?.forEach(fn => {
-    try { fn(payload); } catch (err) { console.warn('listener error:', err); }
+    try {
+      fn(payload);
+    } catch (err) {
+      console.warn('listener error:', err);
+    }
   });
 }
 
@@ -149,11 +153,13 @@ export function getDay(dayId) {
 }
 
 export function getLocation(locationId) {
-  return getTrip().locations[locationId] || {
-    name: '未知地点',
-    addr: '',
-    lnglat: AppConfig.defaultCenter
-  };
+  return (
+    getTrip().locations[locationId] || {
+      name: '未知地点',
+      addr: '',
+      lnglat: AppConfig.defaultCenter
+    }
+  );
 }
 
 export function getAllLocationIds() {
@@ -406,7 +412,9 @@ export function reorderEventInDay(dayId, eventId, targetEventId) {
   const from = day.events.findIndex(item => item.id === eventId);
   const target = day.events.findIndex(item => item.id === targetEventId);
   if (from < 0 || target < 0) return false;
-  if (normalizeTimeSlot(day.events[from].timeSlot) !== normalizeTimeSlot(day.events[target].timeSlot)) {
+  if (
+    normalizeTimeSlot(day.events[from].timeSlot) !== normalizeTimeSlot(day.events[target].timeSlot)
+  ) {
     return false;
   }
 
@@ -573,17 +581,6 @@ export function replaceTrip(newTrip) {
   emit('trip:replaced', { trip });
 }
 
-function getInsertIndex(day, options) {
-  if (Number.isInteger(options.index)) {
-    return Math.max(0, Math.min(day.events.length, options.index));
-  }
-  if (options.afterEventId) {
-    const index = day.events.findIndex(item => item.id === options.afterEventId);
-    if (index >= 0) return index + 1;
-  }
-  return day.events.length;
-}
-
 function getTimeSlotAppendIndex(day, timeSlot, options = {}) {
   if (Number.isInteger(options.index)) {
     return Math.max(0, Math.min(day.events.length, options.index));
@@ -653,7 +650,7 @@ function sortDayEventsByTimeSlot(day) {
     .map(item => item.event);
 }
 
-function normalizeDayRoutes(day, sourceTrip = trip) {
+function normalizeDayRoutes(day) {
   day.events.forEach((event, index) => {
     if (index === day.events.length - 1) {
       delete event.routeToNext;
@@ -689,8 +686,10 @@ function uniqueLocationIds(events) {
 
 function isLocationReferenced(locationId) {
   if (!trip) return false;
-  return trip.days.some(day => day.events.some(event => event.locationId === locationId))
-    || (trip.unscheduled || []).some(event => event.locationId === locationId);
+  return (
+    trip.days.some(day => day.events.some(event => event.locationId === locationId)) ||
+    (trip.unscheduled || []).some(event => event.locationId === locationId)
+  );
 }
 
 // V5：dateExists / sortDaysByDate 已删除——day 顺序由数组索引决定
@@ -724,7 +723,8 @@ function normalizeTrip(input, fallbackTitle = '旅行路线') {
   cloned.title = String(cloned.title || fallbackTitle).trim() || fallbackTitle;
   cloned.subtitle = cloned.subtitle || '点击下方行程卡片，右侧地图将自动飞跃至对应地点';
   cloned.city = cloned.city || AppConfig.cityName;
-  cloned.locations = cloned.locations && typeof cloned.locations === 'object' ? cloned.locations : {};
+  cloned.locations =
+    cloned.locations && typeof cloned.locations === 'object' ? cloned.locations : {};
   cloned.days = Array.isArray(cloned.days) ? cloned.days : [];
   // V5：不再 normalize day.date（字段已删除），不再 sortDaysByDate
   cloned.days.forEach(day => {
@@ -733,7 +733,7 @@ function normalizeTrip(input, fallbackTitle = '旅行路线') {
     delete day.date; // 防御性清理：万一旧数据混进来，确保新 schema 干净
     day.events = Array.isArray(day.events) ? day.events.map(normalizeEvent) : [];
     sortDayEventsByTimeSlot(day);
-    normalizeDayRoutes(day, cloned);
+    normalizeDayRoutes(day);
   });
   if (!cloned.days.length) {
     cloned.days.push(createBlankDay());
@@ -789,13 +789,16 @@ function cleanupDemoTripContent(tripLike) {
 }
 
 function createBlankTrip(title) {
-  return normalizeTrip({
-    title,
-    subtitle: '点击下方行程卡片，右侧地图将自动飞跃至对应地点',
-    city: AppConfig.cityName,
-    locations: {},
-    days: [createBlankDay()]
-  }, '新的旅行路线');
+  return normalizeTrip(
+    {
+      title,
+      subtitle: '点击下方行程卡片，右侧地图将自动飞跃至对应地点',
+      city: AppConfig.cityName,
+      locations: {},
+      days: [createBlankDay()]
+    },
+    '新的旅行路线'
+  );
 }
 
 function createBlankDay() {

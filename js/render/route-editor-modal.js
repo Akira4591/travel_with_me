@@ -3,11 +3,7 @@
 // 上层拿到的回包形式仍是 normalizeRouteToNext({ mode })，与历史一致。
 
 import { escapeHTML } from '../utils.js';
-import {
-  ROUTE_MODE_OPTIONS,
-  normalizeRouteMode,
-  normalizeRouteToNext
-} from '../route-config.js';
+import { ROUTE_MODE_OPTIONS, normalizeRouteMode, normalizeRouteToNext } from '../route-config.js';
 
 let modalEl = null;
 let currentHandlers = null;
@@ -69,19 +65,21 @@ function bindEvents(root, route) {
 
   root.querySelector('.modal-close').addEventListener('click', closeRouteEditorModal);
   root.querySelector('.modal-cancel').addEventListener('click', closeRouteEditorModal);
-  root.addEventListener('click', (e) => {
+  root.addEventListener('click', e => {
     if (e.target === root) closeRouteEditorModal();
   });
-  root.addEventListener('keydown', (e) => {
+  root.addEventListener('keydown', e => {
     if (e.key === 'Escape') closeRouteEditorModal();
   });
 
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', e => {
     e.preventDefault();
-    currentHandlers?.onConfirm?.(normalizeRouteToNext({
-      mode: modePicker.getValue(),
-      manual: true
-    }));
+    currentHandlers?.onConfirm?.(
+      normalizeRouteToNext({
+        mode: modePicker.getValue(),
+        manual: true
+      })
+    );
     closeRouteEditorModal();
   });
 }
@@ -90,11 +88,13 @@ function renderModePickerHTML(value) {
   const selected = normalizeRouteMode(value);
   return `
     <div class="route-mode-picker" role="radiogroup" aria-label="选择规划方式">
-      ${ROUTE_MODE_OPTIONS.map(option => `
+      ${ROUTE_MODE_OPTIONS.map(
+        option => `
         <button type="button" class="route-mode-btn ${option.id === selected ? 'active' : ''}" data-mode="${option.id}" role="radio" aria-checked="${option.id === selected}">
           ${escapeHTML(option.label)}
         </button>
-      `).join('')}
+      `
+      ).join('')}
     </div>
   `;
 }

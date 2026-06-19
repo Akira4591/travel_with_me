@@ -5,7 +5,11 @@
 
 import { escapeHTML } from '../utils.js';
 import {
-  bindIconPicker, getIconIdForEvent, inferIconId, renderIconPickerHTML, renderIconSVG
+  bindIconPicker,
+  getIconIdForEvent,
+  inferIconId,
+  renderIconPickerHTML,
+  renderIconSVG
 } from './icons.js';
 import { TIME_SLOT_OPTIONS, normalizeTimeSlot } from '../time-slots.js';
 
@@ -112,7 +116,10 @@ function bindEvents(root, initialLocation) {
   const searchBtn = root.querySelector('.editor-search-btn');
   const resultsEl = root.querySelector('.editor-results');
   const locationCard = root.querySelector('.editor-location-card');
-  const iconPicker = bindIconPicker(root, root.querySelector('.icon-picker-btn.active')?.dataset.iconId || 'place');
+  const iconPicker = bindIconPicker(
+    root,
+    root.querySelector('.icon-picker-btn.active')?.dataset.iconId || 'place'
+  );
   const containerPicker = bindContainerPicker(root);
   const timeSlotPicker = bindTimeSlotPicker(root);
   let selectedPlace = null;
@@ -133,7 +140,12 @@ function bindEvents(root, initialLocation) {
 
   const renderCard = (status = 'static') => {
     // 用当前 iconPicker 的值兜底图标——用户切了图标后占位 SVG 也要跟着变
-    locationCard.innerHTML = renderLocationCardHTML(selectedLocation, cardLabel, status, iconPicker.getValue());
+    locationCard.innerHTML = renderLocationCardHTML(
+      selectedLocation,
+      cardLabel,
+      status,
+      iconPicker.getValue()
+    );
   };
 
   // 已有地点常常只存了名称（addr === name），这里按需异步逆地理回填详细地址。
@@ -176,10 +188,15 @@ function bindEvents(root, initialLocation) {
         setResultsState(resultsEl, 'empty', emptyHTML);
         return;
       }
-      renderResults(resultsEl, places, (place) => {
+      renderResults(resultsEl, places, place => {
         selectedPlace = place;
         const fallbackAddr = composeAddress(
-          { formatted: place.addr, province: place.province, city: place.city, district: place.district },
+          {
+            formatted: place.addr,
+            province: place.province,
+            city: place.city,
+            district: place.district
+          },
           place.name
         );
         selectedLocation = {
@@ -194,12 +211,14 @@ function bindEvents(root, initialLocation) {
           district: place.district || '',
           tag: place.tag || ''
         };
-        iconPicker.setValue(inferIconId({
-          name: place.name,
-          addr: fallbackAddr,
-          type: place.type,
-          tag: place.tag
-        }));
+        iconPicker.setValue(
+          inferIconId({
+            name: place.name,
+            addr: fallbackAddr,
+            type: place.type,
+            tag: place.tag
+          })
+        );
         cardLabel = '已选择地点';
         renderCard('static');
         // 选完后收起结果，避免遮挡备注栏
@@ -212,7 +231,7 @@ function bindEvents(root, initialLocation) {
   };
 
   const tabs = root.querySelectorAll('.editor-search-tab');
-  const switchMode = (mode) => {
+  const switchMode = mode => {
     if (searchMode === mode) return;
     searchMode = mode;
     tabs.forEach(tab => {
@@ -236,7 +255,7 @@ function bindEvents(root, initialLocation) {
 
   ensureAddressForCurrent();
 
-  root.addEventListener('click', (e) => {
+  root.addEventListener('click', e => {
     if (!e.target.closest('.editor-location-change-btn')) return;
     const panel = root.querySelector('.editor-search-panel');
     panel.hidden = false;
@@ -244,7 +263,7 @@ function bindEvents(root, initialLocation) {
   });
 
   searchBtn.addEventListener('click', doSearch);
-  searchInput.addEventListener('keydown', (e) => {
+  searchInput.addEventListener('keydown', e => {
     if (e.key === 'Enter') {
       e.preventDefault();
       doSearch();
@@ -253,14 +272,14 @@ function bindEvents(root, initialLocation) {
 
   root.querySelector('.modal-close').addEventListener('click', closeEventEditorModal);
   root.querySelector('.modal-cancel').addEventListener('click', closeEventEditorModal);
-  root.addEventListener('click', (e) => {
+  root.addEventListener('click', e => {
     if (e.target === root) closeEventEditorModal();
   });
-  root.addEventListener('keydown', (e) => {
+  root.addEventListener('keydown', e => {
     if (e.key === 'Escape') closeEventEditorModal();
   });
 
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', e => {
     e.preventDefault();
     if (!currentHandlers?.onConfirm) return;
 
@@ -356,17 +375,21 @@ function renderTimeSlotPickerHTML(value) {
   const selected = normalizeTimeSlot(value);
   return `
     <div class="time-slot-picker" role="radiogroup" aria-label="选择时间">
-      ${TIME_SLOT_OPTIONS.map(option => `
+      ${TIME_SLOT_OPTIONS.map(
+        option => `
         <button type="button" class="time-slot-btn ${option.id === selected ? 'active' : ''}" data-time-slot="${option.id}" role="radio" aria-checked="${option.id === selected}">
           ${escapeHTML(option.label)}
         </button>
-      `).join('')}
+      `
+      ).join('')}
     </div>
   `;
 }
 
 function renderContainerPickerHTML(options, currentValue) {
-  const normalized = options.length ? options : [{ id: currentValue || 'unscheduled', label: '未排期' }];
+  const normalized = options.length
+    ? options
+    : [{ id: currentValue || 'unscheduled', label: '未排期' }];
   const selected = currentValue || normalized[0]?.id || 'unscheduled';
   const selectedOption = normalized.find(option => option.id === selected) || normalized[0];
   return `
@@ -376,11 +399,15 @@ function renderContainerPickerHTML(options, currentValue) {
         <span class="editor-container-arrow" aria-hidden="true">⌄</span>
       </button>
       <div class="editor-container-menu" role="listbox" hidden>
-      ${normalized.map(option => `
+      ${normalized
+        .map(
+          option => `
         <button type="button" class="editor-container-option ${option.id === selected ? 'active' : ''}" data-container-id="${escapeHTML(option.id)}" role="option" aria-selected="${option.id === selected}">
           ${escapeHTML(option.label)}
         </button>
-      `).join('')}
+      `
+        )
+        .join('')}
       </div>
     </div>
   `;
@@ -406,13 +433,13 @@ function bindContainerPicker(root) {
     else close();
   };
 
-  trigger.addEventListener('click', (e) => {
+  trigger.addEventListener('click', e => {
     e.stopPropagation();
     toggle();
   });
 
   menu.querySelectorAll('.editor-container-option').forEach(option => {
-    option.addEventListener('click', (e) => {
+    option.addEventListener('click', e => {
       e.stopPropagation();
       picker.dataset.value = option.dataset.containerId || '';
       label.textContent = option.textContent.trim();
@@ -425,10 +452,10 @@ function bindContainerPicker(root) {
     });
   });
 
-  root.addEventListener('click', (e) => {
+  root.addEventListener('click', e => {
     if (!picker.contains(e.target)) close();
   });
-  root.addEventListener('keydown', (e) => {
+  root.addEventListener('keydown', e => {
     if (e.key === 'Escape') close();
   });
 
@@ -436,7 +463,9 @@ function bindContainerPicker(root) {
 }
 
 function bindTimeSlotPicker(root) {
-  let value = normalizeTimeSlot(root.querySelector('.time-slot-btn.active')?.dataset.timeSlot || '');
+  let value = normalizeTimeSlot(
+    root.querySelector('.time-slot-btn.active')?.dataset.timeSlot || ''
+  );
   root.querySelectorAll('.time-slot-btn').forEach(button => {
     button.addEventListener('click', () => {
       value = normalizeTimeSlot(button.dataset.timeSlot || '');
@@ -456,12 +485,15 @@ function bindTimeSlotPicker(root) {
 // 高德 photo URL 默认 http，HTTPS 生产站会被 mixed content 拦截 → 改写成 https
 function renderPhotoBanner(place) {
   const url = String(place.photo || '').trim();
-  const iconHTML = renderIconSVG(inferIconId({
-    name: place.name,
-    addr: place.addr,
-    type: place.type,
-    tag: place.tag
-  }), 'placeholder-icon-svg');
+  const iconHTML = renderIconSVG(
+    inferIconId({
+      name: place.name,
+      addr: place.addr,
+      type: place.type,
+      tag: place.tag
+    }),
+    'placeholder-icon-svg'
+  );
   if (url) {
     const httpsUrl = url.replace(/^http:\/\//i, 'https://');
     return `
@@ -485,7 +517,9 @@ function renderMetaChips(place) {
   if (place.cost != null && Number(place.cost) > 0) {
     chips.push(`<span class="meta-chip meta-cost">¥${escapeHTML(String(place.cost))}/人</span>`);
   }
-  const firstTag = String(place.tag || '').split(/[;\s]+/).filter(Boolean)[0];
+  const firstTag = String(place.tag || '')
+    .split(/[;\s]+/)
+    .filter(Boolean)[0];
   if (firstTag) {
     chips.push(`<span class="meta-chip meta-tag">${escapeHTML(firstTag)}</span>`);
   }
@@ -504,10 +538,16 @@ function renderResults(resultsEl, places, onPick) {
     const item = document.createElement('button');
     item.type = 'button';
     item.className = 'modal-result-item';
-    const addrText = composeAddress(
-      { formatted: place.addr, province: place.province, city: place.city, district: place.district },
-      place.name
-    ) || '地址未提供';
+    const addrText =
+      composeAddress(
+        {
+          formatted: place.addr,
+          province: place.province,
+          city: place.city,
+          district: place.district
+        },
+        place.name
+      ) || '地址未提供';
     const metaHTML = renderMetaChips(place);
     const photoHTML = renderPhotoBanner(place);
     item.innerHTML = `
@@ -517,7 +557,9 @@ function renderResults(resultsEl, places, onPick) {
       ${metaHTML}
     `;
     item.addEventListener('click', () => {
-      resultsEl.querySelectorAll('.modal-result-item').forEach(el => el.classList.remove('selected'));
+      resultsEl
+        .querySelectorAll('.modal-result-item')
+        .forEach(el => el.classList.remove('selected'));
       item.classList.add('selected');
       onPick(place);
     });

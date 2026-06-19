@@ -57,10 +57,10 @@ function bindEvents(root, day, mode) {
 
   root.querySelector('.modal-close').addEventListener('click', closeDayEditorModal);
   root.querySelector('.modal-cancel').addEventListener('click', closeDayEditorModal);
-  root.addEventListener('click', (e) => {
+  root.addEventListener('click', e => {
     if (e.target === root) closeDayEditorModal();
   });
-  root.addEventListener('keydown', (e) => {
+  root.addEventListener('keydown', e => {
     if (e.key === 'Escape') closeDayEditorModal();
   });
 
@@ -69,16 +69,17 @@ function bindEvents(root, day, mode) {
     closeDayEditorModal();
   });
 
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', e => {
     e.preventDefault();
     // V5：patch 只剩 title。空字符串允许提交（renderItinerary 显示"新的一天"）。
     const patch = {
       title: root.querySelector('.day-title-input').value.trim()
     };
 
-    const ok = mode === 'create'
-      ? currentHandlers?.onCreate?.(patch)
-      : currentHandlers?.onSave?.(day, patch);
+    const ok =
+      mode === 'create'
+        ? currentHandlers?.onCreate?.(patch)
+        : currentHandlers?.onSave?.(day, patch);
     if (ok === false) return;
     closeDayEditorModal();
   });

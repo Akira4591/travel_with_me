@@ -33,8 +33,9 @@ export function resolveLocation(services, loc) {
   if (loc.resolveBy === 'poi') {
     return placeSearchWithRetries(services.placeSearch, loc);
   }
-  return placeSearchWithRetries(services.placeSearch, loc)
-    .then(result => result || geocodeWithRetries(services.geocoder, loc));
+  return placeSearchWithRetries(services.placeSearch, loc).then(
+    result => result || geocodeWithRetries(services.geocoder, loc)
+  );
 }
 
 // 多结果搜索：给"添加地点"弹窗用，返回 POI 列表
@@ -117,9 +118,7 @@ function mapPois(pois) {
         city: String(poi.cityname || ''),
         district: String(poi.adname || ''),
         type: String(poi.type || ''),
-        lnglat: poi.location
-          ? [Number(poi.location.lng), Number(poi.location.lat)]
-          : null,
+        lnglat: poi.location ? [Number(poi.location.lng), Number(poi.location.lat)] : null,
         rating,
         cost,
         tag: String(poi.tag || '').trim(),
@@ -157,7 +156,10 @@ export function reverseGeocode(AMap, lnglat) {
 
     let settled = false;
     const timer = setTimeout(() => {
-      if (!settled) { settled = true; resolve(null); }
+      if (!settled) {
+        settled = true;
+        resolve(null);
+      }
     }, QUERY_TIMEOUT_MS);
 
     geocoder.getAddress([lng, lat], (status, result) => {
@@ -195,23 +197,22 @@ export function buildDisplayAddress(parts = {}) {
 // ─── 内部实现 ──────────────────────────────────────────
 
 function placeSearchWithRetries(placeSearch, loc) {
-  const queries = unique(
-    (loc.searchTerms || [loc.query, loc.name]).filter(Boolean)
-  );
+  const queries = unique((loc.searchTerms || [loc.query, loc.name]).filter(Boolean));
 
   return tryQueries(queries, (query, next, done) => {
     placeSearch.search(query, (status, result) => {
       const pois = result?.poiList?.pois || [];
       const matched = pois.find(poi => {
         const name = String(poi?.name || '');
-        return !loc.includeKeywords ||
-               loc.includeKeywords.every(kw => name.includes(kw));
+        return !loc.includeKeywords || loc.includeKeywords.every(kw => name.includes(kw));
       });
 
       if (status === 'complete' && matched?.location) {
-        done(mapPois([matched])[0] || {
-          lnglat: [Number(matched.location.lng), Number(matched.location.lat)]
-        });
+        done(
+          mapPois([matched])[0] || {
+            lnglat: [Number(matched.location.lng), Number(matched.location.lat)]
+          }
+        );
       } else {
         next();
       }
@@ -220,9 +221,7 @@ function placeSearchWithRetries(placeSearch, loc) {
 }
 
 function geocodeWithRetries(geocoder, loc) {
-  const queries = unique(
-    (loc.searchTerms || [loc.query, loc.name, loc.addr]).filter(Boolean)
-  );
+  const queries = unique((loc.searchTerms || [loc.query, loc.name, loc.addr]).filter(Boolean));
 
   return tryQueries(queries, (query, next, done) => {
     geocoder.getLocation(query, (status, result) => {
@@ -270,7 +269,7 @@ function tryQueries(queries, runner) {
           clearTimeout(timer);
           next();
         },
-        (value) => {
+        value => {
           if (settled) return;
           settled = true;
           clearTimeout(timer);

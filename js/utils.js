@@ -25,9 +25,7 @@ export function cleanText(value) {
 // ─── 数据处理 ──────────────────────────────────────────
 
 export function unique(arr) {
-  return Array.from(new Set(
-    arr.map(item => String(item).trim()).filter(Boolean)
-  ));
+  return Array.from(new Set(arr.map(item => String(item).trim()).filter(Boolean)));
 }
 
 export function toNumber(value) {
@@ -61,14 +59,13 @@ export function formatDuration(seconds) {
 
 // Haversine 距离（米），最后乘 1.25 模拟实际路网绕行
 export function calculateDistance(a, b) {
-  const toRad = deg => deg * Math.PI / 180;
+  const toRad = deg => (deg * Math.PI) / 180;
   const earthRadius = 6371000;
   const lat1 = toRad(a[1]);
   const lat2 = toRad(b[1]);
   const dLat = toRad(b[1] - a[1]);
   const dLng = toRad(b[0] - a[0]);
-  const h = Math.sin(dLat / 2) ** 2 +
-            Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
   return Math.round(earthRadius * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h)) * 1.25);
 }
 

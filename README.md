@@ -4,10 +4,32 @@ Trip App 是一个中文旅行路线规划 Web App，用来创建多条旅行路
 
 当前项目是 **Node/Hono BFF + 原生 ES Modules 前端**，不是 React/Vue/Vite 项目，也不是纯静态站。
 
+## 项目阶段
+
+当前项目处于 **本地 MVP → 工程可私测** 的过渡期。核心规划闭环已经成立，但还不建议直接商业化上线：质量门禁、安全、数据可靠性、桌面端 Web 私测体验、云端同步和成本控制仍需补齐。
+
+当前开发主线已调整为 **桌面端 Web 优先**：先把宽屏路线规划、地图联动、AI 导入、分享图和 3D 价值验证做成稳定的网页产品。移动 Web 只保留基础可访问和回归守门，不再继续作为并行功能主线；原生 Android 后续按 Kotlin 技术路线单独评估。
+
+设计级重构入口：
+
+- [设计重构总纲](docs/design-refactor-plan.md)：项目阶段、文档职责、设计边界、质量门槛。
+- [工程工作流底座](docs/development-workflow-foundation.md)：软件安装、账号密钥、环境准备和日常开发流程。
+- [大厂交付 Playbook](docs/enterprise-delivery-playbook.md)：按完整互联网项目流程组织阶段、门禁、产物和工作流。
+- [项目成熟度评估](docs/project-delivery-maturity-review.md)：从完整互联网研发流程判断当前进度和阶段门槛。
+- [Codex 自用提示词](docs/codex-self-prompts.md)：后续迭代时用于自检、重构、验收和文档同步的工作提示词。
+- [技术特性实现评分表](docs/technical-feature-implementation-scorecard.md)：逐项比较可选实现方式、加权评分并保留真实开发步骤。
+- [UI 视觉风格守则](docs/ui-visual-style-guide.md)：锁定当前颜色、图标、布局、圆角、阴影和后续新增 UI 的审查清单。
+- [3D 地形实现研究](docs/3d-terrain-implementation-research.md)：2D 抬升、地形融化、高程数据、相机和动效实现路径。
+- [架构文档](ARCHITECTURE.md)：当前系统架构、ADR、模块边界和 3D 设计规范。
+- [商业化策略](commercialization-solutions.md)：商业化缺口、方案取舍、阶段路线和暂不做清单。
+- [Roadmap](TODO.md)：按 P0/P1/P2/P3 组织的执行 backlog。
+- [BFF API 文档](docs/api.md)：服务端代理和接口契约。
+
 ## 当前能力
 
 - **多路线工作区**：顶部活页本标签切换，最多本地保存 3 条旅行路线。
-- **本地自动保存**：workspace 保存到 localStorage，刷新后恢复当前路线和编辑内容。
+- **本地自动保存与恢复**：workspace 保存到 localStorage，刷新后恢复当前路线和编辑内容；旧 schema 加载前会保存恢复快照。
+- **JSON 导出/导入**：行程菜单支持导出当前 workspace，也支持从 JSON 导入并在替换前保存恢复快照。
 - **默认演示行程**：首次打开会加载“五一北京行程”；默认地点不再写死坐标，启动后通过高德解析。
 - **AI 攻略导入**：顶部提供独立 `AI 导入` 入口；可粘贴中文攻略文本，由 DeepSeek 提取行程结构，再用高德匹配 POI，预览确认后创建新路线。
 - **日期管理**：新建一天、编辑日期/标题、删除日期；日期不可重复，并按时间排序。
@@ -60,6 +82,15 @@ http://localhost:8080
 
 ```bash
 npm run dev
+```
+
+代码检查：
+
+```bash
+npm run check       # Prettier 格式检查 + ESLint
+npm test            # 运行单元测试（48 tests, 6 suites）
+npm run test:e2e    # 运行 Playwright 桌面主线 smoke + 移动端基础回归
+npm run test:watch  # 测试持续监听模式
 ```
 
 如果 8080 端口被占用，Windows PowerShell 可先找到并结束占用进程：
@@ -116,43 +147,67 @@ trip-app/
 ├── Dockerfile
 ├── package.json
 ├── package-lock.json
+├── .editorconfig
+├── .prettierrc
+├── eslint.config.js
+├── vitest.config.js
+├── playwright.config.js
+├── .github/workflows/ci.yml
 ├── server/
 │   ├── index.js              # Hono BFF：静态托管、高德/AI 代理、瓦片代理
 │   └── prompts/
 │       └── guide-extract.md  # AI 攻略解析 Prompt
 ├── index.html
 ├── css/
-│   └── app.css
+│   ├── tokens.css            # 设计令牌
+│   ├── layout.css            # 布局骨架
+│   ├── components.css        # UI 组件
+│   └── app.css               # 全局样式（逐模块迁移中）
 └── js/
     ├── main.js               # 启动流程和业务编排
     ├── state.js              # workspace/trip 唯一状态源
     ├── storage.js            # localStorage workspace 存储
     ├── config.js             # 高德 key、地图默认配置
+    ├── logger.js             # 日志框架（按模块开关）
     ├── route-config.js       # 路线配置与组合交通方式规范化
     ├── time-slots.js         # 时间块定义和排序
     ├── share.js              # 旧 #trip= 链接兼容
     ├── share-image.js        # Canvas 分享长图生成
     ├── data/
-    │   └── trip.js           # 五一北京演示数据，无内置坐标
+    │   └── trip.js           # 五一北京演示数据 + JSDoc typedef
     ├── api/
-    │   ├── amap-loader.js
+    │   ├── amap-loader.js    # 高德 SDK 加载
     │   ├── geocode.js        # POI 搜索、搜附近、地址解析
     │   ├── guide-import.js   # AI 攻略导入请求封装
-    │   └── routing.js        # 路线规划与估算兜底
-    └── render/
-        ├── workspace-tabs.js
-        ├── sidebar.js
-        ├── map.js
-        ├── search-modal.js
-        ├── event-editor-modal.js
-        ├── day-editor-modal.js
-        ├── route-editor-modal.js
-        ├── share-modal.js
-        ├── guide-import-modal.js
-        ├── guide-preview-modal.js
-        ├── trip-modal.js
-        ├── date-picker.js
-        └── icons.js
+    │   ├── routing.js        # 路线规划与估算兜底
+    │   └── elevation.js      # 高程数据获取（3D 使用）
+    ├── render/
+    │   ├── modal-base.js     # Modal 基础设施
+    │   ├── shared-widgets.js # 共享 UI 组件
+    │   ├── icons.js          # 图标体系
+    │   ├── geo-project.js    # 地理坐标投影
+    │   ├── workspace-tabs.js
+    │   ├── sidebar.js
+    │   ├── map.js            # 2D 地图渲染
+    │   ├── map-3d.js         # 3D diorama 渲染
+    │   ├── toggle-3d.js      # 2D/3D 切换
+    │   ├── search-modal.js
+    │   ├── event-editor-modal.js
+    │   ├── day-editor-modal.js
+    │   ├── route-editor-modal.js
+    │   ├── share-modal.js
+    │   ├── guide-import-modal.js
+    │   ├── guide-preview-modal.js
+    │   └── trip-modal.js
+    ├── __tests__/
+    │   ├── utils.test.js
+    │   ├── time-slots.test.js
+    │   ├── route-config.test.js
+    │   ├── icons.test.js
+    │   └── state.test.js
+    └── tests/
+        └── e2e/
+            └── smoke.spec.js
 ```
 
 ## 架构约定
@@ -269,22 +324,22 @@ AI 导入入口在顶部行程标签栏中与新建 `+` 并列显示；空工作
 - 当前分类：地点、交通、酒店、餐饮、咖啡甜品、购物、市集、校园、公园户外、景点、展馆、娱乐游玩、酒吧。
 - 旧 id 会兜底兼容，例如 `pin -> place`、`train -> transport`、`shop/book -> shopping`、`school -> campus`、`photo -> attraction`。
 - 自动匹配按 `POI type > 事件标题/地点名 > 地址` 加权判断；地址不会触发交通，避免餐饮店因地址含“站”误判为交通。
-- localStorage schema 当前为 v4；旧 schema 会被重置，避免继续保留旧 icon id。
+- localStorage schema 当前为 v5；旧 schema 会先保存恢复快照，再由状态层规范化。
 
 ## 已知限制
 
-- localStorage 只适合本机草稿，不支持跨设备同步。
+- localStorage 只适合本机草稿；已支持本地 JSON 导出/导入，但不支持跨设备自动同步。
 - 分享长图是当前主分享方式；旧 `#trip=` 长链接只做兼容。
 - AI 导入仍是 MVP，地点抽取和备注质量需要继续用真实攻略评测；路线合集已做主路线清洗，但仍需继续积累 bad case。
 - 组合交通方式目前主要用于展示说明，地图仍按一个高德基础 mode 规划。
 - 默认示例不再内置坐标，首次解析依赖高德 POI/Geocoder 返回结果。
-- 跨天/未排期拖拽已支持桌面端基础交互，移动端触控拖拽还未专门优化。
-- 移动端还没有做专门布局。
+- 跨天/未排期拖拽已支持桌面端基础交互；移动端触控拖拽不再作为当前开发主线。
+- 小屏已有列表/地图切换的基础回归守门，但移动 Web 深度适配暂停，后续优先考虑 Kotlin 原生 Android。
 
 ## 后续 TODO
 
 1. 分享图继续美化：地图、事件卡密度、交通方式展示、字体层级、整体旅行手账感。
 2. 让别人真正使用：确定无登录/登录、localStorage/云端保存、短链接分享、继续编辑策略。
-3. 移动端适配：小屏列表/地图切换、底部抽屉、弹窗、日期 tab、分享预览。
+3. 桌面端 Web 私测体验：核心业务 E2E、宽屏编辑效率、地图联动、分享预览和 3D 入口。
 4. 交通方式模型升级：支持中转点/途经点，让组合交通能映射到真实分段路线。
 5. 数据同步：在 localStorage 基础上增加可选云端保存。

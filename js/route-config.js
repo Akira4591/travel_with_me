@@ -18,11 +18,11 @@ export function normalizeRouteToNext(route = {}) {
   const label = String(route.label || '').trim();
   const legs = Array.isArray(route.legs)
     ? route.legs
-      .map(leg => ({
-        mode: normalizeRouteMode(leg?.mode),
-        label: String(leg?.label || '').trim()
-      }))
-      .filter(leg => leg.label)
+        .map(leg => ({
+          mode: normalizeRouteMode(leg?.mode),
+          label: String(leg?.label || '').trim()
+        }))
+        .filter(leg => leg.label)
     : [];
 
   return {

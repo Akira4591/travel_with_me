@@ -5,10 +5,7 @@
 // 不负责"何时切换日期"那种业务逻辑（那是 main.js / sidebar.js 的事）
 
 import { AppConfig } from '../config.js';
-import {
-  getAppState, getTrip, getLocation, getMarker,
-  setMap, setInfoWindow, getActiveDayId
-} from '../state.js';
+import { getAppState, getTrip, getLocation, getMarker, setMap, setInfoWindow } from '../state.js';
 import { escapeHTML, unique } from '../utils.js';
 
 // ─── 初始化 ─────────────────────────────────────────────
@@ -51,6 +48,8 @@ export function createOrUpdateMarker(locationId, lnglat) {
   // 防御：lnglat 缺失时不创建 marker，避免给 AMap 喂 undefined
   if (!Array.isArray(lnglat) || lnglat.length < 2) return null;
   const state = getAppState();
+  if (!state.AMap || !state.map) return null;
+
   const existing = state.markers.get(locationId);
   if (existing) {
     existing.setPosition(lnglat);
@@ -81,7 +80,11 @@ export function removeMarker(locationId) {
   const marker = state.markers.get(locationId);
   if (!marker) return;
 
-  try { state.map.remove(marker); } catch (err) { console.warn('移除 Marker 失败：', err); }
+  try {
+    state.map.remove(marker);
+  } catch (err) {
+    console.warn('移除 Marker 失败：', err);
+  }
   state.markers.delete(locationId);
   state.markerList = state.markerList.filter(item => item !== marker);
 }
@@ -89,7 +92,11 @@ export function removeMarker(locationId) {
 export function clearAllMarkers() {
   const state = getAppState();
   state.markerList.forEach(marker => {
-    try { state.map.remove(marker); } catch (err) { console.warn('移除 Marker 失败：', err); }
+    try {
+      state.map.remove(marker);
+    } catch (err) {
+      console.warn('移除 Marker 失败：', err);
+    }
   });
   state.markers.clear();
   state.markerList = [];
@@ -106,7 +113,11 @@ export function showEmptyMapView() {
   const state = getAppState();
   clearRouteOverlays();
   clearAllMarkers();
-  try { state.infoWindow?.close?.(); } catch {}
+  try {
+    state.infoWindow?.close?.();
+  } catch {
+    // AMap may throw while tearing down an InfoWindow; the empty-map view can continue safely.
+  }
   if (state.map) {
     state.map.setZoomAndCenter(AppConfig.emptyMapZoom, AppConfig.emptyMapCenter, true);
   }
@@ -142,7 +153,7 @@ function getVisibleMarkers(dayId) {
 //
 // 视觉时长 + 曲线在这两个常量里调，动画感觉不对就改这两个值：
 const PAN_DURATION = 900;
-const EASE = (t) => 1 - Math.pow(1 - t, 3); // ease-out-cubic
+const EASE = t => 1 - Math.pow(1 - t, 3); // ease-out-cubic
 const FIT_PADDING = [60, 60, 60, 60];
 
 let activeAnimId = 0;
@@ -168,7 +179,7 @@ function animateMapTo(targetLngLat, targetZoom, duration = PAN_DURATION) {
 
   const startTime = performance.now();
 
-  const frame = (now) => {
+  const frame = now => {
     const t = Math.min((now - startTime) / duration, 1);
     const k = EASE(t);
     const lng = startCenter[0] + (endLng - startCenter[0]) * k;
@@ -220,10 +231,7 @@ function computeFitView(map, markers, padding, maxZoom) {
 }
 
 export function fitSegment(segment) {
-  const markers = [
-    getMarker(segment.fromId),
-    getMarker(segment.toId)
-  ].filter(Boolean);
+  const markers = [getMarker(segment.fromId), getMarker(segment.toId)].filter(Boolean);
   fitMarkers(markers);
 }
 
@@ -261,8 +269,8 @@ export function openInfoWindow(locationId) {
 // 而不是其他段。
 
 const ROUTE_DEFAULT = { strokeWeight: 7, strokeOpacity: 0.96, zIndex: 200 };
-const ROUTE_DIM     = { strokeWeight: 5, strokeOpacity: 0.32, zIndex: 100 };
-const ROUTE_ACTIVE  = { strokeWeight: 9, strokeOpacity: 1.0,  zIndex: 220 };
+const ROUTE_DIM = { strokeWeight: 5, strokeOpacity: 0.32, zIndex: 100 };
+const ROUTE_ACTIVE = { strokeWeight: 9, strokeOpacity: 1.0, zIndex: 220 };
 const PULSE_DURATION_MS = 1400;
 
 export function drawRoutePaths(segment, paths, dashed = false) {
@@ -311,7 +319,11 @@ export function clearRouteOverlays() {
 }
 
 function safeRemoveOverlay(map, overlay) {
-  try { map.remove(overlay); } catch (err) { console.warn('清除自绘路线失败：', err); }
+  try {
+    map.remove(overlay);
+  } catch (err) {
+    console.warn('清除自绘路线失败：', err);
+  }
 }
 
 // ─── 路线高亮 ─────────────────────────────────────────
@@ -338,7 +350,9 @@ export function highlightSegment(segmentId) {
           strokeOpacity: target.strokeOpacity,
           zIndex: target.zIndex
         });
-      } catch {}
+      } catch {
+        // Ignore stale AMap polyline instances during route highlight refresh.
+      }
     });
 
     if (isActive) {
@@ -360,7 +374,9 @@ export function highlightSegment(segmentId) {
           });
           state.map.add(halo);
           entry.halo.push(halo);
-        } catch {}
+        } catch {
+          // Ignore stale AMap polyline instances during route highlight refresh.
+        }
       });
     }
   });
@@ -380,7 +396,9 @@ export function clearSegmentHighlight() {
           strokeOpacity: ROUTE_DEFAULT.strokeOpacity,
           zIndex: ROUTE_DEFAULT.zIndex
         });
-      } catch {}
+      } catch {
+        // Ignore stale AMap polyline instances during route highlight cleanup.
+      }
     });
     entry.halo.forEach(p => safeRemoveOverlay(state.map, p));
     entry.halo = [];
@@ -412,8 +430,7 @@ function pulseMarkerByLocationId(locationId) {
   if (!el) return;
   // 把动画做成"重新触发"：先移除再下一帧加，否则连续点同一段不会重放
   el.classList.remove('pulse');
-  // eslint-disable-next-line no-unused-expressions
-  el.offsetWidth; // 强制 reflow
+  void el.offsetWidth; // 强制 reflow
   el.classList.add('pulse');
   setTimeout(() => el.classList.remove('pulse'), PULSE_DURATION_MS);
 }

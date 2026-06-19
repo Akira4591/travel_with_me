@@ -1,7 +1,66 @@
 // js/data/trip.js
 // 初始 trip 数据：五一北京行程
 //
-// 数据模型说明（V5 版）：
+// 数据模型（V5 版）：
+//
+// /**
+//  * @typedef {object} Workspace
+//  * @property {Trip[]} trips - 最多 3 条旅行路线
+//  * @property {string|null} activeTripId - 当前激活的 trip ID
+//  */
+//
+// /**
+//  * @typedef {object} Trip
+//  * @property {string} id
+//  * @property {string} title
+//  * @property {string} subtitle
+//  * @property {string} city
+//  * @property {Object<string, Location>} locations - 地点主表，按 ID 索引
+//  * @property {Day[]} days - 按序排列的每日行程
+//  * @property {Event[]} unscheduled - 未排期事件
+//  */
+//
+// /**
+//  * @typedef {object} Location
+//  * @property {string} name - 地点名称
+//  * @property {string} query - 搜索关键词
+//  * @property {string} addr - 地址
+//  * @property {[number, number]|null} lnglat - 经纬度
+//  * @property {string} [photo] - 高德 POI 图片 URL
+//  * @property {string} [type] - 高德 POI 类型编码
+//  * @property {boolean} [resolved] - 坐标是否已解析
+//  * @property {string} [province]
+//  * @property {string} [city]
+//  * @property {string} [district]
+//  * @property {string} [tag]
+//  */
+//
+// /**
+//  * @typedef {object} Day
+//  * @property {string} id
+//  * @property {string} title - 可选的当日主题
+//  * @property {Event[]} events - 按序排列的事件
+//  */
+//
+// /**
+//  * @typedef {object} Event
+//  * @property {string} id
+//  * @property {string} title - 事件标题
+//  * @property {string} [icon] - 图标 ID
+//  * @property {string} [timeSlot] - 时间段 (morning|noon|afternoon|evening|'')
+//  * @property {string} [note] - 备注
+//  * @property {string} locationId - 引用的地点 ID
+//  * @property {RouteConfig} [routeToNext] - 去下一站的方式
+//  */
+//
+// /**
+//  * @typedef {object} RouteConfig
+//  * @property {'driving'|'walking'|'transit'|'riding'} mode - 交通方式
+//  * @property {string} [label] - 自定义展示名称
+//  * @property {Array<{mode: string, label: string}>} [legs] - 组合步骤
+//  * @property {boolean} [manual] - 是否用户手动设置
+//  */
+//
 //
 // trip.locations 是地点的"主表"，按 id 索引
 //   - 添加地点 = 在这里 append
@@ -105,40 +164,148 @@ export const initialTrip = {
       id: 'day-1',
       title: '入住与晚餐',
       events: [
-        { id: 'd1-e2', title: '前往酒店放行李',     locationId: 'hotel',       icon: 'hotel', timeSlot: 'afternoon', routeToNext: { mode: 'driving'  } },
-        { id: 'd1-e3', title: '吃寿司郎',           locationId: 'wanxianghui', icon: 'food', timeSlot: 'evening' }
+        {
+          id: 'd1-e2',
+          title: '前往酒店放行李',
+          locationId: 'hotel',
+          icon: 'hotel',
+          timeSlot: 'afternoon',
+          routeToNext: { mode: 'driving' }
+        },
+        {
+          id: 'd1-e3',
+          title: '吃寿司郎',
+          locationId: 'wanxianghui',
+          icon: 'food',
+          timeSlot: 'evening'
+        }
       ]
     },
     {
       id: 'day-2',
       title: '吃喝与逛校园',
       events: [
-        { id: 'd2-e0', title: '从酒店出发',         locationId: 'hotel',       icon: 'hotel', timeSlot: 'morning', routeToNext: { mode: 'driving' } },
-        { id: 'd2-e1', title: '紫光园吃午饭',       locationId: 'ziguangyuan', icon: 'food', timeSlot: 'noon', routeToNext: { mode: 'driving' } },
-        { id: 'd2-e2', title: '春风在书店撸猫',     locationId: 'bookstore',   icon: 'shopping', timeSlot: 'afternoon', routeToNext: { mode: 'driving' } },
-        { id: 'd2-e3', title: '人大通州校区转转',   locationId: 'ruc',         icon: 'campus', timeSlot: 'afternoon', routeToNext: { mode: 'driving' } },
-        { id: 'd2-e4', title: '万象汇吃晚餐',       locationId: 'wanxianghui', icon: 'food', timeSlot: 'evening', routeToNext: { mode: 'driving' } },
-        { id: 'd2-e5', title: '回酒店休息',         locationId: 'hotel',       icon: 'hotel', timeSlot: 'evening' }
+        {
+          id: 'd2-e0',
+          title: '从酒店出发',
+          locationId: 'hotel',
+          icon: 'hotel',
+          timeSlot: 'morning',
+          routeToNext: { mode: 'driving' }
+        },
+        {
+          id: 'd2-e1',
+          title: '紫光园吃午饭',
+          locationId: 'ziguangyuan',
+          icon: 'food',
+          timeSlot: 'noon',
+          routeToNext: { mode: 'driving' }
+        },
+        {
+          id: 'd2-e2',
+          title: '春风在书店撸猫',
+          locationId: 'bookstore',
+          icon: 'shopping',
+          timeSlot: 'afternoon',
+          routeToNext: { mode: 'driving' }
+        },
+        {
+          id: 'd2-e3',
+          title: '人大通州校区转转',
+          locationId: 'ruc',
+          icon: 'campus',
+          timeSlot: 'afternoon',
+          routeToNext: { mode: 'driving' }
+        },
+        {
+          id: 'd2-e4',
+          title: '万象汇吃晚餐',
+          locationId: 'wanxianghui',
+          icon: 'food',
+          timeSlot: 'evening',
+          routeToNext: { mode: 'driving' }
+        },
+        {
+          id: 'd2-e5',
+          title: '回酒店休息',
+          locationId: 'hotel',
+          icon: 'hotel',
+          timeSlot: 'evening'
+        }
       ]
     },
     {
       id: 'day-3',
       title: '朝阳水岸休闲',
       events: [
-        { id: 'd3-e0', title: '从酒店出发',         locationId: 'hotel',        icon: 'hotel', timeSlot: 'morning', routeToNext: { mode: 'driving'  } },
-        { id: 'd3-e1', title: '亮马河漫步',         locationId: 'liangmahe',    icon: 'park', timeSlot: 'morning', routeToNext: { mode: 'walking'  } },
-        { id: 'd3-e2', title: '蓝色港湾午餐',       locationId: 'solana',       icon: 'food', timeSlot: 'noon', routeToNext: { mode: 'walking'  } },
-        { id: 'd3-e3', title: '逛商场 + 朝阳公园',  locationId: 'chaoyangpark', icon: 'park', timeSlot: 'afternoon', routeToNext: { mode: 'walking'  } },
-        { id: 'd3-e4', title: '蓝色港湾晚餐',       locationId: 'solana',       icon: 'food', timeSlot: 'evening', routeToNext: { mode: 'driving'  } },
-        { id: 'd3-e5', title: '回酒店休息',         locationId: 'hotel',        icon: 'hotel', timeSlot: 'evening' }
+        {
+          id: 'd3-e0',
+          title: '从酒店出发',
+          locationId: 'hotel',
+          icon: 'hotel',
+          timeSlot: 'morning',
+          routeToNext: { mode: 'driving' }
+        },
+        {
+          id: 'd3-e1',
+          title: '亮马河漫步',
+          locationId: 'liangmahe',
+          icon: 'park',
+          timeSlot: 'morning',
+          routeToNext: { mode: 'walking' }
+        },
+        {
+          id: 'd3-e2',
+          title: '蓝色港湾午餐',
+          locationId: 'solana',
+          icon: 'food',
+          timeSlot: 'noon',
+          routeToNext: { mode: 'walking' }
+        },
+        {
+          id: 'd3-e3',
+          title: '逛商场 + 朝阳公园',
+          locationId: 'chaoyangpark',
+          icon: 'park',
+          timeSlot: 'afternoon',
+          routeToNext: { mode: 'walking' }
+        },
+        {
+          id: 'd3-e4',
+          title: '蓝色港湾晚餐',
+          locationId: 'solana',
+          icon: 'food',
+          timeSlot: 'evening',
+          routeToNext: { mode: 'driving' }
+        },
+        {
+          id: 'd3-e5',
+          title: '回酒店休息',
+          locationId: 'hotel',
+          icon: 'hotel',
+          timeSlot: 'evening'
+        }
       ]
     },
     {
       id: 'day-4',
       title: '踏青休闲',
       events: [
-        { id: 'd4-e0', title: '从酒店出发',     locationId: 'hotel',     icon: 'hotel', timeSlot: 'morning', routeToNext: { mode: 'driving' } },
-        { id: 'd4-e1', title: '大运河森林公园', locationId: 'canalpark', icon: 'park', timeSlot: 'morning' }
+        {
+          id: 'd4-e0',
+          title: '从酒店出发',
+          locationId: 'hotel',
+          icon: 'hotel',
+          timeSlot: 'morning',
+          routeToNext: { mode: 'driving' }
+        },
+        {
+          id: 'd4-e1',
+          title: '大运河森林公园',
+          locationId: 'canalpark',
+          icon: 'park',
+          timeSlot: 'morning'
+        }
       ]
     }
   ],

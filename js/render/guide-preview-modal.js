@@ -97,7 +97,7 @@ function renderEventCard(event) {
   const status = event.matched ? '✔ 已匹配' : '× 未匹配';
   const menuOpen = openActionEventId === event.id;
   const addr = event.matched
-    ? (event.poi?.addr || event.poi?.district || '已选择地图地点')
+    ? event.poi?.addr || event.poi?.district || '已选择地图地点'
     : '未匹配到地图地点，导入后可手动更换地点';
   return `
     <article class="guide-preview-event ${event.matched ? '' : 'unmatched'}" data-event-id="${escapeHTML(event.id)}">
@@ -147,15 +147,21 @@ function renderFallbackSearch(event) {
 
 function renderFallbackSearchResults(event, results) {
   if (event.searching) return '<div class="guide-preview-search-hint">正在搜索...</div>';
-  if (event.searchError) return `<div class="guide-preview-search-hint">${escapeHTML(event.searchError)}</div>`;
-  if (!results.length) return '<div class="guide-preview-search-hint">搜索后从结果中选择一个地点</div>';
-  return results.map((place, index) => `
+  if (event.searchError)
+    return `<div class="guide-preview-search-hint">${escapeHTML(event.searchError)}</div>`;
+  if (!results.length)
+    return '<div class="guide-preview-search-hint">搜索后从结果中选择一个地点</div>';
+  return results
+    .map(
+      (place, index) => `
     <button type="button" class="guide-preview-place-result" data-result-index="${index}">
       ${renderPlacePhoto(place)}
       <span class="guide-preview-place-name">${escapeHTML(place.name || '未命名地点')}</span>
       <span class="guide-preview-place-addr">${escapeHTML(place.addr || place.district || place.city || '地址未提供')}</span>
     </button>
-  `).join('');
+  `
+    )
+    .join('');
 }
 
 function renderPlacePhoto(place) {
@@ -172,17 +178,19 @@ function renderDaySelect(event) {
   const maxDay = getMaxDay();
   const options = ['<option value="">未排期</option>'];
   for (let day = 1; day <= maxDay; day += 1) {
-    options.push(`<option value="${day}" ${event.day === day ? 'selected' : ''}>Day ${day}</option>`);
+    options.push(
+      `<option value="${day}" ${event.day === day ? 'selected' : ''}>Day ${day}</option>`
+    );
   }
   return `<select class="guide-preview-day-select" aria-label="选择日期">${options.join('')}</select>`;
 }
 
 function bindShellEvents(root) {
   root.querySelector('.modal-close').addEventListener('click', closeGuidePreviewModal);
-  root.addEventListener('click', (e) => {
+  root.addEventListener('click', e => {
     if (e.target === root) closeGuidePreviewModal();
   });
-  root.addEventListener('keydown', (e) => {
+  root.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
     if (openActionEventId) {
       openActionEventId = null;
@@ -194,7 +202,7 @@ function bindShellEvents(root) {
 }
 
 function bindBodyEvents(body) {
-  body.addEventListener('click', (e) => {
+  body.addEventListener('click', e => {
     if (
       openActionEventId &&
       !e.target.closest('.guide-preview-action-menu') &&
@@ -204,7 +212,7 @@ function bindBodyEvents(body) {
       renderBody(body);
     }
   });
-  body.querySelector('.guide-preview-title').addEventListener('input', (e) => {
+  body.querySelector('.guide-preview-title').addEventListener('input', e => {
     draft.title = e.target.value;
   });
   body.querySelector('.guide-preview-back').addEventListener('click', () => {
@@ -218,12 +226,12 @@ function bindBodyEvents(body) {
   body.querySelectorAll('.guide-preview-event').forEach(card => {
     const event = draft.events.find(item => item.id === card.dataset.eventId);
     if (!event) return;
-    card.querySelector('.guide-preview-action-toggle')?.addEventListener('click', (e) => {
+    card.querySelector('.guide-preview-action-toggle')?.addEventListener('click', e => {
       e.stopPropagation();
       openActionEventId = openActionEventId === event.id ? null : event.id;
       renderBody(body);
     });
-    card.querySelector('.guide-preview-day-select')?.addEventListener('change', (e) => {
+    card.querySelector('.guide-preview-day-select')?.addEventListener('change', e => {
       event.day = e.target.value ? Number(e.target.value) : null;
       openActionEventId = null;
       renderBody(body);
@@ -259,7 +267,7 @@ function bindBodyEvents(body) {
         renderBody(body);
       }
     });
-    card.querySelector('.guide-preview-search-input')?.addEventListener('keydown', (e) => {
+    card.querySelector('.guide-preview-search-input')?.addEventListener('keydown', e => {
       if (e.key === 'Enter') {
         e.preventDefault();
         card.querySelector('.guide-preview-search-btn')?.click();

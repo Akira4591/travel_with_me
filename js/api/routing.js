@@ -9,17 +9,14 @@
 // 上层（render/sidebar）只关心这个统一形态，不需要知道高德返回什么
 
 import { AppConfig } from '../config.js';
-import {
-  toNumber, calculateDistance, cleanText,
-  getTransportLabel, getTransportIcon, sleep
-} from '../utils.js';
+import { toNumber, calculateDistance, cleanText, getTransportIcon, sleep } from '../utils.js';
 import { getRouteDisplayLabel } from '../route-config.js';
 
 // ─── 创建路线服务 ──────────────────────────────────────
 
 export function createRouteService(AMap, map, mode) {
   const common = {
-    map: null,         // 不让高德自己画线，我们自己控制
+    map: null, // 不让高德自己画线，我们自己控制
     hideMarkers: true,
     autoFitView: false,
     isOutline: true,
@@ -36,12 +33,14 @@ export function createRouteService(AMap, map, mode) {
     });
   }
   if (mode === 'walking') return new AMap.Walking(common);
-  if (mode === 'riding')  return new AMap.Riding(common);
+  if (mode === 'riding') return new AMap.Riding(common);
 
-  return new AMap.Driving(Object.assign({}, common, {
-    policy: (AMap.DrivingPolicy && AMap.DrivingPolicy.LEAST_TIME) || 0,
-    showTraffic: false
-  }));
+  return new AMap.Driving(
+    Object.assign({}, common, {
+      policy: (AMap.DrivingPolicy && AMap.DrivingPolicy.LEAST_TIME) || 0,
+      showTraffic: false
+    })
+  );
 }
 
 // ─── 真正搜路线 ────────────────────────────────────────
@@ -95,10 +94,8 @@ function searchRouteOnce(AMap, service, segment) {
 // 估算结果：用直线距离 + 速度估时长，画虚线
 export function buildEstimatedResult(segment) {
   const distance = calculateDistance(segment.fromLngLat, segment.toLngLat);
-  const speedKmh =
-    segment.mode === 'walking' ? 4.5 :
-    segment.mode === 'riding'  ? 13  : 22;
-  const duration = Math.max(60, Math.round(distance / (speedKmh * 1000 / 3600)));
+  const speedKmh = segment.mode === 'walking' ? 4.5 : segment.mode === 'riding' ? 13 : 22;
+  const duration = Math.max(60, Math.round(distance / ((speedKmh * 1000) / 3600)));
 
   return {
     ok: false,
@@ -117,7 +114,11 @@ export function buildEstimatedResult(segment) {
 
 export function safeClearService(service) {
   if (service && typeof service.clear === 'function') {
-    try { service.clear(); } catch (err) { console.warn('清除路线服务失败：', err); }
+    try {
+      service.clear();
+    } catch (err) {
+      console.warn('清除路线服务失败：', err);
+    }
   }
 }
 
@@ -147,7 +148,9 @@ function extractTransitDetail(segment, result) {
   (plan.segments || []).forEach(seg => {
     const walkDistance = toNumber(seg.walking?.distance);
     if (walkDistance > 80) {
-      steps.push(`步行 ${walkDistance >= 1000 ? (walkDistance/1000).toFixed(1)+' 公里' : walkDistance+' 米'}`);
+      steps.push(
+        `步行 ${walkDistance >= 1000 ? (walkDistance / 1000).toFixed(1) + ' 公里' : walkDistance + ' 米'}`
+      );
     }
 
     const lines = getTransitLines(seg);
@@ -213,7 +216,10 @@ function pushPath(paths, rawPath) {
 function normalizePath(rawPath) {
   if (!rawPath) return [];
   if (typeof rawPath === 'string') {
-    return rawPath.split(/[;|]/).map(item => normalizePoint(item.trim())).filter(Boolean);
+    return rawPath
+      .split(/[;|]/)
+      .map(item => normalizePoint(item.trim()))
+      .filter(Boolean);
   }
   if (!Array.isArray(rawPath)) {
     const point = normalizePoint(rawPath);
@@ -227,7 +233,8 @@ function normalizePoint(point) {
   if (typeof point === 'string') {
     const parts = point.split(',').map(item => Number(item.trim()));
     return parts.length >= 2 && Number.isFinite(parts[0]) && Number.isFinite(parts[1])
-      ? [parts[0], parts[1]] : null;
+      ? [parts[0], parts[1]]
+      : null;
   }
   if (Array.isArray(point) && point.length >= 2) {
     const lng = Number(point[0]);
@@ -244,13 +251,7 @@ function normalizePoint(point) {
 }
 
 function getTransitLines(seg) {
-  const groups = [
-    seg.transit?.lines,
-    seg.bus?.buslines,
-    seg.bus?.lines,
-    seg.lines,
-    seg.buslines
-  ];
+  const groups = [seg.transit?.lines, seg.bus?.buslines, seg.bus?.lines, seg.lines, seg.buslines];
   return groups.reduce((all, item) => {
     if (Array.isArray(item)) all.push(...item);
     else if (item) all.push(item);

@@ -1,4 +1,6 @@
 .playwright-mcp/
+playwright-report/
+test-results/
 .claude/
 *.log
 trip-app-step1-verified.png
@@ -12,3 +14,6 @@ node_modules/
 
 # Local design / prompt drafts
 Travel_with_Me_AI攻略导入_PRD_v2.md
+
+# Auto-generated merged context
+travel_with_me_merged_context.md

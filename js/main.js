@@ -7,35 +7,84 @@
 //   2) selectDay：切换日期时，更新 UI + marker 显示 + 启动路线规划
 //   3) planRoutes：编排"规划路线 → 画线 → 更新卡片"
 
-import { AppConfig } from './config.js';
 import { loadAMap } from './api/amap-loader.js';
-import { createGeocodeServices, resolveLocation, searchPlaces, searchNearBy, reverseGeocode, buildDisplayAddress } from './api/geocode.js';
+import {
+  createGeocodeServices,
+  resolveLocation,
+  searchPlaces,
+  searchNearBy,
+  reverseGeocode,
+  buildDisplayAddress
+} from './api/geocode.js';
 import { extractGuideText, getGuideImportStatus } from './api/guide-import.js';
 import {
-  createRouteService, searchRoute, buildEstimatedResult, safeClearService
+  createRouteService,
+  searchRoute,
+  buildEstimatedResult,
+  safeClearService
 } from './api/routing.js';
 import {
-  getAppState, getTrip, getDay, getLocation, setActiveDayId, setAMap,
-  updateLocation, removeLocation,
+  getAppState,
+  getTrip,
+  getDay,
+  getLocation,
+  setActiveDayId,
+  setAMap,
+  updateLocation,
+  removeLocation,
   updateTripMeta,
-  initWorkspace, getWorkspace, hasActiveTrip,
-  createTrip, switchTrip, renameTrip, deleteTrip,
-  addDay, updateDay, removeDay,
-  addLocation, addEventToDay, updateEventInDay, removeEventFromDay,
-  addUnscheduledEvent, updateUnscheduledEvent, removeUnscheduledEvent,
-  moveEventInDay, reorderEventInDay, moveEventBetweenContainers, updateRouteToNext, on
+  initWorkspace,
+  getWorkspace,
+  hasActiveTrip,
+  createTrip,
+  switchTrip,
+  renameTrip,
+  deleteTrip,
+  addDay,
+  updateDay,
+  removeDay,
+  addLocation,
+  addEventToDay,
+  updateEventInDay,
+  removeEventFromDay,
+  addUnscheduledEvent,
+  updateUnscheduledEvent,
+  removeUnscheduledEvent,
+  moveEventInDay,
+  reorderEventInDay,
+  moveEventBetweenContainers,
+  updateRouteToNext,
+  on
 } from './state.js';
 import {
-  initMap, createAllMarkers, createOrUpdateMarker, removeMarker, clearAllMarkers,
-  pruneMarkersToLocationIds, showEmptyMapView,
-  showMarkersForDay, fitMarkers, fitSegment, focusLocation,
-  drawRoutePaths, clearRouteOverlays, highlightSegment, clearSegmentHighlight
+  initMap,
+  createAllMarkers,
+  createOrUpdateMarker,
+  removeMarker,
+  clearAllMarkers,
+  pruneMarkersToLocationIds,
+  showEmptyMapView,
+  showMarkersForDay,
+  fitMarkers,
+  fitSegment,
+  focusLocation,
+  drawRoutePaths,
+  clearRouteOverlays,
+  highlightSegment,
+  clearSegmentHighlight
 } from './render/map.js';
 import {
-  renderHeader, renderTabs, renderItinerary,
-  updateActiveTab, updateVisibleDayGroups,
-  setRouteCardLoading, updateRouteCardOk, updateRouteCardEstimated,
-  updateRouteCardError, resetRouteCards, setStatus,
+  renderHeader,
+  renderTabs,
+  renderItinerary,
+  updateActiveTab,
+  updateVisibleDayGroups,
+  setRouteCardLoading,
+  updateRouteCardOk,
+  updateRouteCardEstimated,
+  updateRouteCardError,
+  resetRouteCards,
+  setStatus,
   buildRouteSegments
 } from './render/sidebar.js?v=20260509-v6';
 import { openSearchModal } from './render/search-modal.js?v=20260509-v5';
@@ -47,9 +96,17 @@ import { openRouteEditorModal } from './render/route-editor-modal.js';
 import { openTripModal } from './render/trip-modal.js';
 import { openShareModal, updateShareImage, setShareImageLoading } from './render/share-modal.js';
 import { renderWorkspaceTabs, closeWorkspaceMenu } from './render/workspace-tabs.js';
+import { init3DToggle } from './render/toggle-3d.js';
 import { readSharedTripFromURL } from './share.js';
 import { buildTripShareImage, dataURLToBlob } from './share-image.js?v=20260508-r5';
-import { loadWorkspace, saveWorkspace } from './storage.js';
+import {
+  getLastWorkspaceLoadInfo,
+  importWorkspace,
+  loadWorkspace,
+  parseWorkspaceImport,
+  saveWorkspace,
+  stringifyWorkspaceExport
+} from './storage.js';
 import { sleep } from './utils.js';
 import { inferIconId } from './render/icons.js';
 
@@ -59,12 +116,21 @@ const GUIDE_MATCH_TIMEOUT_MS = 8000;
 // ─── boot ──────────────────────────────────────────────
 
 // 启动 banner——刷新后 console 第一行能确认你拿到的是 v8c 代码（不是缓存）
-console.log('%c[trip-app] main.js v8e · L3 Geocoder + 反向 enrich (rating/photo)', 'color:#c95f4a;font-weight:bold');
+console.log(
+  '%c[trip-app] main.js v8e · L3 Geocoder + 反向 enrich (rating/photo)',
+  'color:#c95f4a;font-weight:bold'
+);
+
+let mobileViewSwitchBound = false;
+let dioramaInstance = null;
+let threeDToggle = null;
 
 window.addEventListener('load', boot);
+bindMobileViewSwitch();
 
 async function boot() {
   const savedWorkspace = await loadWorkspace();
+  const workspaceLoadInfo = getLastWorkspaceLoadInfo();
   const sharedTrip = readSharedTripFromURL();
   initWorkspace(savedWorkspace, sharedTrip);
   await persistWorkspace();
@@ -72,6 +138,11 @@ async function boot() {
   renderWorkspace();
   renderHeader();
   setStatus('正在加载高德地图 JS API 2.0...');
+  if (workspaceLoadInfo.status === 'migrated') {
+    setStatus('已兼容旧版本地数据，并保存恢复快照。正在加载地图...');
+  } else if (workspaceLoadInfo.status === 'parse-error' || workspaceLoadInfo.status === 'invalid') {
+    setStatus('本地数据异常，已保存恢复快照并启动默认行程。');
+  }
   bindShareButton();
 
   // 订阅 trip 变更：编辑模式下任何 mutator 都会触发，UI 自动重渲
@@ -90,6 +161,7 @@ async function boot() {
     initMap(AMap);
     createAllMarkers();
     selectDay('all', { fitView: true, planRoutes: false });
+    setup3DToggle();
     syncEmptyWorkspaceUI();
 
     // 后台异步校准坐标，完成后重新设置当前选中的日期
@@ -97,14 +169,45 @@ async function boot() {
     if (hasActiveTrip()) selectDay(getAppState().activeDayId, { fitView: false, planRoutes: true });
   } catch (error) {
     console.error('高德地图加载失败：', error);
-    setStatus('<strong>地图加载失败。</strong>请检查 Key、安全密钥、域名白名单和网络状态。');
+    setStatus('地图加载失败。请检查 Key、安全密钥、域名白名单和网络状态。');
   }
+}
+
+function bindMobileViewSwitch() {
+  if (mobileViewSwitchBound) return;
+  mobileViewSwitchBound = true;
+  document.body.dataset.mobileView ||= 'list';
+  document.querySelectorAll('[data-mobile-view]').forEach(button => {
+    button.addEventListener('click', () => setMobileView(button.dataset.mobileView));
+  });
+  syncMobileViewButtons();
+}
+
+function setMobileView(view) {
+  const nextView = view === 'map' ? 'map' : 'list';
+  document.body.dataset.mobileView = nextView;
+  syncMobileViewButtons();
+  if (nextView === 'map' && getAppState().map) {
+    setTimeout(() => {
+      getAppState().map?.resize?.();
+      selectDay(getAppState().activeDayId, { fitView: true, planRoutes: false });
+    }, 50);
+  }
+}
+
+function syncMobileViewButtons() {
+  const activeView = document.body.dataset.mobileView || 'list';
+  document.querySelectorAll('[data-mobile-view]').forEach(button => {
+    const active = button.dataset.mobileView === activeView;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-selected', String(active));
+  });
 }
 
 function renderAll() {
   renderWorkspace();
   renderTabs({
-    onSelectDay: (dayId) => selectDay(dayId, { fitView: true, planRoutes: true }),
+    onSelectDay: dayId => selectDay(dayId, { fitView: true, planRoutes: true }),
     onAddDay: openCreateDayFlow
   });
   renderItinerary(getItineraryHandlers());
@@ -118,14 +221,14 @@ function getItineraryHandlers() {
       clearSegmentHighlight();
       focusLocation(event.locationId);
     },
-    onRouteClick: (segment) => {
+    onRouteClick: segment => {
       fitSegment(segment);
       highlightSegment(segment.id);
     },
     onEditRoute: openRouteEditorFlow,
     onEditDay: openEditDayFlow,
     onEditEvent: openEditEventFlow,
-    onAddLocation: (dayId) => openAddLocationFlow({ dayId }),
+    onAddLocation: dayId => openAddLocationFlow({ dayId }),
     onAddUnscheduledLocation: () => openAddLocationFlow({ dayId: 'unscheduled' }),
     onAddAfterEvent: (dayId, eventId) => openAddLocationFlow({ dayId, afterEventId: eventId }),
     onMoveEvent: moveEventInDay,
@@ -140,7 +243,7 @@ function getItineraryHandlers() {
 
 function renderWorkspace() {
   renderWorkspaceTabs({
-    onSelectTrip: (tripId) => {
+    onSelectTrip: tripId => {
       if (switchTrip(tripId)) {
         clearSegmentHighlight();
         setStatus('已切换行程。');
@@ -149,8 +252,41 @@ function renderWorkspace() {
     onCreateTrip: openCreateTripFlow,
     onImportGuide: openGuideImportFlow,
     onRenameTrip: openRenameTripFlow,
-    onDeleteTrip: deleteTripFlow
+    onDeleteTrip: deleteTripFlow,
+    onExportWorkspace: exportWorkspaceFlow,
+    onImportWorkspace: importWorkspaceFlow
   });
+}
+
+function setup3DToggle() {
+  const map = getAppState().map;
+  if (!map || threeDToggle) return;
+  threeDToggle = init3DToggle({
+    map,
+    onEnter3D: enter3DView,
+    onExit3D: exit3DView
+  });
+}
+
+async function enter3DView() {
+  if (!hasActiveTrip() || !hasTripEventLocations()) {
+    throw new Error('3D view requires at least one resolved trip location.');
+  }
+  const container = document.getElementById('map-3d');
+  if (!container) throw new Error('3D container is missing.');
+
+  const { initDiorama, enter3DMode } = await import('./render/map-3d.js');
+  dioramaInstance = await initDiorama({ container });
+  await enter3DMode(dioramaInstance, {
+    trip: getTrip(),
+    activeDayId: getAppState().activeDayId
+  });
+}
+
+async function exit3DView() {
+  if (!dioramaInstance) return;
+  const { exit3DMode } = await import('./render/map-3d.js');
+  await exit3DMode(dioramaInstance);
 }
 
 function openCreateTripFlow() {
@@ -161,7 +297,7 @@ function openCreateTripFlow() {
   openTripModal({
     mode: 'create',
     handlers: {
-      onCreate: (title) => {
+      onCreate: title => {
         createTrip(title);
         setStatus('已新建旅行路线。Day 1 已创建，可以开始添加地点。');
       }
@@ -176,7 +312,7 @@ function openRenameTripFlow(tripId) {
     mode: 'edit',
     title: target.title,
     handlers: {
-      onSave: (title) => {
+      onSave: title => {
         renameTrip(tripId, title);
         setStatus('旅行标题已更新。');
       }
@@ -187,7 +323,9 @@ function openRenameTripFlow(tripId) {
 function deleteTripFlow(tripId) {
   const target = getWorkspace().trips.find(item => item.id === tripId);
   if (!target) return;
-  const ok = window.confirm(`删除“${target.title || '这个行程'}”？这个行程里的日期和地点都会一起删除。`);
+  const ok = window.confirm(
+    `删除“${target.title || '这个行程'}”？这个行程里的日期和地点都会一起删除。`
+  );
   if (!ok) return;
   deleteTrip(tripId);
   setStatus(hasActiveTrip() ? '行程已删除。' : '还没有行程。点击添加第一个行程。');
@@ -198,11 +336,17 @@ async function buildGuideDraft(extracted, source, onProgress) {
   const events = [];
   let matched = 0;
   const warnings = [...(extracted.warnings || [])];
-  const normalizedEvents = normalizeGuideEventsFromSource(extracted.events || [], source.text || '', warnings);
+  const normalizedEvents = normalizeGuideEventsFromSource(
+    extracted.events || [],
+    source.text || '',
+    warnings
+  );
   const validEvents = normalizedEvents.filter(item => item?.place_name);
   const eventsToMatch = validEvents.slice(0, GUIDE_MATCH_LIMIT);
   if (validEvents.length > GUIDE_MATCH_LIMIT) {
-    warnings.push(`已保留前 ${GUIDE_MATCH_LIMIT} 个主路线地点，其余地点已忽略，可在导入后手动补充。`);
+    warnings.push(
+      `已保留前 ${GUIDE_MATCH_LIMIT} 个主路线地点，其余地点已忽略，可在导入后手动补充。`
+    );
   }
   const total = eventsToMatch.length;
   // matching step 开始前先 yield 一帧让 UI 切换到"匹配地点"，避免 LLM 阶段一过就立刻冲到下一步
@@ -232,7 +376,7 @@ async function buildGuideDraft(extracted, source, onProgress) {
       placeName: item.place_name,
       day: Number.isInteger(item.day) && item.day > 0 ? item.day : null,
       timeSlot: '',
-      note: poi ? (item.note || '') : '',
+      note: poi ? item.note || '' : '',
       sourceQuote: item.source_quote || '',
       poi,
       matched: Boolean(poi),
@@ -258,25 +402,27 @@ async function buildGuideDraft(extracted, source, onProgress) {
 function withTimeout(promise, ms, fallback, label = '异步任务') {
   let settled = false;
   let timerId;
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     timerId = window.setTimeout(() => {
       settled = true;
       console.warn(`[guide-import] ${label} 超时，已跳过。`);
       resolve(fallback);
     }, ms);
 
-    Promise.resolve(promise).then((value) => {
-      if (settled) return;
-      settled = true;
-      window.clearTimeout(timerId);
-      resolve(value);
-    }).catch((error) => {
-      if (settled) return;
-      settled = true;
-      window.clearTimeout(timerId);
-      console.warn(`[guide-import] ${label} 失败，已跳过：`, error);
-      resolve(fallback);
-    });
+    Promise.resolve(promise)
+      .then(value => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timerId);
+        resolve(value);
+      })
+      .catch(error => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timerId);
+        console.warn(`[guide-import] ${label} 失败，已跳过：`, error);
+        resolve(fallback);
+      });
   });
 }
 
@@ -290,7 +436,7 @@ function normalizeGuideEventsFromSource(events, sourceText, warnings) {
     if (key && !extractedByName.has(key)) extractedByName.set(key, item);
   }
 
-  const normalized = routePlan.map((routeItem) => {
+  const normalized = routePlan.map(routeItem => {
     const key = normalizeGuidePlaceName(routeItem.name);
     const existing = extractedByName.get(key);
     const note = compactGuideNote([routeItem.note, existing?.note].filter(Boolean).join('；'));
@@ -312,7 +458,10 @@ function normalizeGuideEventsFromSource(events, sourceText, warnings) {
 
 function extractMainRoutePlan(sourceText) {
   const text = String(sourceText || '');
-  const lines = text.split(/\r?\n/g).map(line => line.trim()).filter(Boolean);
+  const lines = text
+    .split(/\r?\n/g)
+    .map(line => line.trim())
+    .filter(Boolean);
   const routeItems = [];
   const noteByPlace = new Map();
   let currentDay = null;
@@ -365,7 +514,7 @@ function extractMainRoutePlan(sourceText) {
 }
 
 function parseRouteDay(line) {
-  const alpha = line.match(/(?:^|[\s【\[])([ABC])\s*线/i);
+  const alpha = line.match(/(?:^|[\s【[])([ABC])\s*线/i);
   if (alpha) return alpha[1].toUpperCase().charCodeAt(0) - 64;
   const zhMap = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6 };
   const route = line.match(/路线\s*([一二三四五六1-6])/);
@@ -377,7 +526,7 @@ function parseRouteDay(line) {
 
 function extractRouteLineText(line) {
   if (!/[→>＞]/.test(line)) return '';
-  const match = line.match(/(?:^|[▶▷\-—\s])(?:路线|行程|线路)\s*[：:]\s*(.+)$/);
+  const match = line.match(/(?:^|[▶▷—\s-])(?:路线|行程|线路)\s*[：:]\s*(.+)$/u);
   if (!match) return '';
   return match[1]
     .replace(/[，,。；;].*$/, '')
@@ -387,7 +536,7 @@ function extractRouteLineText(line) {
 
 function cleanRoutePlaceName(value) {
   return String(value || '')
-    .replace(/^[\s✔✓✅📍🔥⭐▶▷\-—、]+/, '')
+    .replace(/^[\s✔✓✅📍🔥⭐▶▷—、-]+/u, '')
     .replace(/\s*(?:路线|行程|线路)\s*$/, '')
     .replace(/[（(].*?[）)]/g, '')
     .replace(/[，,。；;：:].*$/, '')
@@ -395,7 +544,7 @@ function cleanRoutePlaceName(value) {
 }
 
 function parseRoutePointNote(line) {
-  const match = line.match(/^[\s✔✓✅📍🔥⭐\-—、]*([^：:]{2,24})[：:]\s*(.+)$/);
+  const match = line.match(/^[\s✔✓✅📍🔥⭐—、-]*([^：:]{2,24})[：:]\s*(.+)$/u);
   if (!match) return null;
   const name = cleanRoutePlaceName(match[1]);
   const text = compactGuideNote(match[2]);
@@ -414,7 +563,7 @@ function findRouteNoteForPlace(placeName, noteByPlace) {
 
 function compactGuideNote(value) {
   const parts = String(value || '')
-    .replace(/[✅✔✓📍🔥⭐]/g, '')
+    .replace(/[✅✔✓📍🔥⭐]/gu, '')
     .split(/[，,、；;]+/g)
     .map(item => item.trim())
     .filter(Boolean);
@@ -426,7 +575,7 @@ function normalizeGuidePlaceName(value) {
   return String(value || '')
     .toLowerCase()
     .replace(/\s+/g, '')
-    .replace(/[·•\-_—,，.。:：;；()（）【】\[\]《》"'“”‘’]/g, '');
+    .replace(/[·•_—,，.。:：;；()（）【\]《》"'“”‘’-]/g, '');
 }
 
 // 攻略地点匹配：按 PRD §4.4 的降级链做 (Layer 3 source_quote 提名词已删，V1 只剩 2 层 + 兜底)
@@ -488,7 +637,9 @@ async function matchGuidePlace({ placeName, city, note, sourceQuote }) {
       return enriched;
     }
     // enrich 失败也没关系，用纯 Geocoder 结果（无 photo/rating，但有坐标）
-    console.log(`[guide-match] L3 Geocoder "${placeName}" (无 enrich 数据)`, { addr: geocoded.addr });
+    console.log(`[guide-match] L3 Geocoder "${placeName}" (无 enrich 数据)`, {
+      addr: geocoded.addr
+    });
     return geocoded;
   }
 
@@ -516,8 +667,12 @@ function pickBestMatch(places, placeName, threshold) {
 // 例：("便宜坊烤鸭(王府井店)", "便宜坊") → 包含 → min/max = 3/11 ≈ 0.27 — 但我们更看重 LLM
 //     名是否被高德名包含。所以包含关系给一个保底加分。
 function similarityScore(amapName, llmName) {
-  const a = String(amapName || '').toLowerCase().replace(/\s+/g, '');
-  const b = String(llmName || '').toLowerCase().replace(/\s+/g, '');
+  const a = String(amapName || '')
+    .toLowerCase()
+    .replace(/\s+/g, '');
+  const b = String(llmName || '')
+    .toLowerCase()
+    .replace(/\s+/g, '');
   if (!a || !b) return 0;
   if (a === b) return 1;
   // 包含关系：LLM 名是高德名的子串（如 "便宜坊" ⊂ "便宜坊烤鸭"）→ 高置信
@@ -586,16 +741,24 @@ async function geocodeAsPOI(placeName, city) {
         return;
       }
       const geo = result.geocodes?.[0];
-      if (!geo?.location) { resolve(null); return; }
+      if (!geo?.location) {
+        resolve(null);
+        return;
+      }
       const lng = Number(geo.location.lng);
       const lat = Number(geo.location.lat);
-      if (!Number.isFinite(lng) || !Number.isFinite(lat)) { resolve(null); return; }
+      if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+        resolve(null);
+        return;
+      }
       resolve({
         id: `geo-${geo.adcode || Date.now().toString(36)}`,
         name: placeName, // Geocoder 没返回 name，用用户输入兜底
         addr: String(geo.formattedAddress || '').trim(),
         province: String(geo.addressComponent?.province || '').trim(),
-        city: String(geo.addressComponent?.city || geo.addressComponent?.province || city || '').trim(),
+        city: String(
+          geo.addressComponent?.city || geo.addressComponent?.province || city || ''
+        ).trim(),
         district: String(geo.addressComponent?.district || '').trim(),
         type: '',
         lnglat: [lng, lat]
@@ -611,7 +774,7 @@ function extractNounKeywords(note, sourceQuote, excludeKeyword = '') {
   const text = `${note || ''} ${sourceQuote || ''}`;
   if (!text.trim()) return [];
   const fragments = text
-    .split(/[，。、；,\.\s\d:：()（）"'""''!！?？\-—~～·\/]+/g)
+    .split(/[，。、；,.\s\d:：()（）"'""''!！?？—~～·/-]+/g)
     .map(s => s.trim())
     .filter(s => s.length >= 2 && s.length <= 8 && /^[一-鿿]+$/.test(s))
     .filter(s => !excludeKeyword.includes(s) && !s.includes(excludeKeyword));
@@ -629,17 +792,19 @@ function extractNounKeywords(note, sourceQuote, excludeKeyword = '') {
 async function searchGuidePlaces(keyword, city, pageSize = 8) {
   const state = getAppState();
   if (!keyword) return [];
-  const AMap = state.AMap || await loadAMap();
+  const AMap = state.AMap || (await loadAMap());
   if (!state.AMap) setAMap(AMap);
 
   const cityCandidates = [];
   if (city) cityCandidates.push(city); // A: AI/用户城市名
-  cityCandidates.push(false);          // B: 全国兜底。不要回退默认北京，避免跨城市攻略误匹配。
+  cityCandidates.push(false); // B: 全国兜底。不要回退默认北京，避免跨城市攻略误匹配。
 
   for (const cityArg of cityCandidates) {
     const places = await searchPlaces(AMap, keyword, { city: cityArg, pageSize });
-    console.log(`[guide-search] "${keyword}" tried city=${JSON.stringify(cityArg)} → count=${places.length}`,
-      places.length ? `first="${places[0]?.name}"` : '');
+    console.log(
+      `[guide-search] "${keyword}" tried city=${JSON.stringify(cityArg)} → count=${places.length}`,
+      places.length ? `first="${places[0]?.name}"` : ''
+    );
     if (places.length) return places;
   }
   console.warn(`[guide-search] "${keyword}" 城市/全国搜索都 0 结果`, { tried: cityCandidates });
@@ -715,9 +880,9 @@ function importGuideDraft(draft) {
 function openCreateDayFlow() {
   openDayEditorModal({
     mode: 'create',
-    day: { title: '' },  // V5：title 默认空，提交后 sidebar 显示"新的一天"
+    day: { title: '' }, // V5：title 默认空，提交后 sidebar 显示"新的一天"
     handlers: {
-      onCreate: (patch) => {
+      onCreate: patch => {
         const dayId = addDay(patch);
         return !!dayId;
       }
@@ -791,9 +956,7 @@ async function regenerateShareImage(includeRoutes) {
   try {
     const image = await buildTripShareImage(getTrip(), { includeRoutes });
     updateShareImage(image.dataURL, image.filename);
-    setStatus(includeRoutes
-      ? '分享长图已重新生成（含交通方式）。'
-      : '分享长图已重新生成。');
+    setStatus(includeRoutes ? '分享长图已重新生成（含交通方式）。' : '分享长图已重新生成。');
   } catch (error) {
     console.error('重新生成分享长图失败：', error);
     setStatus('重新生成失败，请关闭后再试。');
@@ -816,9 +979,7 @@ async function copyShareImage(imageUrl) {
     return;
   }
   try {
-    await navigator.clipboard.write([
-      new ClipboardItem({ 'image/png': dataURLToBlob(imageUrl) })
-    ]);
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': dataURLToBlob(imageUrl) })]);
     setStatus('分享长图已复制。');
   } catch (error) {
     console.warn('复制图片失败：', error);
@@ -828,16 +989,16 @@ async function copyShareImage(imageUrl) {
 
 // ─── 添加地点流程 ───────────────────────────────────────
 
-
 // "搜附近"流水线（不再调 LLM）：直接用用户原话当 keyword，在锚点附近搜
 // 默认半径 5km；最多返回 4 个 POI（按高德返回顺序，离锚点近优先）
 const NEARBY_DEFAULT_RADIUS = 5000;
 const NEARBY_MAX_RESULTS = 4;
 async function runNearbySearch({ userInput, anchorLocation, AMap }) {
   if (!userInput) return [];
-  const center = Array.isArray(anchorLocation?.lnglat) && anchorLocation.lnglat.length >= 2
-    ? anchorLocation.lnglat
-    : null;
+  const center =
+    Array.isArray(anchorLocation?.lnglat) && anchorLocation.lnglat.length >= 2
+      ? anchorLocation.lnglat
+      : null;
 
   let candidates;
   if (center) {
@@ -859,7 +1020,9 @@ async function runNearbySearch({ userInput, anchorLocation, AMap }) {
 // 3) 无高亮：回退到当天最后一个地点
 function resolveAddLocationAnchor(dayId, afterEventId) {
   const isUnscheduled = dayId === 'unscheduled';
-  const day = isUnscheduled ? { id: 'unscheduled', events: getTrip().unscheduled || [] } : getDay(dayId);
+  const day = isUnscheduled
+    ? { id: 'unscheduled', events: getTrip().unscheduled || [] }
+    : getDay(dayId);
   if (!day) return null;
   const events = day.events || [];
   if (!events.length) return null;
@@ -895,12 +1058,13 @@ function openAddLocationFlow(options = {}) {
     nearbyAnchor: anchorLocation
       ? { name: anchorLocation.name, radius: NEARBY_DEFAULT_RADIUS, maxResults: NEARBY_MAX_RESULTS }
       : null,
-    onSearch: (keyword) => searchPlaces(state.AMap, keyword),
-    onNearbySearch: (userInput) => runNearbySearch({
-      userInput,
-      anchorLocation,
-      AMap: state.AMap
-    }),
+    onSearch: keyword => searchPlaces(state.AMap, keyword),
+    onNearbySearch: userInput =>
+      runNearbySearch({
+        userInput,
+        anchorLocation,
+        AMap: state.AMap
+      }),
     onConfirm: ({ place, event }) => {
       const locationId = addLocation({
         name: place.name,
@@ -966,11 +1130,12 @@ async function openGuideImportFlow(initial = {}) {
         openGuidePreviewModal({
           draft,
           handlers: {
-            onBack: (currentDraft) => openGuideImportFlow({
-              text: currentDraft.sourceText,
-              cityHint: currentDraft.cityHint
-            }),
-            onSearchPlace: (keyword) => searchGuidePlaces(keyword, false, 8),
+            onBack: currentDraft =>
+              openGuideImportFlow({
+                text: currentDraft.sourceText,
+                cityHint: currentDraft.cityHint
+              }),
+            onSearchPlace: keyword => searchGuidePlaces(keyword, false, 8),
             onConfirm: importGuideDraft
           }
         });
@@ -998,16 +1163,17 @@ function openEditEventFlow(dayId, event) {
     handlers: {
       currentContainerId: dayId,
       containerOptions: getEventContainerOptions(),
-      onSearch: (keyword) => searchPlaces(state.AMap, keyword),
+      onSearch: keyword => searchPlaces(state.AMap, keyword),
       nearbyAnchor: loc?.lnglat
         ? { name: loc.name, radius: NEARBY_DEFAULT_RADIUS, maxResults: NEARBY_MAX_RESULTS }
         : null,
-      onNearbySearch: (userInput) => runNearbySearch({
-        userInput,
-        anchorLocation: loc,
-        AMap: state.AMap
-      }),
-      onResolveAddress: (lnglat) => reverseGeocode(state.AMap, lnglat),
+      onNearbySearch: userInput =>
+        runNearbySearch({
+          userInput,
+          anchorLocation: loc,
+          AMap: state.AMap
+        }),
+      onResolveAddress: lnglat => reverseGeocode(state.AMap, lnglat),
       onConfirm: ({ event: eventPatch, location, selectedPlace }) => {
         const targetDayId = eventPatch.targetDayId || dayId;
         delete eventPatch.targetDayId;
@@ -1046,9 +1212,10 @@ function deleteEventFlow(dayId, event) {
   if (!ok) return;
 
   const locationId = event.locationId;
-  const removed = dayId === 'unscheduled'
-    ? removeUnscheduledEvent(event.id)
-    : removeEventFromDay(dayId, event.id);
+  const removed =
+    dayId === 'unscheduled'
+      ? removeUnscheduledEvent(event.id)
+      : removeEventFromDay(dayId, event.id);
   if (!removed) return;
   const state = getAppState();
   if (state.selectedEventRef?.dayId === dayId && state.selectedEventRef?.eventId === event.id) {
@@ -1084,7 +1251,7 @@ function openRouteEditorFlow(segment) {
   openRouteEditorModal({
     segment,
     handlers: {
-      onConfirm: (routeToNext) => {
+      onConfirm: routeToNext => {
         if (!updateRouteToNext(segment.dayId, segment.eventId, routeToNext)) {
           setStatus('路线设置更新失败，请重试。');
         }
@@ -1098,10 +1265,99 @@ function countLocationReferences(locationId) {
   const dayCount = trip.days.reduce((count, day) => {
     return count + day.events.filter(event => event.locationId === locationId).length;
   }, 0);
-  const unscheduledCount = (trip.unscheduled || [])
-    .filter(event => event.locationId === locationId)
-    .length;
+  const unscheduledCount = (trip.unscheduled || []).filter(
+    event => event.locationId === locationId
+  ).length;
   return dayCount + unscheduledCount;
+}
+
+function exportWorkspaceFlow() {
+  const content = stringifyWorkspaceExport(getWorkspace());
+  const date = new Date().toISOString().slice(0, 10);
+  downloadTextFile(`travel-with-me-workspace-${date}.json`, content, 'application/json');
+  setStatus('工作区 JSON 已导出。');
+}
+
+async function importWorkspaceFlow() {
+  const file = await pickJSONFile();
+  if (!file) return;
+
+  let text;
+  try {
+    text = await readFileAsText(file);
+  } catch {
+    setStatus('读取导入文件失败。');
+    return;
+  }
+
+  const parsed = parseWorkspaceImport(text);
+  if (!parsed.ok) {
+    setStatus(parsed.message || '导入文件格式不正确。');
+    return;
+  }
+
+  const tripCount = parsed.workspace.trips.length;
+  const confirmed = window.confirm(
+    `将导入 ${tripCount} 条旅行路线，并替换当前本地工作区。当前数据会先保存恢复快照。是否继续？`
+  );
+  if (!confirmed) return;
+
+  const result = await importWorkspace(parsed.workspace);
+  if (!result.ok) {
+    setStatus(result.message || '导入失败，请检查文件格式。');
+    return;
+  }
+
+  initWorkspace(parsed.workspace);
+  await persistWorkspace();
+  clearAllMarkers();
+  clearRouteOverlays();
+  resetRouteCards();
+  renderHeader();
+  renderAll();
+  if (getAppState().map) {
+    createAllMarkers();
+    selectDay('all', { fitView: true, planRoutes: false });
+  }
+  setStatus(result.recoveryKey ? '工作区已导入，原数据已保存恢复快照。' : '工作区已导入。');
+}
+
+function downloadTextFile(filename, content, type = 'text/plain') {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function pickJSONFile() {
+  return new Promise(resolve => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json,.json';
+    input.addEventListener(
+      'change',
+      () => {
+        resolve(input.files?.[0] || null);
+        input.remove();
+      },
+      { once: true }
+    );
+    input.click();
+  });
+}
+
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener('load', () => resolve(String(reader.result || '')));
+    reader.addEventListener('error', () => reject(reader.error));
+    reader.readAsText(file, 'utf-8');
+  });
 }
 
 // ─── trip 变更订阅 ──────────────────────────────────────
@@ -1144,7 +1400,7 @@ function handleTripChanged(payload) {
 
   // 编辑型变更统一重新渲染行程，再按当前视图刷新 marker 和路线。
   renderTabs({
-    onSelectDay: (dayId) => selectDay(dayId, { fitView: true, planRoutes: true }),
+    onSelectDay: dayId => selectDay(dayId, { fitView: true, planRoutes: true }),
     onAddDay: openCreateDayFlow
   });
   renderItinerary(getItineraryHandlers());
@@ -1160,7 +1416,7 @@ function handleTripReplaced() {
   renderWorkspace();
   renderHeader();
   renderTabs({
-    onSelectDay: (dayId) => selectDay(dayId, { fitView: true, planRoutes: true }),
+    onSelectDay: dayId => selectDay(dayId, { fitView: true, planRoutes: true }),
     onAddDay: openCreateDayFlow
   });
   renderItinerary(getItineraryHandlers());
@@ -1242,7 +1498,9 @@ function scheduleRoutePlanning(day) {
 
 async function planRoutesForDay(day, segments, serial) {
   const state = getAppState();
-  let success = 0, estimated = 0, failed = 0;
+  let success = 0,
+    estimated = 0,
+    failed = 0;
 
   for (const segment of segments) {
     if (serial !== state.routePlanningSerial) return; // 用户切走了，丢弃结果
@@ -1265,7 +1523,9 @@ async function planRoutesForDay(day, segments, serial) {
   }
 
   if (serial !== state.routePlanningSerial) return;
-  setStatus(`${dayDisplayLabel(day)} 已完成：${success} 段真实路线，${estimated} 段估算路线，${failed} 段失败。`);
+  setStatus(
+    `${dayDisplayLabel(day)} 已完成：${success} 段真实路线，${estimated} 段估算路线，${failed} 段失败。`
+  );
 }
 
 // V5：用 Day N · 标题 显示某一天，替代之前的 formatDateCN(day.date)
@@ -1309,7 +1569,9 @@ async function searchAutoSegment(segment, serial) {
   }
 
   applySegmentMode(segment, 'driving');
-  return driving.ok || driving.estimated ? driving : buildEstimatedResult(asRouteModeSegment(segment, 'driving'));
+  return driving.ok || driving.estimated
+    ? driving
+    : buildEstimatedResult(asRouteModeSegment(segment, 'driving'));
 }
 
 const AUTO_ROUTE_MAX_TRANSIT_BOARDINGS = 3;
@@ -1327,7 +1589,8 @@ function shouldUseTransitOverDriving(transit, driving) {
   const transitDuration = Number(transit.detail?.duration || 0);
   const drivingDuration = Number(driving.detail?.duration || 0);
   if (transitDuration > 0 && drivingDuration > 0) {
-    if (transitDuration - drivingDuration >= AUTO_ROUTE_DRIVING_TIME_ADVANTAGE_SECONDS) return false;
+    if (transitDuration - drivingDuration >= AUTO_ROUTE_DRIVING_TIME_ADVANTAGE_SECONDS)
+      return false;
     if (transitDuration >= drivingDuration * AUTO_ROUTE_TRANSIT_SLOW_RATIO) return false;
   }
 
@@ -1376,10 +1639,12 @@ function hasValidSegmentCoords(segment) {
 }
 
 function isValidLngLat(value) {
-  return Array.isArray(value) &&
+  return (
+    Array.isArray(value) &&
     value.length >= 2 &&
     Number.isFinite(Number(value[0])) &&
-    Number.isFinite(Number(value[1]));
+    Number.isFinite(Number(value[1]))
+  );
 }
 
 function clearAllRoutes() {
@@ -1437,10 +1702,12 @@ async function resolveAllLocations() {
 }
 
 function hasValidLngLat(lnglat) {
-  return Array.isArray(lnglat)
-    && lnglat.length >= 2
-    && Number.isFinite(Number(lnglat[0]))
-    && Number.isFinite(Number(lnglat[1]));
+  return (
+    Array.isArray(lnglat) &&
+    lnglat.length >= 2 &&
+    Number.isFinite(Number(lnglat[0])) &&
+    Number.isFinite(Number(lnglat[1]))
+  );
 }
 
 function syncEmptyWorkspaceUI() {
