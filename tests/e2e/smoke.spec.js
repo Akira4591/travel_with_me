@@ -571,6 +571,11 @@ test('desktop can enter and exit nonblank 3D map view', async ({ page, isMobile 
 
   await expect(page.locator('#map-3d canvas')).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('#map-3d-toggle')).toContainText('2D');
+  await expect(page.locator('#map-3d')).toHaveAttribute('data-terrain-mode', 'citywalk');
+  await expect(page.locator('#map-3d')).toHaveAttribute(
+    'data-terrain-confidence',
+    /sampled|low-relief/
+  );
   await expect
     .poll(async () =>
       page.locator('#map-3d canvas').evaluate(canvas => {

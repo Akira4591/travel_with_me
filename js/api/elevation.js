@@ -9,6 +9,8 @@
 //   const grid = await fetchElevationGrid(center, span, resolution);
 
 const ELEVATION_API = 'https://api.open-meteo.com/v1/elevation';
+const MAX_LOCATIONS_PER_REQUEST = 100;
+const gridCache = new Map();
 
 /**
  * @typedef {object} ElevationGrid
@@ -51,31 +53,38 @@ export async function fetchElevationGrid({ center, span, resolution = 40 }) {
 
   const cols = Math.max(8, Math.min(80, Math.round(resolution)));
   const rows = cols;
+  const cacheKey = `${centerLng.toFixed(5)}:${centerLat.toFixed(5)}:${spanMeters}:${rows}x${cols}`;
+  if (gridCache.has(cacheKey)) return gridCache.get(cacheKey);
 
   // 生成采样点数组
-  const lats = [];
-  const lngs = [];
+  const coordPairs = [];
   for (let row = 0; row < rows; row++) {
     const lat = minLat + (maxLat - minLat) * (row / (rows - 1));
     for (let col = 0; col < cols; col++) {
       const lng = minLng + (maxLng - minLng) * (col / (cols - 1));
-      lats.push(lat.toFixed(6));
-      lngs.push(lng.toFixed(6));
+      coordPairs.push(`${lat.toFixed(6)},${lng.toFixed(6)}`);
     }
   }
 
   try {
-    const url = new URL(ELEVATION_API);
-    url.searchParams.set('locations', formatCoordPairs(lats, lngs));
-    url.searchParams.set('format', 'json');
+    const elevations = [];
+    for (let start = 0; start < coordPairs.length; start += MAX_LOCATIONS_PER_REQUEST) {
+      const chunk = coordPairs.slice(start, start + MAX_LOCATIONS_PER_REQUEST);
+      const url = new URL(ELEVATION_API);
+      url.searchParams.set('locations', chunk.join('|'));
+      url.searchParams.set('format', 'json');
 
-    const resp = await fetch(url.toString(), {
-      headers: { accept: 'application/json' }
-    });
-    if (!resp.ok) throw new Error(`Elevation API ${resp.status}`);
+      const resp = await fetch(url.toString(), {
+        headers: { accept: 'application/json' }
+      });
+      if (!resp.ok) throw new Error(`Elevation API ${resp.status}`);
 
-    const data = await resp.json();
-    if (!Array.isArray(data.elevation)) throw new Error('Invalid elevation response');
+      const data = await resp.json();
+      if (!Array.isArray(data.elevation)) throw new Error('Invalid elevation response');
+      elevations.push(...data.elevation);
+    }
+
+    if (elevations.length < rows * cols) throw new Error('Incomplete elevation response');
 
     // 将扁平数组重组为 2D 网格
     const heights = [];
@@ -83,12 +92,12 @@ export async function fetchElevationGrid({ center, span, resolution = 40 }) {
       const rowData = [];
       for (let col = 0; col < cols; col++) {
         const idx = row * cols + col;
-        rowData.push(Number(data.elevation[idx]) || 0);
+        rowData.push(Number(elevations[idx]) || 0);
       }
       heights.push(rowData);
     }
 
-    return {
+    const grid = {
       heights,
       rows,
       cols,
@@ -99,6 +108,8 @@ export async function fetchElevationGrid({ center, span, resolution = 40 }) {
       originLng: centerLng,
       originLat: centerLat
     };
+    gridCache.set(cacheKey, grid);
+    return grid;
   } catch (err) {
     console.warn('[elevation] 获取高程数据失败，使用平坦地形:', err.message);
     return null;
@@ -126,13 +137,4 @@ export async function fetchPointElevation([lng, lat]) {
   } catch {
     return null;
   }
-}
-
-/** @private */
-function formatCoordPairs(lats, lngs) {
-  const pairs = [];
-  for (let i = 0; i < lats.length; i++) {
-    pairs.push(`${lats[i]},${lngs[i]}`);
-  }
-  return pairs.join('|');
 }

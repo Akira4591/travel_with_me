@@ -286,15 +286,15 @@
 
 真实开发步骤：
 
-1. 完成 `chooseTerrainMode()`：Micro Street、Citywalk、Scenic Park、Hiking、Region Overview。
-2. 定义 `TerrainModel`：`bounds`、`grid`、`heightAt(x,z)`、`mesh`、`sideSkirts`、`terrainConfidence`。
-3. 城市小店模式：低地形精度，优先 POI label、路网线和建筑体块。
+1. 完成 `chooseTerrainMode()`：Micro Street、Citywalk、Scenic Park、Hiking、Region Overview。（S2-4 已完成首批）
+2. 定义 `TerrainModel`：`bounds`、`grid`、`heightAt(x,z)`、`mesh`、`sideSkirts`、`terrainConfidence`。（S2-4 已完成首批）
+3. 城市小店模式：低地形精度，优先 POI label、路网线和建筑体块。（S2-4 已完成模式决策，label 避让待后续）
 4. 景区模式：40x40 起步，显示入口、索道、观景点、坡度摘要。
 5. 徒步模式：没有 DEM tile 时只显示估算，不输出“最陡路段”等强结论。
 6. 做 2D 到 3D 动效：地图纸面冻结、长方体抬升、顶面融化、路线浮现。
-7. 相机：默认 55-65 度，自动环绕极慢；用户拖动时暂停自动环绕 4-8 秒。
-8. 地形切分：S1/S2 单块 mesh；超过预算再切 tile/chunk。
-9. 浏览器测试：桌面端 canvas 非空、主要控制不遮挡、降级模式能进入；375px 只做基础打开回归。
+7. 相机：默认 55-65 度，自动环绕极慢；用户拖动时暂停自动环绕 4-8 秒。（S2-4 已调整为 6 秒恢复）
+8. 地形切分：S1/S2 单块 mesh；超过预算再切 tile/chunk。（S2-4 保持单块 mesh）
+9. 浏览器测试：桌面端 canvas 非空、主要控制不遮挡、降级模式能进入；375px 只做基础打开回归。（S2-4 已断言 terrain mode/confidence）
 
 验收标准：
 
