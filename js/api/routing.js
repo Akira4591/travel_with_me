@@ -8,16 +8,9 @@
 //
 // 上层（render/sidebar）只关心这个统一形态，不需要知道高德返回什么
 
-import { createLogger } from '../logger.js';
 import { AppConfig } from '../config.js';
 import { toNumber, calculateDistance, cleanText, getTransportIcon, sleep } from '../utils.js';
-import { createLogger } from "../logger.js";
-const log = createLogger("routing");
-
 import { getRouteDisplayLabel } from '../route-config.js';
-import { createLogger } from '../logger.js';
-
-const log = createLogger('routing');
 
 // ─── 创建路线服务 ──────────────────────────────────────
 
