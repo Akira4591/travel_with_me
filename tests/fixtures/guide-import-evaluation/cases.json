@@ -1,0 +1,364 @@
+[
+  {
+    "id": "beijing-daily-citywalk",
+    "title": "北京一日 citywalk",
+    "cityHint": "北京",
+    "sourceText": "上午先从鼓楼出发，在烟袋斜街慢慢逛，午饭去南锣鼓巷附近找小吃。下午坐车到景山公园看故宫中轴线，傍晚去什刹海散步，晚上回鼓楼附近吃饭。",
+    "expected": {
+      "guideType": "daily_itinerary",
+      "events": [
+        {
+          "placeName": "鼓楼",
+          "day": 1,
+          "noteKeywords": ["上午", "出发"]
+        },
+        {
+          "placeName": "烟袋斜街",
+          "day": 1,
+          "noteKeywords": ["慢慢逛"]
+        },
+        {
+          "placeName": "南锣鼓巷",
+          "day": 1,
+          "noteKeywords": ["午饭", "小吃"]
+        },
+        {
+          "placeName": "景山公园",
+          "day": 1,
+          "noteKeywords": ["故宫", "中轴线"]
+        },
+        {
+          "placeName": "什刹海",
+          "day": 1,
+          "noteKeywords": ["傍晚", "散步"]
+        }
+      ]
+    },
+    "modelOutput": {
+      "guide_type": "daily_itinerary",
+      "city": "北京",
+      "title_suggestion": "北京一日 citywalk",
+      "events": [
+        {
+          "day": 1,
+          "place_name": "鼓楼",
+          "note": "上午从鼓楼出发"
+        },
+        {
+          "day": 1,
+          "place_name": "烟袋斜街",
+          "note": "慢慢逛胡同街区"
+        },
+        {
+          "day": 1,
+          "place_name": "南锣鼓巷",
+          "note": "午饭找小吃"
+        },
+        {
+          "day": 1,
+          "place_name": "景山公园",
+          "note": "下午看故宫中轴线"
+        },
+        {
+          "day": 1,
+          "place_name": "什刹海",
+          "note": "傍晚散步"
+        }
+      ]
+    }
+  },
+  {
+    "id": "hangzhou-mixed-guide",
+    "title": "杭州两日混合攻略",
+    "cityHint": "杭州",
+    "sourceText": "Day1 早上去灵隐寺，注意早点到，午后去法喜寺拍照，晚上在湖滨银泰附近吃饭。Day2 上午西湖骑行，重点走苏堤和白堤。额外推荐：青芝坞适合咖啡，馒头山社区适合拍照，但不一定排进行程。",
+    "expected": {
+      "guideType": "mixed",
+      "events": [
+        {
+          "placeName": "灵隐寺",
+          "day": 1,
+          "noteKeywords": ["早点"]
+        },
+        {
+          "placeName": "法喜寺",
+          "day": 1,
+          "noteKeywords": ["拍照"]
+        },
+        {
+          "placeName": "湖滨银泰",
+          "day": 1,
+          "noteKeywords": ["晚上", "吃饭"]
+        },
+        {
+          "placeName": "西湖",
+          "day": 2,
+          "noteKeywords": ["骑行"]
+        },
+        {
+          "placeName": "苏堤",
+          "day": 2,
+          "noteKeywords": ["骑行"]
+        },
+        {
+          "placeName": "白堤",
+          "day": 2,
+          "noteKeywords": ["骑行"]
+        },
+        {
+          "placeName": "青芝坞",
+          "day": null,
+          "noteKeywords": ["咖啡"]
+        },
+        {
+          "placeName": "馒头山社区",
+          "day": null,
+          "noteKeywords": ["拍照"]
+        }
+      ]
+    },
+    "modelOutput": {
+      "guide_type": "mixed",
+      "city": "杭州",
+      "title_suggestion": "杭州两日轻旅行",
+      "events": [
+        {
+          "day": 1,
+          "place_name": "灵隐寺",
+          "note": "早上早点到"
+        },
+        {
+          "day": 1,
+          "place_name": "法喜寺",
+          "note": "午后适合拍照"
+        },
+        {
+          "day": 1,
+          "place_name": "湖滨银泰",
+          "note": "晚上吃饭"
+        },
+        {
+          "day": 2,
+          "place_name": "西湖",
+          "note": "上午骑行"
+        },
+        {
+          "day": 2,
+          "place_name": "苏堤",
+          "note": "西湖骑行重点"
+        },
+        {
+          "day": 2,
+          "place_name": "白堤",
+          "note": "西湖骑行重点"
+        },
+        {
+          "day": null,
+          "place_name": "青芝坞",
+          "note": "适合咖啡"
+        },
+        {
+          "day": null,
+          "place_name": "馒头山社区",
+          "note": "适合拍照"
+        }
+      ]
+    }
+  },
+  {
+    "id": "chengdu-recommendation-list",
+    "title": "成都小店推荐合集",
+    "cityHint": "成都",
+    "sourceText": "不是严格路线，收藏几个成都小店：奎星楼街适合晚上吃串串，东郊记忆适合拍照，望平街适合咖啡和散步，玉林路适合夜生活。时间看当天状态安排。",
+    "expected": {
+      "guideType": "recommendation_list",
+      "events": [
+        {
+          "placeName": "奎星楼街",
+          "day": null,
+          "noteKeywords": ["串串"]
+        },
+        {
+          "placeName": "东郊记忆",
+          "day": null,
+          "noteKeywords": ["拍照"]
+        },
+        {
+          "placeName": "望平街",
+          "day": null,
+          "noteKeywords": ["咖啡", "散步"]
+        },
+        {
+          "placeName": "玉林路",
+          "day": null,
+          "noteKeywords": ["夜生活"]
+        }
+      ]
+    },
+    "modelOutput": {
+      "guide_type": "recommendation_list",
+      "city": "成都",
+      "title_suggestion": "成都小店收藏",
+      "events": [
+        {
+          "day": null,
+          "place_name": "奎星楼街",
+          "note": "晚上吃串串"
+        },
+        {
+          "day": null,
+          "place_name": "东郊记忆",
+          "note": "适合拍照"
+        },
+        {
+          "day": null,
+          "place_name": "望平街",
+          "note": "咖啡和散步"
+        },
+        {
+          "day": null,
+          "place_name": "玉林路",
+          "note": "夜生活"
+        }
+      ]
+    }
+  },
+  {
+    "id": "shanghai-noisy-post",
+    "title": "带广告噪声的上海攻略",
+    "cityHint": "上海",
+    "sourceText": "这篇没有广！住宿我订了人民广场附近。路线：第一天先去武康路拍照，然后走到安福路逛店，下午去徐家汇书院。文末还有我用的相机、口红色号和酒店优惠码，这些不用加入行程。",
+    "expected": {
+      "guideType": "daily_itinerary",
+      "events": [
+        {
+          "placeName": "人民广场",
+          "day": null,
+          "noteKeywords": ["住宿"]
+        },
+        {
+          "placeName": "武康路",
+          "day": 1,
+          "noteKeywords": ["拍照"]
+        },
+        {
+          "placeName": "安福路",
+          "day": 1,
+          "noteKeywords": ["逛店"]
+        },
+        {
+          "placeName": "徐家汇书院",
+          "day": 1,
+          "noteKeywords": ["下午"]
+        }
+      ],
+      "forbiddenPlaceNames": ["相机", "口红色号", "酒店优惠码"]
+    },
+    "modelOutput": {
+      "guide_type": "daily_itinerary",
+      "city": "上海",
+      "title_suggestion": "上海街区拍照路线",
+      "events": [
+        {
+          "day": null,
+          "place_name": "人民广场",
+          "note": "住宿附近"
+        },
+        {
+          "day": 1,
+          "place_name": "武康路",
+          "note": "拍照"
+        },
+        {
+          "day": 1,
+          "place_name": "安福路",
+          "note": "逛店"
+        },
+        {
+          "day": 1,
+          "place_name": "徐家汇书院",
+          "note": "下午前往"
+        }
+      ]
+    }
+  },
+  {
+    "id": "kyoto-cross-city",
+    "title": "京都奈良跨城路线",
+    "cityHint": "京都",
+    "sourceText": "第一天京都：上午清水寺，午后走二年坂三年坂，晚上鸭川散步。第二天去奈良，上午奈良公园看小鹿，中午春日大社，下午回京都站。不要把大阪购物清单加入这条路线。",
+    "expected": {
+      "guideType": "daily_itinerary",
+      "events": [
+        {
+          "placeName": "清水寺",
+          "day": 1,
+          "noteKeywords": ["上午"]
+        },
+        {
+          "placeName": "二年坂三年坂",
+          "day": 1,
+          "noteKeywords": ["午后"]
+        },
+        {
+          "placeName": "鸭川",
+          "day": 1,
+          "noteKeywords": ["晚上", "散步"]
+        },
+        {
+          "placeName": "奈良公园",
+          "day": 2,
+          "noteKeywords": ["小鹿"]
+        },
+        {
+          "placeName": "春日大社",
+          "day": 2,
+          "noteKeywords": ["中午"]
+        },
+        {
+          "placeName": "京都站",
+          "day": 2,
+          "noteKeywords": ["回京都"]
+        }
+      ],
+      "forbiddenPlaceNames": ["大阪购物清单"]
+    },
+    "modelOutput": {
+      "guide_type": "daily_itinerary",
+      "city": "京都",
+      "title_suggestion": "京都奈良两日路线",
+      "events": [
+        {
+          "day": 1,
+          "place_name": "清水寺",
+          "note": "上午参观"
+        },
+        {
+          "day": 1,
+          "place_name": "二年坂三年坂",
+          "note": "午后散步"
+        },
+        {
+          "day": 1,
+          "place_name": "鸭川",
+          "note": "晚上散步"
+        },
+        {
+          "day": 2,
+          "place_name": "奈良公园",
+          "note": "上午看小鹿"
+        },
+        {
+          "day": 2,
+          "place_name": "春日大社",
+          "note": "中午参观"
+        },
+        {
+          "day": 2,
+          "place_name": "京都站",
+          "note": "下午回京都"
+        }
+      ]
+    }
+  }
+]
