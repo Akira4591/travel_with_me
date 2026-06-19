@@ -43,6 +43,6 @@ function loadWithSdk(resolve, reject) {
     version: '2.0',
     plugins: AppConfig.plugins
   })
-  .then(resolve)
-  .catch(reject);
+    .then(resolve)
+    .catch(reject);
 }

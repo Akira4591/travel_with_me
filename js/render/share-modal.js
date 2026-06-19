@@ -94,16 +94,16 @@ function bindEvents(root) {
     currentHandlers?.onCopyImage?.(currentImageUrl);
   });
 
-  root.querySelector('.share-include-routes').addEventListener('change', (e) => {
+  root.querySelector('.share-include-routes').addEventListener('change', e => {
     if (isRegenerating) return;
     setLoading(true);
     currentHandlers?.onRegenerate?.(e.target.checked);
   });
 
-  root.addEventListener('click', (e) => {
+  root.addEventListener('click', e => {
     if (e.target === root) closeShareModal();
   });
-  root.addEventListener('keydown', (e) => {
+  root.addEventListener('keydown', e => {
     if (e.key === 'Escape') closeShareModal();
   });
 }

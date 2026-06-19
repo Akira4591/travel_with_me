@@ -7,13 +7,8 @@
 // 这样 sidebar 不直接依赖 main.js，main.js 决定点击后做什么
 
 import { AppConfig } from '../config.js';
-import {
-  getTrip, getLocation, getAppState, getRouteCard, hasActiveTrip
-} from '../state.js';
-import {
-  escapeHTML, formatDistance, formatDuration,
-  getTransportLabel
-} from '../utils.js';
+import { getTrip, getLocation, getAppState, getRouteCard, hasActiveTrip } from '../state.js';
+import { escapeHTML, formatDistance, formatDuration, getTransportLabel } from '../utils.js';
 import { getIconIdForEvent, renderIconSVG } from './icons.js';
 import { getTimeSlotLabel, normalizeTimeSlot } from '../time-slots.js';
 import { getRouteDisplayLabel, normalizeRouteToNext } from '../route-config.js';
@@ -85,10 +80,11 @@ export function updateVisibleDayGroups(dayId) {
 
   document.querySelectorAll('.day-group').forEach(group => {
     const isUnscheduled = group.dataset.dayId === 'unscheduled';
-    group.style.display =
-      (isUnscheduled ? dayId === 'all' : dayId === 'all' || group.dataset.dayId === dayId)
-        ? 'block'
-        : 'none';
+    group.style.display = (
+      isUnscheduled ? dayId === 'all' : dayId === 'all' || group.dataset.dayId === dayId
+    )
+      ? 'block'
+      : 'none';
   });
   document.querySelectorAll('.route-card').forEach(card => {
     card.hidden = dayId === 'all';
@@ -267,9 +263,7 @@ function createEventCard(day, event, eventIndex, handlers) {
   const addTimeHTML = timeSlot
     ? ''
     : '<button type="button" class="event-add-time-btn">+ 添加时间</button>';
-  const noteHTML = event.note
-    ? `<div class="event-note">${escapeHTML(event.note)}</div>`
-    : '';
+  const noteHTML = event.note ? `<div class="event-note">${escapeHTML(event.note)}</div>` : '';
   const actionHTML = isUnscheduled
     ? `
         <button type="button" class="event-action-btn" data-action="edit" title="编辑">···</button>
@@ -313,12 +307,12 @@ function createEventCard(day, event, eventIndex, handlers) {
 
   bindDragEvents(card, day, event, handlers);
 
-  card.querySelector('.event-add-time-btn')?.addEventListener('click', (e) => {
+  card.querySelector('.event-add-time-btn')?.addEventListener('click', e => {
     e.stopPropagation();
     handlers.onEditEvent?.(day.id, event);
   });
 
-  card.querySelector('.card-actions').addEventListener('click', (e) => {
+  card.querySelector('.card-actions').addEventListener('click', e => {
     const btn = e.target.closest('button[data-action]');
     if (!btn || btn.disabled) return;
     e.stopPropagation();
@@ -337,16 +331,19 @@ function createEventCard(day, event, eventIndex, handlers) {
 function bindDragEvents(card, day, event, handlers) {
   const handle = card.querySelector('.drag-handle');
 
-  handle.addEventListener('click', (e) => e.stopPropagation());
-  handle.addEventListener('dragstart', (e) => {
+  handle.addEventListener('click', e => e.stopPropagation());
+  handle.addEventListener('dragstart', e => {
     e.stopPropagation();
     card.classList.add('dragging');
     e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', JSON.stringify({
+    e.dataTransfer.setData(
+      'text/plain',
+      JSON.stringify({
         dayId: day.id,
         eventId: event.id,
         timeSlot: normalizeTimeSlot(event.timeSlot)
-      }));
+      })
+    );
   });
 
   handle.addEventListener('dragend', () => {
@@ -354,7 +351,7 @@ function bindDragEvents(card, day, event, handlers) {
     clearDragInsertState();
   });
 
-  card.addEventListener('dragover', (e) => {
+  card.addEventListener('dragover', e => {
     e.preventDefault();
     e.stopPropagation();
     clearDragInsertState(card);
@@ -367,16 +364,15 @@ function bindDragEvents(card, day, event, handlers) {
     card.classList.remove('drag-insert-before', 'drag-insert-after');
   });
 
-  card.addEventListener('drop', (e) => {
+  card.addEventListener('drop', e => {
     const payload = readDragPayload(e);
     if (!payload || payload.eventId === event.id) return;
     e.preventDefault();
     e.stopPropagation();
     const position = getInsertPosition(e, card);
     const targetIndex = (day.events || []).findIndex(item => item.id === event.id);
-    const afterEventId = position === 'after'
-      ? event.id
-      : getPreviousEventId(day.events || [], targetIndex);
+    const afterEventId =
+      position === 'after' ? event.id : getPreviousEventId(day.events || [], targetIndex);
     const explicitIndex = position === 'before' && targetIndex === 0 ? 0 : undefined;
     clearDragInsertState();
     handlers.onDropEvent?.(payload, {
@@ -389,19 +385,19 @@ function bindDragEvents(card, day, event, handlers) {
 }
 
 function bindContainerDropEvents(container, day, handlers) {
-  container.addEventListener('dragover', (e) => {
+  container.addEventListener('dragover', e => {
     if (e.target.closest('.card')) return;
     e.preventDefault();
     container.classList.add('drag-container-over');
     e.dataTransfer.dropEffect = 'move';
   });
 
-  container.addEventListener('dragleave', (e) => {
+  container.addEventListener('dragleave', e => {
     if (container.contains(e.relatedTarget)) return;
     container.classList.remove('drag-container-over');
   });
 
-  container.addEventListener('drop', (e) => {
+  container.addEventListener('drop', e => {
     if (e.target.closest('.card')) return;
     const payload = readDragPayload(e);
     if (!payload) return;
@@ -440,7 +436,10 @@ function clearDragInsertState(except = null) {
 function canMoveWithinTimeSlot(day, eventIndex, direction) {
   const targetIndex = direction === 'up' ? eventIndex - 1 : eventIndex + 1;
   if (targetIndex < 0 || targetIndex >= day.events.length) return false;
-  return normalizeTimeSlot(day.events[eventIndex]?.timeSlot) === normalizeTimeSlot(day.events[targetIndex]?.timeSlot);
+  return (
+    normalizeTimeSlot(day.events[eventIndex]?.timeSlot) ===
+    normalizeTimeSlot(day.events[targetIndex]?.timeSlot)
+  );
 }
 
 function readDragPayload(e) {
@@ -461,7 +460,7 @@ function createRouteCard(segment, handlers) {
   card.dataset.routeId = segment.id;
   card.style.setProperty('--route-color', segment.color);
   card.innerHTML = renderRouteIdleHTML(segment);
-  card.addEventListener('click', (e) => {
+  card.addEventListener('click', e => {
     const btn = e.target.closest('.route-edit-btn');
     if (btn) {
       e.stopPropagation();
@@ -544,7 +543,7 @@ function renderRouteCardResult(segment, detail, statusClass) {
   const meta = `约 ${formatDistance(detail.distance)} · 预计 ${formatDuration(detail.duration)}`;
   const route = normalizeRouteToNext(segment.routeToNext);
   const customSteps = route.legs?.map(leg => `${getTransportLabel(leg.mode)}：${leg.label}`) || [];
-  const steps = customSteps.length ? customSteps : (detail.mode === 'transit' ? detail.steps : []);
+  const steps = customSteps.length ? customSteps : detail.mode === 'transit' ? detail.steps : [];
 
   card.innerHTML = `
     <div class="route-card-main">
@@ -554,9 +553,17 @@ function renderRouteCardResult(segment, detail, statusClass) {
         </div>
         <div class="route-meta">${meta}</div>
         <button type="button" class="route-edit-btn" title="编辑路线">编辑</button>
-        ${steps.length ? `<ol class="route-steps">${steps.map((step, i) => `
+        ${
+          steps.length
+            ? `<ol class="route-steps">${steps
+                .map(
+                  (step, i) => `
           <li class="route-step"><span class="route-step-index">${i + 1}</span><span>${escapeHTML(step)}</span></li>
-        `).join('')}</ol>` : ''}
+        `
+                )
+                .join('')}</ol>`
+            : ''
+        }
       </div>
     </div>
   `;
@@ -577,18 +584,20 @@ export function resetRouteCards() {
 
 // ─── Status panel ──────────────────────────────────────
 
-export function setStatus(html) {
+export function setStatus(text) {
   const el = document.getElementById('status-panel');
-  if (el) el.innerHTML = html;
+  if (el) el.textContent = text;
 }
 
 // ─── Segment 构造（被 sidebar 和 main 都用到） ────────────
 
 export function shouldCreateRouteCard(event, nextEvent) {
   return Boolean(
-    event && nextEvent &&
+    event &&
+    nextEvent &&
     event.routeToNext &&
-    event.locationId && nextEvent.locationId &&
+    event.locationId &&
+    nextEvent.locationId &&
     event.locationId !== nextEvent.locationId
   );
 }

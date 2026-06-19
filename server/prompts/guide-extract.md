@@ -4,6 +4,7 @@
 ## 一、识别攻略类型(guide_type)
 
 先判断这篇文本属于哪种类型:
+
 - daily_itinerary:有明确"Day 1 / Day 2"或"第一天 / 第二天"的按日结构
 - recommendation_list:推荐合集,无日期归属(如"必吃 10 家餐厅""北京 top 景点")
 - mixed:前半段是按日攻略,后半段附带推荐合集
@@ -12,12 +13,15 @@
 ## 二、地点提取规则
 
 ### 应提取
+
 景点、餐厅、咖啡馆、博物馆、商场、市场、书店、酒店等**具体目的地**。
 
 ### 路线合集的主路线点优先
+
 很多攻略会先给"总路线",再分段列出沿途打卡点。遇到这种结构时,必须优先提取总路线里的主路线点,不要把沿途小店/机位全部提成独立地点。
 
 识别以下路线表达:
+
 - "▶路线:A→B→C"
 - "路线:A-B-C"
 - "行程:A→B→C"
@@ -25,6 +29,7 @@
 - "路线一/路线二/路线三"
 
 规则:
+
 - `▶路线:` 后面的 A/B/C 是主路线点,应生成 events。
 - "沿途打卡点 / 机位 / 小店 / 推荐店铺 / 建筑细节见图 / 必吃必逛" 下列出的地点,默认不要生成 events。
 - 沿途小店、拍照机位、建筑细节、玩法提示应合并进对应主路线点的 note。
@@ -40,6 +45,7 @@
 其中"富民路"的 note 写"沿途可看又喜商店、泽田本家、懂经爷叔、保罗公园"。
 
 ### 多条路线映射到 day
+
 - A线 / 路线A / 线路A → day=1
 - B线 / 路线B / 线路B → day=2
 - C线 / 路线C / 线路C → day=3
@@ -48,6 +54,7 @@
 这类 ABC route guide 的 guide_type 应优先判断为 daily_itinerary 或 mixed,不要当成无日期推荐合集。
 
 ### 不要提取(常见误识别)
+
 - ❌ 行政区/区域名:海淀、朝阳、浦东、徐家汇、三里屯、簋街(除非作者把整个区域当作具体目的地讨论,如"逛了一圈簋街")
 - ❌ 起点描述:从家出发、从酒店出发、从公司过来、起床后、回酒店
 - ❌ 状态描述:打车去、地铁过去、走路 5 分钟
@@ -56,41 +63,46 @@
 - ❌ 路线合集里仅作为"沿途打卡点"列出的附属小店/机位/建筑细节
 
 ### 保留原文表达
+
 地点名使用**原文中作者的称呼**,不要规范化(便于后续 POI 搜索匹配)。
 例:作者写"故宫" → 输出"故宫",不要改成"故宫博物院"。
 
 ### 同名去重例外
+
 同一地点在不同日期/时段被提到,**保留多条记录**(可能用户真的去两次)。
 
 ## 三、日期归属规则
 
 ### 识别以下表述形式映射到 day 字段
-- "Day 1 / Day1 / DAY 1 / D1 / D-1"           → day=1
-- "第一天 / 第1天 / 1天 / Day One"            → day=1
-- "首日"                                       → day=1
-- "末日"                                       → 最后一天
+
+- "Day 1 / Day1 / DAY 1 / D1 / D-1" → day=1
+- "第一天 / 第1天 / 1天 / Day One" → day=1
+- "首日" → day=1
+- "末日" → 最后一天
 - 中文/阿拉伯数字混合都要识别
 
 ### 无明确日期归属
+
 - 整篇是按日攻略但某段无日期标记 → 归到上下文最近的 day
 - guide_type=recommendation_list → 全部 day=null
 - guide_type=mixed 的合集部分 → day=null
 
 ## 四、时间段归属规则
 
-| time_slot | 触发关键词 |
-|-----------|-----------|
-| morning | 早上 / 上午 / 早晨 / 清晨 / 早餐 / 早饭 |
-| noon | 中午 / 午餐 / 午饭 / 中饭 |
-| afternoon | 下午 / 午后 / 傍晚前 |
-| evening | 晚上 / 晚餐 / 晚饭 / 夜晚 / 宵夜 / 夜景 |
-| null | 未明确提及 |
+| time_slot | 触发关键词                              |
+| --------- | --------------------------------------- |
+| morning   | 早上 / 上午 / 早晨 / 清晨 / 早餐 / 早饭 |
+| noon      | 中午 / 午餐 / 午饭 / 中饭               |
+| afternoon | 下午 / 午后 / 傍晚前                    |
+| evening   | 晚上 / 晚餐 / 晚饭 / 夜晚 / 宵夜 / 夜景 |
+| null      | 未明确提及                              |
 
 **重要**:不要根据"故宫一般是上午去"这种常识推断时段。**只在原文明确提及时填充,否则 null**。
 
 ## 五、note 字段提取(积极抽取)
 
 针对每个地点,从原文积极抽取实用提示信息:
+
 - 开放时间 / 关闭日:"周一闭馆""营业到 22:00"
 - 票价 / 预约:"提前 7 天预约""门票 60 元"
 - 必吃菜 / 推荐玩法:"必点鸭架打包""走中轴线"
@@ -101,6 +113,7 @@
 **保留作者口语化表达**,但要做关键信息提取,不要整段照搬。单条 note ≤ 60 字,最多保留 2-3 个重点。无对应信息则填空字符串。
 
 路线合集里的 note 特别规则:
+
 - 主路线点自身描述 + 它名下的沿途小点合并为 note。
 - 小点太多时只保留代表性 3-6 个,不要把整串 20 个店名全部塞入 note。
 - 不要把其他主路线点的说明合并到当前地点 note。
@@ -114,19 +127,19 @@
 ## 七、输出 JSON Schema
 
 {
-  "guide_type": "daily_itinerary | recommendation_list | mixed | non_travel",
-  "city": "城市名,无法识别填 null",
-  "title_suggestion": "为这次行程起一个 5-12 字的标题,如'北京3日深度游'",
-  "events": [
-    {
-      "place_name": "原文中作者使用的地点称呼",
-      "day": 1,            // 1-based 整数,无明确归属填 null
-      "time_slot": "morning",  // 五选一或 null
-      "note": "原文里和这个地点相关的关键提示,无则空字符串",
-      "source_quote": "原文里提到这个地点的原句,不超过 50 字"
-    }
-  ],
-  "warnings": ["AI 自我判断的歧义提示,如'未识别到城市,请手动选择'"]
+"guide_type": "daily_itinerary | recommendation_list | mixed | non_travel",
+"city": "城市名,无法识别填 null",
+"title_suggestion": "为这次行程起一个 5-12 字的标题,如'北京3日深度游'",
+"events": [
+{
+"place_name": "原文中作者使用的地点称呼",
+"day": 1, // 1-based 整数,无明确归属填 null
+"time_slot": "morning", // 五选一或 null
+"note": "原文里和这个地点相关的关键提示,无则空字符串",
+"source_quote": "原文里提到这个地点的原句,不超过 50 字"
+}
+],
+"warnings": ["AI 自我判断的歧义提示,如'未识别到城市,请手动选择'"]
 }
 
 ## 八、Few-shot 示例
@@ -138,53 +151,52 @@
 颐和园建议从北宫门进省体力,中午在清华食堂吃。Day3雍和宫求签很灵,
 然后簋街吃麻辣小龙虾。
 
-最后再推荐几家必吃:1. 牛街白记年糕(老字号);
-2. 吴裕泰冰激凌(茉莉花茶味必尝);3. 烤肉宛(高端选择)。
+最后再推荐几家必吃:1. 牛街白记年糕(老字号); 2. 吴裕泰冰激凌(茉莉花茶味必尝);3. 烤肉宛(高端选择)。
 """
 
 输出: {
-  "guide_type": "mixed",
-  "city": "北京",
-  "title_suggestion": "北京3日深度游",
-  "events": [
-    {"place_name": "故宫", "day": 1, "time_slot": null,
-     "note": "提前7天官网预约,带身份证,推荐走中轴线,从午门进神武门出",
-     "source_quote": "Day1必去故宫,记得提前7天在官网预约"},
-    {"place_name": "南锣鼓巷", "day": 1, "time_slot": "afternoon",
-     "note": "人多但很出片",
-     "source_quote": "下午去南锣鼓巷,人多但很出片"},
-    {"place_name": "便宜坊烤鸭", "day": 1, "time_slot": "evening",
-     "note": "鸭架记得打包带走",
-     "source_quote": "晚上吃便宜坊烤鸭,鸭架记得打包带走超棒"},
-    {"place_name": "颐和园", "day": 2, "time_slot": null,
-     "note": "建议从北宫门进省体力",
-     "source_quote": "Day2安排了颐和园+清华北大,颐和园建议从北宫门进省体力"},
-    {"place_name": "清华大学", "day": 2, "time_slot": null,
-     "note": "",
-     "source_quote": "Day2安排了颐和园+清华北大"},
-    {"place_name": "北京大学", "day": 2, "time_slot": null,
-     "note": "",
-     "source_quote": "Day2安排了颐和园+清华北大"},
-    {"place_name": "清华食堂", "day": 2, "time_slot": "noon",
-     "note": "",
-     "source_quote": "中午在清华食堂吃"},
-    {"place_name": "雍和宫", "day": 3, "time_slot": null,
-     "note": "求签很灵",
-     "source_quote": "Day3雍和宫求签很灵"},
-    {"place_name": "簋街麻辣小龙虾", "day": 3, "time_slot": null,
-     "note": "",
-     "source_quote": "然后簋街吃麻辣小龙虾"},
-    {"place_name": "牛街白记年糕", "day": null, "time_slot": null,
-     "note": "老字号",
-     "source_quote": "1. 牛街白记年糕(老字号)"},
-    {"place_name": "吴裕泰冰激凌", "day": null, "time_slot": null,
-     "note": "茉莉花茶味必尝",
-     "source_quote": "2. 吴裕泰冰激凌(茉莉花茶味必尝)"},
-    {"place_name": "烤肉宛", "day": null, "time_slot": null,
-     "note": "高端选择",
-     "source_quote": "3. 烤肉宛(高端选择)"}
-  ],
-  "warnings": []
+"guide_type": "mixed",
+"city": "北京",
+"title_suggestion": "北京3日深度游",
+"events": [
+{"place_name": "故宫", "day": 1, "time_slot": null,
+"note": "提前7天官网预约,带身份证,推荐走中轴线,从午门进神武门出",
+"source_quote": "Day1必去故宫,记得提前7天在官网预约"},
+{"place_name": "南锣鼓巷", "day": 1, "time_slot": "afternoon",
+"note": "人多但很出片",
+"source_quote": "下午去南锣鼓巷,人多但很出片"},
+{"place_name": "便宜坊烤鸭", "day": 1, "time_slot": "evening",
+"note": "鸭架记得打包带走",
+"source_quote": "晚上吃便宜坊烤鸭,鸭架记得打包带走超棒"},
+{"place_name": "颐和园", "day": 2, "time_slot": null,
+"note": "建议从北宫门进省体力",
+"source_quote": "Day2安排了颐和园+清华北大,颐和园建议从北宫门进省体力"},
+{"place_name": "清华大学", "day": 2, "time_slot": null,
+"note": "",
+"source_quote": "Day2安排了颐和园+清华北大"},
+{"place_name": "北京大学", "day": 2, "time_slot": null,
+"note": "",
+"source_quote": "Day2安排了颐和园+清华北大"},
+{"place_name": "清华食堂", "day": 2, "time_slot": "noon",
+"note": "",
+"source_quote": "中午在清华食堂吃"},
+{"place_name": "雍和宫", "day": 3, "time_slot": null,
+"note": "求签很灵",
+"source_quote": "Day3雍和宫求签很灵"},
+{"place_name": "簋街麻辣小龙虾", "day": 3, "time_slot": null,
+"note": "",
+"source_quote": "然后簋街吃麻辣小龙虾"},
+{"place_name": "牛街白记年糕", "day": null, "time_slot": null,
+"note": "老字号",
+"source_quote": "1. 牛街白记年糕(老字号)"},
+{"place_name": "吴裕泰冰激凌", "day": null, "time_slot": null,
+"note": "茉莉花茶味必尝",
+"source_quote": "2. 吴裕泰冰激凌(茉莉花茶味必尝)"},
+{"place_name": "烤肉宛", "day": null, "time_slot": null,
+"note": "高端选择",
+"source_quote": "3. 烤肉宛(高端选择)"}
+],
+"warnings": []
 }
 
 ## 九、路线合集 Few-shot 示例
@@ -203,51 +215,51 @@ B线【万国建筑线】
 """
 
 输出: {
-  "guide_type": "daily_itinerary",
-  "city": "上海",
-  "title_suggestion": "上海citywalk路线",
-  "events": [
-    {"place_name": "静安寺", "day": 1, "time_slot": null,
-     "note": "14号口天桥、会德丰门口水池倒影适合拍照",
-     "source_quote": "▶路线:静安寺→富民路→巨鹿路"},
-    {"place_name": "富民路", "day": 1, "time_slot": null,
-     "note": "沿途可看又喜商店、泽田本家、懂经爷叔、保罗公园、ANNAKIKI",
-     "source_quote": "✔富民路:又喜商店、泽田本家、懂经爷叔"},
-    {"place_name": "巨鹿路", "day": 1, "time_slot": null,
-     "note": "沿途可看作家书店、JULU758、wood earth",
-     "source_quote": "✔巨鹿路:作家书店、JULU758、wood earth"},
-    {"place_name": "长乐路", "day": 1, "time_slot": null,
-     "note": "",
-     "source_quote": "▶路线:静安寺→富民路→巨鹿路→长乐路"},
-    {"place_name": "安福路", "day": 1, "time_slot": null,
-     "note": "",
-     "source_quote": "▶路线:长乐路→安福路→武康路"},
-    {"place_name": "武康路", "day": 1, "time_slot": null,
-     "note": "",
-     "source_quote": "▶路线:长乐路→安福路→武康路"},
-    {"place_name": "新天地", "day": 2, "time_slot": null,
-     "note": "",
-     "source_quote": "▶路线:新天地→南京路步行街"},
-    {"place_name": "南京路步行街", "day": 2, "time_slot": null,
-     "note": "沿途可看永安百货、MM豆旗舰店、泡泡玛特全球旗舰店",
-     "source_quote": "✔南京路步行街:永安百货、MM豆旗舰店"},
-    {"place_name": "乍浦路桥", "day": 2, "time_slot": null,
-     "note": "",
-     "source_quote": "▶路线:南京路步行街→乍浦路桥→外滩"},
-    {"place_name": "外滩", "day": 2, "time_slot": null,
-     "note": "",
-     "source_quote": "▶路线:乍浦路桥→外滩→轮渡"},
-    {"place_name": "轮渡", "day": 2, "time_slot": null,
-     "note": "",
-     "source_quote": "▶路线:外滩→轮渡→三件套"},
-    {"place_name": "三件套", "day": 2, "time_slot": null,
-     "note": "",
-     "source_quote": "▶路线:轮渡→三件套→东方明珠"},
-    {"place_name": "东方明珠", "day": 2, "time_slot": null,
-     "note": "",
-     "source_quote": "▶路线:三件套→东方明珠"}
-  ],
-  "warnings": ["已将沿途小店和机位合并进备注"]
+"guide_type": "daily_itinerary",
+"city": "上海",
+"title_suggestion": "上海citywalk路线",
+"events": [
+{"place_name": "静安寺", "day": 1, "time_slot": null,
+"note": "14号口天桥、会德丰门口水池倒影适合拍照",
+"source_quote": "▶路线:静安寺→富民路→巨鹿路"},
+{"place_name": "富民路", "day": 1, "time_slot": null,
+"note": "沿途可看又喜商店、泽田本家、懂经爷叔、保罗公园、ANNAKIKI",
+"source_quote": "✔富民路:又喜商店、泽田本家、懂经爷叔"},
+{"place_name": "巨鹿路", "day": 1, "time_slot": null,
+"note": "沿途可看作家书店、JULU758、wood earth",
+"source_quote": "✔巨鹿路:作家书店、JULU758、wood earth"},
+{"place_name": "长乐路", "day": 1, "time_slot": null,
+"note": "",
+"source_quote": "▶路线:静安寺→富民路→巨鹿路→长乐路"},
+{"place_name": "安福路", "day": 1, "time_slot": null,
+"note": "",
+"source_quote": "▶路线:长乐路→安福路→武康路"},
+{"place_name": "武康路", "day": 1, "time_slot": null,
+"note": "",
+"source_quote": "▶路线:长乐路→安福路→武康路"},
+{"place_name": "新天地", "day": 2, "time_slot": null,
+"note": "",
+"source_quote": "▶路线:新天地→南京路步行街"},
+{"place_name": "南京路步行街", "day": 2, "time_slot": null,
+"note": "沿途可看永安百货、MM豆旗舰店、泡泡玛特全球旗舰店",
+"source_quote": "✔南京路步行街:永安百货、MM豆旗舰店"},
+{"place_name": "乍浦路桥", "day": 2, "time_slot": null,
+"note": "",
+"source_quote": "▶路线:南京路步行街→乍浦路桥→外滩"},
+{"place_name": "外滩", "day": 2, "time_slot": null,
+"note": "",
+"source_quote": "▶路线:乍浦路桥→外滩→轮渡"},
+{"place_name": "轮渡", "day": 2, "time_slot": null,
+"note": "",
+"source_quote": "▶路线:外滩→轮渡→三件套"},
+{"place_name": "三件套", "day": 2, "time_slot": null,
+"note": "",
+"source_quote": "▶路线:轮渡→三件套→东方明珠"},
+{"place_name": "东方明珠", "day": 2, "time_slot": null,
+"note": "",
+"source_quote": "▶路线:三件套→东方明珠"}
+],
+"warnings": ["已将沿途小店和机位合并进备注"]
 }
 
 ## 十、现在处理用户输入

@@ -30,7 +30,7 @@ export function renderWorkspaceTabs(handlers = {}) {
     handlers.onImportGuide?.();
   });
 
-  root.querySelector('[data-trip-menu]')?.addEventListener('click', (e) => {
+  root.querySelector('[data-trip-menu]')?.addEventListener('click', e => {
     e.stopPropagation();
     const button = e.currentTarget;
     const tripId = button.dataset.tripMenu;
@@ -53,9 +53,13 @@ function renderTripTab(trip, index, active) {
         <button type="button" class="workspace-tab-title-btn" data-trip-id="${escapeHTML(trip.id)}">
           <span class="workspace-tab-title">${escapeHTML(trip.title || '未命名行程')}</span>
         </button>
-        ${active ? `
+        ${
+          active
+            ? `
         <button type="button" class="workspace-tab-menu-btn" data-trip-menu="${escapeHTML(trip.id)}" aria-label="行程菜单" title="行程菜单">⋯</button>
-        ` : ''}
+        `
+            : ''
+        }
       </div>
     </div>
   `;
@@ -85,7 +89,7 @@ function createMenu(anchor, tripId, handlers) {
     <button type="button" class="danger" data-action="delete">删除行程</button>
   `;
 
-  menu.addEventListener('click', (e) => {
+  menu.addEventListener('click', e => {
     const action = e.target.closest('button')?.dataset.action;
     if (!action) return;
     closeWorkspaceMenu();
@@ -94,7 +98,7 @@ function createMenu(anchor, tripId, handlers) {
   });
 
   setTimeout(() => {
-    const close = (e) => {
+    const close = e => {
       if (!menu.contains(e.target) && e.target !== anchor) {
         closeWorkspaceMenu();
         document.removeEventListener('click', close);

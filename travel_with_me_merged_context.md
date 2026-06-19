@@ -25,15 +25,15 @@
 9. [07 技术路线图](#part-09)  
    `docs/architecture/07_technical_roadmap.md`
 10. [08 开发 Backlog](#part-10)  
-   `docs/backlog/08_development_backlog.md`
+    `docs/backlog/08_development_backlog.md`
 11. [09 可行性与风险审查](#part-11)  
-   `docs/review/09_feasibility_and_risk_review.md`
+    `docs/review/09_feasibility_and_risk_review.md`
 12. [10 参考资料与核验清单](#part-12)  
-   `docs/reference/10_reference_checklist.md`
+    `docs/reference/10_reference_checklist.md`
 13. [.github/ISSUE_TEMPLATE/feature_request.md](#part-13)  
-   `.github/ISSUE_TEMPLATE/feature_request.md`
+    `.github/ISSUE_TEMPLATE/feature_request.md`
 14. [.github/ISSUE_TEMPLATE/bug_report.md](#part-14)  
-   `.github/ISSUE_TEMPLATE/bug_report.md`
+    `.github/ISSUE_TEMPLATE/bug_report.md`
 
 ---
 
@@ -111,7 +111,6 @@ git commit -m "docs: add travel product strategy and development context"
 git push
 ```
 
-
 ---
 
 <a id="part-02"></a>
@@ -175,7 +174,6 @@ git push
 - range：用户在地图上圈出的游览范围；
 - sticker：表情、PNG 贴纸、打卡图、机位预览图等内容表达元素；
 - collaboration：多人共同编辑、光标、表情、评论和同步。
-
 
 ---
 
@@ -247,7 +245,6 @@ OTA 的核心是预订交易、供应链、价格、库存、履约和客服。�
 ```text
 朋友讨论旅行 → 共同编辑行程 → 地图可视化规划 → AI 辅助优化 → 生成分享长图 → 形成二次传播
 ```
-
 
 ---
 
@@ -383,7 +380,6 @@ AI 不应直接覆盖用户计划。正确交互是：AI 生成建议 → 用户
 - 自定义贴纸上传；
 - 酒店和餐饮推荐分佣。
 
-
 ---
 
 <a id="part-05"></a>
@@ -499,7 +495,6 @@ AI 不应直接覆盖用户计划。正确交互是：AI 生成建议 → 用户
 
 这三类用户更容易感知“多人协作 + 内容表达 + 分享长图”的价值。
 
-
 ---
 
 <a id="part-06"></a>
@@ -590,7 +585,6 @@ AI 不应直接覆盖用户计划。正确交互是：AI 生成建议 → 用户
 阶段 4：住宿/餐饮推荐分佣
 阶段 5：B 端模板和城市路线合作
 ```
-
 
 ---
 
@@ -711,7 +705,6 @@ P0 不应包含完整会员充值、完整 Android 移植和复杂 AI 商业推�
 - 不做复杂权限系统；
 - 不做高级协同编辑历史。
 
-
 ---
 
 <a id="part-08"></a>
@@ -811,7 +804,7 @@ trip = {
   ranges: [],
   stickers: [],
   collaborators: []
-}
+};
 ```
 
 ## 5. 存储层
@@ -877,7 +870,6 @@ js/render/collaboration-layer.js
 ## 8. 工程判断
 
 当前结构适合原型，但不适合无限叠功能。下一步不应直接往 `main.js` 里继续塞代码，而应先建立 controller、data model 和 render layer 的边界。
-
 
 ---
 
@@ -1010,7 +1002,6 @@ AI 只生成建议，不直接覆盖用户计划。
 - 移动端地图和拖拽交互冲突；
 - 过早商业化会干扰核心体验验证。
 
-
 ---
 
 <a id="part-10"></a>
@@ -1138,7 +1129,6 @@ AI 只生成建议，不直接覆盖用户计划。
 - 类型：feature
 - 验收标准：基于城市、范围、预算输出候选推荐，不直接覆盖用户计划。
 
-
 ---
 
 <a id="part-11"></a>
@@ -1243,15 +1233,14 @@ AI 很适合作为增强功能，但第一阶段应先把用户输入、地图�
 
 ## 7. 可行性评分
 
-| 维度 | 评分 | 说明 |
-|---|---:|---|
-| 产品需求真实性 | 8/10 | 结伴出行规划确实存在痛点 |
-| 差异化潜力 | 7/10 | 协作、范围、贴纸、长图有辨识度 |
-| 技术实现可行性 | 7/10 | Web 原型可行，实时协作较复杂 |
-| 商业化可行性 | 5/10 | 需要验证付费意愿 |
-| 短期落地性 | 7/10 | P0 可以落地，完整平台不可一次完成 |
-| 综合建议 | 6.8/10 | 适合作为差异化原型推进，不适合直接包装成成熟商业项目 |
-
+| 维度           |   评分 | 说明                                                 |
+| -------------- | -----: | ---------------------------------------------------- |
+| 产品需求真实性 |   8/10 | 结伴出行规划确实存在痛点                             |
+| 差异化潜力     |   7/10 | 协作、范围、贴纸、长图有辨识度                       |
+| 技术实现可行性 |   7/10 | Web 原型可行，实时协作较复杂                         |
+| 商业化可行性   |   5/10 | 需要验证付费意愿                                     |
+| 短期落地性     |   7/10 | P0 可以落地，完整平台不可一次完成                    |
+| 综合建议       | 6.8/10 | 适合作为差异化原型推进，不适合直接包装成成熟商业项目 |
 
 ---
 
@@ -1328,7 +1317,6 @@ AI 很适合作为增强功能，但第一阶段应先把用户输入、地图�
 - “商业化需要在真实用户测试后进一步判断”；
 - “AI 更适合作为辅助决策工具，而不是完全自动规划工具”。
 
-
 ---
 
 <a id="part-13"></a>
@@ -1336,10 +1324,12 @@ AI 很适合作为增强功能，但第一阶段应先把用户输入、地图�
 ## Part 13：`.github/ISSUE_TEMPLATE/feature_request.md`
 
 ---
+
 name: Feature request
 description: travel_with_me 功能需求
 title: "feat: "
 labels: ["enhancement"]
+
 ---
 
 ## 背景
@@ -1348,9 +1338,9 @@ labels: ["enhancement"]
 
 ## 功能描述
 
-- 
-- 
-- 
+-
+-
+-
 
 ## 用户场景
 
@@ -1358,9 +1348,9 @@ labels: ["enhancement"]
 
 ## 验收标准
 
-- [ ] 
-- [ ] 
-- [ ] 
+- [ ]
+- [ ]
+- [ ]
 
 ## 涉及模块
 
@@ -1376,7 +1366,6 @@ labels: ["enhancement"]
 
 P0 / P1 / P2
 
-
 ---
 
 <a id="part-14"></a>
@@ -1384,10 +1373,12 @@ P0 / P1 / P2
 ## Part 14：`.github/ISSUE_TEMPLATE/bug_report.md`
 
 ---
+
 name: Bug report
 description: travel_with_me 问题反馈
 title: "fix: "
 labels: ["bug"]
+
 ---
 
 ## 问题现象
@@ -1396,9 +1387,9 @@ labels: ["bug"]
 
 ## 复现步骤
 
-1. 
-2. 
-3. 
+1.
+2.
+3.
 
 ## 期望结果
 
@@ -1428,6 +1419,4 @@ labels: ["bug"]
 - 系统：
 - 部署环境：本地 / Zeabur / 其他
 
-
 ---
-

@@ -48,14 +48,14 @@ function createModal(mode, title) {
 function bindEvents(root, mode) {
   root.querySelector('.modal-close').addEventListener('click', closeTripModal);
   root.querySelector('.modal-cancel').addEventListener('click', closeTripModal);
-  root.addEventListener('click', (e) => {
+  root.addEventListener('click', e => {
     if (e.target === root) closeTripModal();
   });
-  root.addEventListener('keydown', (e) => {
+  root.addEventListener('keydown', e => {
     if (e.key === 'Escape') closeTripModal();
   });
 
-  root.querySelector('form').addEventListener('submit', (e) => {
+  root.querySelector('form').addEventListener('submit', e => {
     e.preventDefault();
     const title = root.querySelector('.trip-title-input').value.trim();
     if (!title) return;

@@ -137,16 +137,18 @@ function bindEvents(root) {
         setResultsState(resultsEl, 'empty', emptyHTML);
         return;
       }
-      renderResults(resultsEl, places, (place) => {
+      renderResults(resultsEl, places, place => {
         selected = place;
         // 自动用地点名做标题，降低用户输入负担；用户仍可在保存前改。
         titleInput.value = place.name || '';
-        iconPicker.setValue(inferIconId({
-          name: place.name,
-          addr: place.addr,
-          type: place.type,
-          tag: place.tag
-        }));
+        iconPicker.setValue(
+          inferIconId({
+            name: place.name,
+            addr: place.addr,
+            type: place.type,
+            tag: place.tag
+          })
+        );
         form.hidden = false;
         titleInput.focus();
         titleInput.select();
@@ -159,7 +161,7 @@ function bindEvents(root) {
 
   // 关键词 / 搜附近 两种搜索模式切换
   const tabs = root.querySelectorAll('.editor-search-tab');
-  const switchMode = (mode) => {
+  const switchMode = mode => {
     if (searchMode === mode) return;
     searchMode = mode;
     tabs.forEach(t => {
@@ -178,7 +180,11 @@ function bindEvents(root) {
     input.value = '';
     selected = null;
     form.hidden = true;
-    setResultsState(resultsEl, 'idle', '<div class="modal-hint">输入关键词后点击"搜索"，从下方结果中选一个地点</div>');
+    setResultsState(
+      resultsEl,
+      'idle',
+      '<div class="modal-hint">输入关键词后点击"搜索"，从下方结果中选一个地点</div>'
+    );
     input.focus();
   };
   tabs.forEach(tab => {
@@ -186,7 +192,7 @@ function bindEvents(root) {
   });
 
   searchBtn.addEventListener('click', doSearch);
-  input.addEventListener('keydown', (e) => {
+  input.addEventListener('keydown', e => {
     if (e.key === 'Enter') {
       e.preventDefault();
       doSearch();
@@ -195,14 +201,14 @@ function bindEvents(root) {
 
   root.querySelector('.modal-close').addEventListener('click', closeSearchModal);
   root.querySelector('.modal-cancel').addEventListener('click', closeSearchModal);
-  root.addEventListener('click', (e) => {
+  root.addEventListener('click', e => {
     if (e.target === root) closeSearchModal();
   });
-  root.addEventListener('keydown', (e) => {
+  root.addEventListener('keydown', e => {
     if (e.key === 'Escape') closeSearchModal();
   });
 
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', e => {
     e.preventDefault();
     if (!selected || !currentHandlers?.onConfirm) return;
     const title = form.querySelector('.modal-event-title').value.trim() || selected.name || '';
@@ -225,17 +231,21 @@ function renderTimeSlotPickerHTML(value) {
   const selected = normalizeTimeSlot(value);
   return `
     <div class="time-slot-picker" role="radiogroup" aria-label="选择时间">
-      ${TIME_SLOT_OPTIONS.map(option => `
+      ${TIME_SLOT_OPTIONS.map(
+        option => `
         <button type="button" class="time-slot-btn ${option.id === selected ? 'active' : ''}" data-time-slot="${option.id}" role="radio" aria-checked="${option.id === selected}">
           ${escapeHTML(option.label)}
         </button>
-      `).join('')}
+      `
+      ).join('')}
     </div>
   `;
 }
 
 function bindTimeSlotPicker(root) {
-  let value = normalizeTimeSlot(root.querySelector('.time-slot-btn.active')?.dataset.timeSlot || '');
+  let value = normalizeTimeSlot(
+    root.querySelector('.time-slot-btn.active')?.dataset.timeSlot || ''
+  );
   root.querySelectorAll('.time-slot-btn').forEach(button => {
     button.addEventListener('click', () => {
       value = normalizeTimeSlot(button.dataset.timeSlot || '');
@@ -253,12 +263,15 @@ function bindTimeSlotPicker(root) {
 // 有真图就圆角矩形展示，没图（或加载失败）回落到 POI type 对应的 SVG 占位
 function renderPhotoBanner(place) {
   const url = String(place.photo || '').trim();
-  const iconHTML = renderIconSVG(inferIconId({
-    name: place.name,
-    addr: place.addr,
-    type: place.type,
-    tag: place.tag
-  }), 'placeholder-icon-svg');
+  const iconHTML = renderIconSVG(
+    inferIconId({
+      name: place.name,
+      addr: place.addr,
+      type: place.type,
+      tag: place.tag
+    }),
+    'placeholder-icon-svg'
+  );
   if (url) {
     const httpsUrl = url.replace(/^http:\/\//i, 'https://');
     return `
@@ -281,7 +294,9 @@ function renderMetaChips(place) {
   if (place.cost != null && Number(place.cost) > 0) {
     chips.push(`<span class="meta-chip meta-cost">¥${escapeHTML(String(place.cost))}/人</span>`);
   }
-  const firstTag = String(place.tag || '').split(/[;\s]+/).filter(Boolean)[0];
+  const firstTag = String(place.tag || '')
+    .split(/[;\s]+/)
+    .filter(Boolean)[0];
   if (firstTag) {
     chips.push(`<span class="meta-chip meta-tag">${escapeHTML(firstTag)}</span>`);
   }
@@ -309,7 +324,9 @@ function renderResults(resultsEl, places, onPick) {
       ${metaHTML}
     `;
     item.addEventListener('click', () => {
-      resultsEl.querySelectorAll('.modal-result-item').forEach(el => el.classList.remove('selected'));
+      resultsEl
+        .querySelectorAll('.modal-result-item')
+        .forEach(el => el.classList.remove('selected'));
       item.classList.add('selected');
       onPick(place);
     });

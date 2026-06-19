@@ -16,7 +16,7 @@ import { getTimeSlotLabel, normalizeTimeSlot } from './time-slots.js';
 // ─── 度量常数 ─────────────────────────────────────────
 // 所有数字以 mockup 的 "logical px" 为基准，最后乘 SCALE 得到画布像素。
 const SCALE = 2.5;
-const L = (px) => px * SCALE;
+const L = px => px * SCALE;
 
 const W = L(420);
 
@@ -63,7 +63,7 @@ const ROUTE_MODE_COLORS = {
   driving: { bg: '#FCEFD3', border: '#E5C56B', ink: '#7C5410' },
   walking: { bg: '#E1ECDD', border: '#A3C2A1', ink: '#3F6841' },
   transit: { bg: '#DDE6F2', border: '#A4BBD8', ink: '#3D5A7C' },
-  riding:  { bg: '#FFE9E1', border: '#E0A595', ink: '#9A4528' }
+  riding: { bg: '#FFE9E1', border: '#E0A595', ink: '#9A4528' }
 };
 
 const ROUTE_BLOCK_H = L(28);
@@ -150,11 +150,11 @@ function measureLayout(ctx, trip, days, opts = {}) {
   const includeRoutes = !!opts.includeRoutes;
 
   // 卡片内的固定高度（按各 section 分别累加）
-  const brand = L(18) + L(14);                          // logo 高 18 + mb 14
+  const brand = L(18) + L(14); // logo 高 18 + mb 14
   const title = L(26 * 1.2) + L(6) + L(12 * 1.2) + L(14); // h1 + gap + sub + mb 14
-  const stats = L(54) + L(16);                          // 统计条 + mb 16
-  const map = MAP_H + L(8);                             // 地图 + mb 8
-  const mapStrip = L(20) + L(12);                       // strip 高度 + mb 12（再到日块）
+  const stats = L(54) + L(16); // 统计条 + mb 16
+  const map = MAP_H + L(8); // 地图 + mb 8
+  const mapStrip = L(20) + L(12); // strip 高度 + mb 12（再到日块）
 
   let daysHeight = 0;
   const dayHeights = days.map((day, idx) => {
@@ -173,7 +173,8 @@ function measureLayout(ctx, trip, days, opts = {}) {
 
     const emptyDayH = events.length ? 0 : L(58);
     const itemsTotal = events.length
-      ? elements.reduce((s, e) => s + e.height, 0) + Math.max(0, elements.length - 1) * INTER_ELEM_GAP
+      ? elements.reduce((s, e) => s + e.height, 0) +
+        Math.max(0, elements.length - 1) * INTER_ELEM_GAP
       : emptyDayH;
     const dayH = headH + itemsTotal;
     daysHeight += dayH + (idx > 0 ? L(18) : 0);
@@ -181,7 +182,7 @@ function measureLayout(ctx, trip, days, opts = {}) {
   });
 
   const summary = L(26) + L(110); // mt 26 + 高度
-  const footer = L(14) + L(14);   // mt 14 + 行高
+  const footer = L(14) + L(14); // mt 14 + 行高
 
   const inner = brand + title + stats + map + mapStrip + daysHeight + summary + footer;
   const cardHeight = CARD_PAD_TOP + inner + CARD_PAD_BOTTOM;
@@ -192,9 +193,12 @@ function measureLayout(ctx, trip, days, opts = {}) {
 function measureItemHeight(ctx, trip, event) {
   const loc = trip.locations?.[event.locationId] || {};
   const padV = L(EVENT_CARD_PAD_Y);
-  const innerW = CONTENT_W - L(26)        // 时间轴左缩进
-                - L(12) * 2               // item 卡左右内边距
-                - L(EVENT_ICON_BOX_SIZE) - L(9); // icon + 与文本间隙
+  const innerW =
+    CONTENT_W -
+    L(26) - // 时间轴左缩进
+    L(12) * 2 - // item 卡左右内边距
+    L(EVENT_ICON_BOX_SIZE) -
+    L(9); // icon + 与文本间隙
 
   // 时间 badge 占一段宽度，挤压标题首行可用宽度
   const timeSlot = normalizeTimeSlot(event.timeSlot);
@@ -202,17 +206,32 @@ function measureItemHeight(ctx, trip, event) {
   let badgeFullW = 0;
   if (showTimeBadge) {
     ctx.font = `500 ${L(EVENT_TIME_BADGE_FONT_SIZE)}px ${FONT_SC}`;
-    badgeFullW = ctx.measureText(getTimeSlotLabel(timeSlot)).width + L(10) /* 5+5 padding */ + L(6) /* 与标题的间距 */;
+    badgeFullW =
+      ctx.measureText(getTimeSlotLabel(timeSlot)).width +
+      L(10) /* 5+5 padding */ +
+      L(6) /* 与标题的间距 */;
   }
   const titleAvailableW = innerW - badgeFullW;
 
-  const titleLines = wrapText(ctx, event.title || loc.name || '未命名地点', titleAvailableW, `600 ${L(EVENT_TITLE_FONT_SIZE)}px ${FONT_SC}`);
+  const titleLines = wrapText(
+    ctx,
+    event.title || loc.name || '未命名地点',
+    titleAvailableW,
+    `600 ${L(EVENT_TITLE_FONT_SIZE)}px ${FONT_SC}`
+  );
   const locText = loc.name || loc.addr || '地点待定';
   const locTextW = innerW - L(EVENT_LOCATION_PIN_SIZE + 4);
-  const locLines = wrapText(ctx, locText, locTextW, `400 ${L(EVENT_LOCATION_FONT_SIZE)}px ${FONT_SC}`).slice(0, 2);
+  const locLines = wrapText(
+    ctx,
+    locText,
+    locTextW,
+    `400 ${L(EVENT_LOCATION_FONT_SIZE)}px ${FONT_SC}`
+  ).slice(0, 2);
 
   const note = String(event.note || '').trim();
-  const noteLines = note ? wrapText(ctx, note, innerW, `400 ${L(EVENT_NOTE_FONT_SIZE)}px ${FONT_SC}`).slice(0, 2) : [];
+  const noteLines = note
+    ? wrapText(ctx, note, innerW, `400 ${L(EVENT_NOTE_FONT_SIZE)}px ${FONT_SC}`).slice(0, 2)
+    : [];
 
   const titleH = titleLines.length * L(EVENT_TITLE_FONT_SIZE * EVENT_TITLE_LINE_HEIGHT);
   const locH = locLines.length * L(EVENT_LOCATION_FONT_SIZE * EVENT_LOCATION_LINE_HEIGHT);
@@ -270,7 +289,11 @@ async function drawBrandBar(ctx, startY) {
   ctx.fillStyle = COLORS.ink4;
   ctx.font = `500 ${L(10)}px ${FONT_MONO}`;
   ctx.textAlign = 'right';
-  ctx.fillText(`SHARED · ${formatDateStamp(new Date())}`, CONTENT_X + CONTENT_W, startY + logoSize / 2);
+  ctx.fillText(
+    `SHARED · ${formatDateStamp(new Date())}`,
+    CONTENT_X + CONTENT_W,
+    startY + logoSize / 2
+  );
 
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
@@ -288,7 +311,8 @@ function drawTitleBlock(ctx, trip, days, y) {
 
   const subY = y + titleH + L(6);
   const dateRange = buildDateRange(days);
-  const dayNight = days.length > 1 ? `${days.length} 天 ${days.length - 1} 夜` : `${days.length} 天`;
+  const dayNight =
+    days.length > 1 ? `${days.length} 天 ${days.length - 1} 夜` : `${days.length} 天`;
 
   ctx.fillStyle = COLORS.ink3;
   ctx.font = `400 ${L(12)}px ${FONT_SC}`;
@@ -478,15 +502,26 @@ async function drawDays(ctx, trip, days, startY, layout) {
   // 预加载所有 event 图标（按 iconId 缓存，避免重复编码）
   const iconCache = new Map();
   const allIconIds = new Set();
-  days.forEach(day => (day.events || []).forEach(event => {
-    allIconIds.add(normalizeForCanvas(event.icon, event, trip));
-  }));
-  await Promise.all([...allIconIds].map(async id => {
-    iconCache.set(id, await loadSvgImage(getIconPaths(id), { size: L(EVENT_ICON_SIZE), color: COLORS.ink2 }));
-  }));
+  days.forEach(day =>
+    (day.events || []).forEach(event => {
+      allIconIds.add(normalizeForCanvas(event.icon, event, trip));
+    })
+  );
+  await Promise.all(
+    [...allIconIds].map(async id => {
+      iconCache.set(
+        id,
+        await loadSvgImage(getIconPaths(id), { size: L(EVENT_ICON_SIZE), color: COLORS.ink2 })
+      );
+    })
+  );
   iconCache.set(
     '__location-pin',
-    await loadSvgImage(LOCATION_PIN_PATHS, { size: L(EVENT_LOCATION_PIN_SIZE), color: COLORS.ink4, strokeWidth: 2 })
+    await loadSvgImage(LOCATION_PIN_PATHS, {
+      size: L(EVENT_LOCATION_PIN_SIZE),
+      color: COLORS.ink4,
+      strokeWidth: 2
+    })
   );
 
   let y = startY;
@@ -621,7 +656,7 @@ function drawTimelineNode(ctx, x, y, index) {
 }
 
 function drawEventCard(ctx, trip, event, x, y, h, iconCache) {
-  const cardW = (CONTENT_X + CONTENT_W) - x;
+  const cardW = CONTENT_X + CONTENT_W - x;
   const cardR = L(10);
 
   roundRect(ctx, x, y, cardW, h, cardR);
@@ -672,13 +707,25 @@ function drawEventCard(ctx, trip, event, x, y, h, iconCache) {
   }
   const titleAvailableW = textW - (showTimeBadge ? badgeW + L(6) : 0);
 
-  const titleLines = wrapText(ctx, event.title || loc.name || '未命名地点', titleAvailableW, `600 ${L(EVENT_TITLE_FONT_SIZE)}px ${FONT_SC}`);
+  const titleLines = wrapText(
+    ctx,
+    event.title || loc.name || '未命名地点',
+    titleAvailableW,
+    `600 ${L(EVENT_TITLE_FONT_SIZE)}px ${FONT_SC}`
+  );
   const locText = loc.name || loc.addr || '地点待定';
   const locIconSpace = L(EVENT_LOCATION_PIN_SIZE + 4);
-  const locLines = wrapText(ctx, locText, textW - locIconSpace, `400 ${L(EVENT_LOCATION_FONT_SIZE)}px ${FONT_SC}`).slice(0, 2);
+  const locLines = wrapText(
+    ctx,
+    locText,
+    textW - locIconSpace,
+    `400 ${L(EVENT_LOCATION_FONT_SIZE)}px ${FONT_SC}`
+  ).slice(0, 2);
 
   const note = String(event.note || '').trim();
-  const noteLines = note ? wrapText(ctx, note, textW, `400 ${L(EVENT_NOTE_FONT_SIZE)}px ${FONT_SC}`).slice(0, 2) : [];
+  const noteLines = note
+    ? wrapText(ctx, note, textW, `400 ${L(EVENT_NOTE_FONT_SIZE)}px ${FONT_SC}`).slice(0, 2)
+    : [];
 
   const titleLineH = L(EVENT_TITLE_FONT_SIZE * EVENT_TITLE_LINE_HEIGHT);
   const locLineH = L(EVENT_LOCATION_FONT_SIZE * EVENT_LOCATION_LINE_HEIGHT);
@@ -874,7 +921,12 @@ function collectTripLocations(trip) {
   });
   return ids
     .map(id => ({ id, ...(trip.locations?.[id] || {}) }))
-    .filter(loc => Array.isArray(loc.lnglat) && Number.isFinite(Number(loc.lnglat[0])) && Number.isFinite(Number(loc.lnglat[1])));
+    .filter(
+      loc =>
+        Array.isArray(loc.lnglat) &&
+        Number.isFinite(Number(loc.lnglat[0])) &&
+        Number.isFinite(Number(loc.lnglat[1]))
+    );
 }
 
 function normalizeForCanvas(iconId, event, trip) {
@@ -892,7 +944,8 @@ function normalizeForCanvas(iconId, event, trip) {
 // ─── 地图投影 ─────────────────────────────────────────
 
 function getMapViewport(locations, width, height) {
-  if (!locations.length) return { center: AppConfig.defaultCenter, zoom: AppConfig.defaultZoom, width, height };
+  if (!locations.length)
+    return { center: AppConfig.defaultCenter, zoom: AppConfig.defaultZoom, width, height };
   const points = locations.map(loc => loc.lnglat.map(Number));
   const lngs = points.map(p => p[0]);
   const lats = points.map(p => p[1]);
@@ -934,7 +987,9 @@ async function drawMapTiles(ctx, viewport, x, y) {
     for (let ty = startTileY; ty <= endTileY; ty += 1) {
       if (ty < 0 || ty >= maxTile) continue;
       const wrappedX = ((tx % maxTile) + maxTile) % maxTile;
-      tasks.push(loadImage(buildTileURL(wrappedX, ty, viewport.zoom)).then(img => ({ img, tx, ty })));
+      tasks.push(
+        loadImage(buildTileURL(wrappedX, ty, viewport.zoom)).then(img => ({ img, tx, ty }))
+      );
     }
   }
 
@@ -970,7 +1025,7 @@ function projectToMap(lnglat, viewport, x, y) {
 
 function lngLatToPixel([lng, lat], zoom) {
   const sin = Math.sin((lat * Math.PI) / 180);
-  const scale = 256 * (2 ** zoom);
+  const scale = 256 * 2 ** zoom;
   return {
     x: ((lng + 180) / 360) * scale,
     y: (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * scale
@@ -991,9 +1046,9 @@ function loadImage(src) {
 async function loadSvgImage(svgInner, { size, color, strokeWidth = 1.9 }) {
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="${size}" height="${size}">` +
-      `<g fill="none" stroke="${color}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round">` +
-        svgInner +
-      `</g>` +
+    `<g fill="none" stroke="${color}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round">` +
+    svgInner +
+    `</g>` +
     `</svg>`;
   const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
   return loadImage(url);
@@ -1028,10 +1083,6 @@ function roundRect(ctx, x, y, width, height, radius) {
   ctx.closePath();
 }
 
-function sumWithGaps(values, gap) {
-  return values.reduce((sum, v) => sum + v, 0) + Math.max(0, values.length - 1) * gap;
-}
-
 function formatDateStamp(date) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -1044,5 +1095,8 @@ function cleanTitle(value) {
 }
 
 function sanitizeFilename(value) {
-  return String(value || 'trip').replace(/[\\/:*?"<>|]/g, '-').replace(/\s+/g, '-').slice(0, 40);
+  return String(value || 'trip')
+    .replace(/[\\/:*?"<>|]/g, '-')
+    .replace(/\s+/g, '-')
+    .slice(0, 40);
 }

@@ -8,7 +8,7 @@
 // 这里按 hostname 自动切换：
 //   - localhost / 127.0.0.1 → 开发 key（高德后台白名单留空，仅本地用）
 //   - 其它 → 生产 key（白名单仅含 travelwithyou.preview.aliyun-zeabur.cn）
-const AMAP_KEY_DEV  = 'a32b44e9ac97100b36d87b0d961976a9';
+const AMAP_KEY_DEV = 'a32b44e9ac97100b36d87b0d961976a9';
 const AMAP_KEY_PROD = '7204bb52ceac03112bb024af2f270444';
 
 function pickAmapKey() {
@@ -34,8 +34,14 @@ export const AppConfig = {
 
   // 多段路线的颜色循环
   routeColors: [
-    '#ef4444', '#2563eb', '#16a34a', '#9333ea',
-    '#f97316', '#0891b2', '#db2777', '#65a30d'
+    '#ef4444',
+    '#2563eb',
+    '#16a34a',
+    '#9333ea',
+    '#f97316',
+    '#0891b2',
+    '#db2777',
+    '#65a30d'
   ],
 
   // 高德 SDK 需要的插件列表

@@ -69,7 +69,7 @@ export async function loadWorkspace() {
     if ((parsed.version || 0) < SCHEMA_VERSION) {
       console.warn(
         `[storage] 检测到旧 schema (v${parsed.version || '?'})，已升级到 v${SCHEMA_VERSION}。` +
-        '原工作区数据已重置。'
+          '原工作区数据已重置。'
       );
       safeRemove(WORKSPACE_KEY);
       return null;

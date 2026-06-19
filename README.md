@@ -4,6 +4,24 @@ Trip App 是一个中文旅行路线规划 Web App，用来创建多条旅行路
 
 当前项目是 **Node/Hono BFF + 原生 ES Modules 前端**，不是 React/Vue/Vite 项目，也不是纯静态站。
 
+## 项目阶段
+
+当前项目处于 **本地 MVP → 工程可私测** 的过渡期。核心规划闭环已经成立，但还不建议直接商业化上线：质量门禁、安全、数据可靠性、移动端、云端同步和成本控制仍需补齐。
+
+设计级重构入口：
+
+- [设计重构总纲](docs/design-refactor-plan.md)：项目阶段、文档职责、设计边界、质量门槛。
+- [工程工作流底座](docs/development-workflow-foundation.md)：软件安装、账号密钥、环境准备和日常开发流程。
+- [大厂交付 Playbook](docs/enterprise-delivery-playbook.md)：按完整互联网项目流程组织阶段、门禁、产物和工作流。
+- [项目成熟度评估](docs/project-delivery-maturity-review.md)：从完整互联网研发流程判断当前进度和阶段门槛。
+- [Codex 自用提示词](docs/codex-self-prompts.md)：后续迭代时用于自检、重构、验收和文档同步的工作提示词。
+- [技术特性实现评分表](docs/technical-feature-implementation-scorecard.md)：逐项比较可选实现方式、加权评分并保留真实开发步骤。
+- [3D 地形实现研究](docs/3d-terrain-implementation-research.md)：2D 抬升、地形融化、高程数据、相机和动效实现路径。
+- [架构文档](ARCHITECTURE.md)：当前系统架构、ADR、模块边界和 3D 设计规范。
+- [商业化策略](commercialization-solutions.md)：商业化缺口、方案取舍、阶段路线和暂不做清单。
+- [Roadmap](TODO.md)：按 P0/P1/P2/P3 组织的执行 backlog。
+- [BFF API 文档](docs/api.md)：服务端代理和接口契约。
+
 ## 当前能力
 
 - **多路线工作区**：顶部活页本标签切换，最多本地保存 3 条旅行路线。
@@ -62,6 +80,14 @@ http://localhost:8080
 npm run dev
 ```
 
+代码检查：
+
+```bash
+npm run check       # Prettier 格式检查 + ESLint
+npm test            # 运行单元测试（43 tests, 5 suites）
+npm run test:watch  # 测试持续监听模式
+```
+
 如果 8080 端口被占用，Windows PowerShell 可先找到并结束占用进程：
 
 ```powershell
@@ -116,43 +142,67 @@ trip-app/
 ├── Dockerfile
 ├── package.json
 ├── package-lock.json
+├── .editorconfig
+├── .prettierrc
+├── eslint.config.js
+├── vitest.config.js
+├── playwright.config.js
+├── .github/workflows/ci.yml
 ├── server/
 │   ├── index.js              # Hono BFF：静态托管、高德/AI 代理、瓦片代理
 │   └── prompts/
 │       └── guide-extract.md  # AI 攻略解析 Prompt
 ├── index.html
 ├── css/
-│   └── app.css
+│   ├── tokens.css            # 设计令牌
+│   ├── layout.css            # 布局骨架
+│   ├── components.css        # UI 组件
+│   └── app.css               # 全局样式（逐模块迁移中）
 └── js/
     ├── main.js               # 启动流程和业务编排
     ├── state.js              # workspace/trip 唯一状态源
     ├── storage.js            # localStorage workspace 存储
     ├── config.js             # 高德 key、地图默认配置
+    ├── logger.js             # 日志框架（按模块开关）
     ├── route-config.js       # 路线配置与组合交通方式规范化
     ├── time-slots.js         # 时间块定义和排序
     ├── share.js              # 旧 #trip= 链接兼容
     ├── share-image.js        # Canvas 分享长图生成
     ├── data/
-    │   └── trip.js           # 五一北京演示数据，无内置坐标
+    │   └── trip.js           # 五一北京演示数据 + JSDoc typedef
     ├── api/
-    │   ├── amap-loader.js
+    │   ├── amap-loader.js    # 高德 SDK 加载
     │   ├── geocode.js        # POI 搜索、搜附近、地址解析
     │   ├── guide-import.js   # AI 攻略导入请求封装
-    │   └── routing.js        # 路线规划与估算兜底
-    └── render/
-        ├── workspace-tabs.js
-        ├── sidebar.js
-        ├── map.js
-        ├── search-modal.js
-        ├── event-editor-modal.js
-        ├── day-editor-modal.js
-        ├── route-editor-modal.js
-        ├── share-modal.js
-        ├── guide-import-modal.js
-        ├── guide-preview-modal.js
-        ├── trip-modal.js
-        ├── date-picker.js
-        └── icons.js
+    │   ├── routing.js        # 路线规划与估算兜底
+    │   └── elevation.js      # 高程数据获取（3D 使用）
+    ├── render/
+    │   ├── modal-base.js     # Modal 基础设施
+    │   ├── shared-widgets.js # 共享 UI 组件
+    │   ├── icons.js          # 图标体系
+    │   ├── geo-project.js    # 地理坐标投影
+    │   ├── workspace-tabs.js
+    │   ├── sidebar.js
+    │   ├── map.js            # 2D 地图渲染
+    │   ├── map-3d.js         # 3D diorama 渲染
+    │   ├── toggle-3d.js      # 2D/3D 切换
+    │   ├── search-modal.js
+    │   ├── event-editor-modal.js
+    │   ├── day-editor-modal.js
+    │   ├── route-editor-modal.js
+    │   ├── share-modal.js
+    │   ├── guide-import-modal.js
+    │   ├── guide-preview-modal.js
+    │   └── trip-modal.js
+    ├── __tests__/
+    │   ├── utils.test.js
+    │   ├── time-slots.test.js
+    │   ├── route-config.test.js
+    │   ├── icons.test.js
+    │   └── state.test.js
+    └── tests/
+        └── e2e/
+            └── smoke.spec.js
 ```
 
 ## 架构约定

@@ -67,7 +67,7 @@ function bindEvents(root) {
   const errorEl = root.querySelector('.guide-import-error');
   const progressEl = root.querySelector('.guide-import-progress');
 
-  const setError = (message) => {
+  const setError = message => {
     errorEl.hidden = !message;
     errorEl.textContent = message || '';
   };
@@ -85,7 +85,7 @@ function bindEvents(root) {
     if (detailEl) detailEl.textContent = detail;
   };
 
-  const setLoading = (loading) => {
+  const setLoading = loading => {
     submitBtn.disabled = loading || !isValid(textarea.value.trim());
     submitBtn.textContent = loading ? '提取中...' : '提取';
     textarea.disabled = loading;
@@ -105,14 +105,14 @@ function bindEvents(root) {
 
   root.querySelector('.modal-close').addEventListener('click', closeGuideImportModal);
   root.querySelector('.modal-cancel').addEventListener('click', closeGuideImportModal);
-  root.addEventListener('click', (e) => {
+  root.addEventListener('click', e => {
     if (e.target === root) closeGuideImportModal();
   });
-  root.addEventListener('keydown', (e) => {
+  root.addEventListener('keydown', e => {
     if (e.key === 'Escape') closeGuideImportModal();
   });
 
-  form.addEventListener('submit', async (e) => {
+  form.addEventListener('submit', async e => {
     e.preventDefault();
     const text = textarea.value.trim();
     if (text.length < MIN_TEXT_LENGTH) {
@@ -159,12 +159,16 @@ function renderProgressSteps() {
   ];
   return `
     <div class="guide-import-progress-track">
-      ${steps.map(([id, label], index) => `
+      ${steps
+        .map(
+          ([id, label], index) => `
         <div class="guide-import-step" data-step-id="${id}" data-order="${index + 1}">
           <span class="guide-import-step-dot"></span>
           <span class="guide-import-step-label">${label}</span>
         </div>
-      `).join('')}
+      `
+        )
+        .join('')}
     </div>
     <div class="guide-import-progress-detail">正在解析攻略文字...</div>
   `;

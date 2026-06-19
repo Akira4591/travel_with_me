@@ -32,9 +32,20 @@ const DEEPSEEK_MODEL = 'deepseek-v4-flash';
 const DEEPSEEK_JSON_ATTEMPTS = 2;
 const DEEPSEEK_TIMEOUT_MS = readPositiveInt(process.env.DEEPSEEK_TIMEOUT_MS, 90000);
 const GUIDE_PROMPT_TEMPLATE = loadGuidePromptTemplate();
+const ALLOWED_ORIGINS = parseOriginList(process.env.ALLOWED_ORIGINS);
+const MAX_AI_BODY_BYTES = readPositiveInt(process.env.MAX_AI_BODY_BYTES, 24000);
+const AI_RATE_LIMIT = readPositiveInt(process.env.AI_RATE_LIMIT, 10);
+const AI_RATE_WINDOW_MS = readPositiveInt(process.env.AI_RATE_WINDOW_MS, 60 * 60 * 1000);
+const AMAP_RATE_LIMIT = readPositiveInt(process.env.AMAP_RATE_LIMIT, 600);
+const AMAP_RATE_WINDOW_MS = readPositiveInt(process.env.AMAP_RATE_WINDOW_MS, 60 * 1000);
+const TILE_RATE_LIMIT = readPositiveInt(process.env.TILE_RATE_LIMIT, 1200);
+const TILE_RATE_WINDOW_MS = readPositiveInt(process.env.TILE_RATE_WINDOW_MS, 60 * 1000);
+const rateBuckets = new Map();
 
 if (!JSCODE) {
-  console.warn('[trip-app] AMAP_JSCODE 未设置：高德 Web 服务请求会被拒绝。请检查 .env 或部署环境变量。');
+  console.warn(
+    '[trip-app] AMAP_JSCODE 未设置：高德 Web 服务请求会被拒绝。请检查 .env 或部署环境变量。'
+  );
 }
 if (!DEEPSEEK_KEY) {
   console.warn('[trip-app] DEEPSEEK_API_KEY 未设置：AI 攻略导入功能将不可用。');
@@ -45,34 +56,63 @@ const app = new Hono();
 
 // ─── AI 攻略导入 ────────────────────────────────────────
 
-app.get(`${AI_PREFIX}/status`, (c) => {
+app.get(`${AI_PREFIX}/status`, c => {
   return c.json({
     available: Boolean(DEEPSEEK_KEY && GUIDE_PROMPT_TEMPLATE),
     reason: !DEEPSEEK_KEY
       ? 'DEEPSEEK_API_KEY_MISSING'
-      : (!GUIDE_PROMPT_TEMPLATE ? 'GUIDE_PROMPT_MISSING' : '')
+      : !GUIDE_PROMPT_TEMPLATE
+        ? 'GUIDE_PROMPT_MISSING'
+        : ''
   });
 });
 
-app.post(`${AI_PREFIX}/extract-guide`, async (c) => {
+app.post(`${AI_PREFIX}/extract-guide`, async c => {
+  const sourceRejected = rejectUntrustedSource(c);
+  if (sourceRejected) return sourceRejected;
+  const limited = enforceRateLimit(c, 'ai', AI_RATE_LIMIT, AI_RATE_WINDOW_MS);
+  if (limited) return limited;
+  const tooLargeByHeader = rejectLargeBodyByHeader(c, MAX_AI_BODY_BYTES);
+  if (tooLargeByHeader) return tooLargeByHeader;
+
   if (!DEEPSEEK_KEY) {
-    return c.json({ error: 'AI_UNAVAILABLE', message: 'AI 攻略导入功能暂不可用：缺少 DEEPSEEK_API_KEY。' }, 503);
+    return c.json(
+      { error: 'AI_UNAVAILABLE', message: 'AI 攻略导入功能暂不可用：缺少 DEEPSEEK_API_KEY。' },
+      503
+    );
   }
   if (!GUIDE_PROMPT_TEMPLATE) {
-    return c.json({ error: 'AI_PROMPT_MISSING', message: '攻略解析 Prompt 未找到，请检查服务端 Prompt 文件。' }, 500);
+    return c.json(
+      { error: 'AI_PROMPT_MISSING', message: '攻略解析 Prompt 未找到，请检查服务端 Prompt 文件。' },
+      500
+    );
   }
 
   let payload;
+  let rawBody;
   try {
-    payload = await c.req.json();
+    rawBody = await c.req.text();
+  } catch {
+    return c.json({ error: 'BAD_REQUEST', message: '请求体读取失败。' }, 400);
+  }
+  if (new TextEncoder().encode(rawBody).byteLength > MAX_AI_BODY_BYTES) {
+    return c.json(
+      { error: 'REQUEST_TOO_LARGE', message: '请求体过大，请缩短攻略文本后重试。' },
+      413
+    );
+  }
+  try {
+    payload = JSON.parse(rawBody);
   } catch {
     return c.json({ error: 'BAD_REQUEST', message: '请求格式错误。' }, 400);
   }
 
   const text = String(payload?.text || '').trim();
   const cityHint = String(payload?.cityHint || '').trim();
-  if (text.length < 50) return c.json({ error: 'TEXT_TOO_SHORT', message: '文字太短，请粘贴完整攻略段落。' }, 400);
-  if (text.length > 5000) return c.json({ error: 'TEXT_TOO_LONG', message: '文字过长，请分段处理。' }, 400);
+  if (text.length < 50)
+    return c.json({ error: 'TEXT_TOO_SHORT', message: '文字太短，请粘贴完整攻略段落。' }, 400);
+  if (text.length > 5000)
+    return c.json({ error: 'TEXT_TOO_LONG', message: '文字过长，请分段处理。' }, 400);
 
   try {
     let lastDebug = null;
@@ -109,11 +149,14 @@ app.post(`${AI_PREFIX}/extract-guide`, async (c) => {
       }
     }
 
-    return c.json({
-      error: 'AI_PARSE_FAILED',
-      message: buildParseFailMessage(lastDebug || {}),
-      debug: lastDebug
-    }, 502);
+    return c.json(
+      {
+        error: 'AI_PARSE_FAILED',
+        message: buildParseFailMessage(lastDebug || {}),
+        debug: lastDebug
+      },
+      502
+    );
   } catch (err) {
     if (err?.name === 'AbortError') {
       console.warn('[trip-app] DeepSeek 请求超时：', {
@@ -121,10 +164,13 @@ app.post(`${AI_PREFIX}/extract-guide`, async (c) => {
         timeoutMs: DEEPSEEK_TIMEOUT_MS,
         textLength: text.length
       });
-      return c.json({
-        error: 'AI_TIMEOUT',
-        message: `AI 处理超过 ${Math.round(DEEPSEEK_TIMEOUT_MS / 1000)} 秒，请稍后重试或缩短攻略文本。`
-      }, 504);
+      return c.json(
+        {
+          error: 'AI_TIMEOUT',
+          message: `AI 处理超过 ${Math.round(DEEPSEEK_TIMEOUT_MS / 1000)} 秒，请稍后重试或缩短攻略文本。`
+        },
+        504
+      );
     }
     console.error('[trip-app] AI 攻略导入失败：', err);
     return c.json({ error: 'AI_FAILED', message: 'AI 暂时不可用，请稍后重试。' }, 502);
@@ -134,7 +180,12 @@ app.post(`${AI_PREFIX}/extract-guide`, async (c) => {
 // ─── 高德 Web 服务代理 ────────────────────────────────────
 // 高德 JS SDK 在前端设置 _AMapSecurityConfig.serviceHost 后，
 // 所有 Web 服务请求都会以 ${serviceHost}/v3/... 形式打到这里。
-app.all(`${PROXY_PREFIX}/*`, async (c) => {
+app.all(`${PROXY_PREFIX}/*`, async c => {
+  const sourceRejected = rejectUntrustedSource(c);
+  if (sourceRejected) return sourceRejected;
+  const limited = enforceRateLimit(c, 'amap', AMAP_RATE_LIMIT, AMAP_RATE_WINDOW_MS);
+  if (limited) return limited;
+
   const incoming = new URL(c.req.url);
   const upstreamPath = incoming.pathname.slice(PROXY_PREFIX.length);
   const upstream = new URL(UPSTREAM + upstreamPath);
@@ -145,7 +196,7 @@ app.all(`${PROXY_PREFIX}/*`, async (c) => {
     method: c.req.method,
     headers: {
       'user-agent': c.req.header('user-agent') || 'trip-app-bff',
-      'accept': c.req.header('accept') || '*/*'
+      accept: c.req.header('accept') || '*/*'
     }
   };
   // 高德通过 Referer 头校验域名白名单（appname 参数不算数）。
@@ -169,12 +220,15 @@ app.all(`${PROXY_PREFIX}/*`, async (c) => {
     });
   } catch (err) {
     console.error('[trip-app] 上游请求失败：', err);
-    return c.json({
-      status: '0',
-      info: 'BFF_UPSTREAM_FAILED',
-      infocode: '50001',
-      message: '高德服务连接超时或网络不可用，请稍后重试。'
-    }, 502);
+    return c.json(
+      {
+        status: '0',
+        info: 'BFF_UPSTREAM_FAILED',
+        infocode: '50001',
+        message: '高德服务连接超时或网络不可用，请稍后重试。'
+      },
+      502
+    );
   }
 
   const body = await upstreamResp.arrayBuffer();
@@ -189,15 +243,23 @@ app.all(`${PROXY_PREFIX}/*`, async (c) => {
 
 // ─── 高德底图瓦片代理 ────────────────────────────────────
 // 分享长图需要把地图瓦片画进 canvas；浏览器直接加载跨域瓦片会污染 canvas。
-app.get(TILE_PREFIX, async (c) => {
+app.get(TILE_PREFIX, async c => {
+  const sourceRejected = rejectUntrustedSource(c, false);
+  if (sourceRejected) return sourceRejected;
+  const limited = enforceRateLimit(c, 'tile', TILE_RATE_LIMIT, TILE_RATE_WINDOW_MS, false);
+  if (limited) return limited;
+
   const x = Number(c.req.query('x'));
   const y = Number(c.req.query('y'));
   const z = Number(c.req.query('z'));
   if (!Number.isInteger(x) || !Number.isInteger(y) || !Number.isInteger(z)) {
     return c.text('Bad tile params', 400);
   }
+  if (!isValidTileCoord(x, y, z)) {
+    return c.text('Tile params out of range', 400);
+  }
 
-  const host = `https://webrd0${Math.abs(x + y) % 4 + 1}.is.autonavi.com`;
+  const host = `https://webrd0${(Math.abs(x + y) % 4) + 1}.is.autonavi.com`;
   const upstream = new URL('/appmaptile', host);
   upstream.searchParams.set('lang', 'zh_cn');
   upstream.searchParams.set('size', '1');
@@ -212,7 +274,7 @@ app.get(TILE_PREFIX, async (c) => {
     upstreamResp = await fetch(upstream, {
       headers: {
         'user-agent': c.req.header('user-agent') || 'trip-app-bff',
-        'accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
+        accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
       }
     });
   } catch (err) {
@@ -231,7 +293,6 @@ app.get(TILE_PREFIX, async (c) => {
   return new Response(body, { status: upstreamResp.status, headers });
 });
 
-
 // ─── 静态文件托管 ─────────────────────────────────────────
 // 只暴露前端实际需要的目录/文件，避免把 server/、node_modules/、.env 也意外暴露。
 app.get('/', serveStatic({ path: './index.html' }));
@@ -239,7 +300,7 @@ app.get('/index.html', serveStatic({ path: './index.html' }));
 app.use('/css/*', serveStatic({ root: './' }));
 app.use('/js/*', serveStatic({ root: './' }));
 
-serve({ fetch: app.fetch, port: PORT }, (info) => {
+serve({ fetch: app.fetch, port: PORT }, info => {
   console.log(`[trip-app] 已启动：http://localhost:${info.port}`);
 });
 
@@ -258,7 +319,10 @@ function loadDotenv() {
     const eq = line.indexOf('=');
     if (eq < 0) continue;
     const key = line.slice(0, eq).trim();
-    const value = line.slice(eq + 1).trim().replace(/^["']|["']$/g, '');
+    const value = line
+      .slice(eq + 1)
+      .trim()
+      .replace(/^["']|["']$/g, '');
     if (process.env[key] === undefined) process.env[key] = value;
   }
 }
@@ -276,9 +340,7 @@ function loadGuidePromptTemplate() {
 
 function renderGuidePrompt(template, text, cityHint) {
   const city = cityHint || '由你识别';
-  return template
-    .replace('{user_specified_city 或 "由你识别"}', city)
-    .replace('{user_text}', text);
+  return template.replace('{user_specified_city 或 "由你识别"}', city).replace('{user_text}', text);
 }
 
 async function fetchDeepSeekWithTimeout({ text, cityHint, signalTimeoutMs }) {
@@ -289,7 +351,7 @@ async function fetchDeepSeekWithTimeout({ text, cityHint, signalTimeoutMs }) {
       method: 'POST',
       signal: controller.signal,
       headers: {
-        'authorization': `Bearer ${DEEPSEEK_KEY}`,
+        authorization: `Bearer ${DEEPSEEK_KEY}`,
         'content-type': 'application/json'
       },
       body: JSON.stringify({
@@ -301,7 +363,8 @@ async function fetchDeepSeekWithTimeout({ text, cityHint, signalTimeoutMs }) {
         messages: [
           {
             role: 'system',
-            content: '你必须只输出一个可被 JSON.parse 解析的 json object，不要输出 markdown、代码块、解释文字或前后缀。'
+            content:
+              '你必须只输出一个可被 JSON.parse 解析的 json object，不要输出 markdown、代码块、解释文字或前后缀。'
           },
           {
             role: 'user',
@@ -320,11 +383,113 @@ function readPositiveInt(value, fallback) {
   return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : fallback;
 }
 
+function parseOriginList(value = '') {
+  return new Set(
+    String(value)
+      .split(/[,\s]+/)
+      .map(item => item.trim())
+      .filter(Boolean)
+      .map(item => {
+        try {
+          return new URL(item).origin;
+        } catch {
+          return '';
+        }
+      })
+      .filter(Boolean)
+  );
+}
+
+function rejectUntrustedSource(c, asJson = true) {
+  const requestOrigin = new URL(c.req.url).origin;
+  const origins = getExplicitRequestOrigins(c);
+  if (!origins.length) return null;
+
+  const allowed = origins.every(origin => origin === requestOrigin || ALLOWED_ORIGINS.has(origin));
+  if (allowed) return null;
+
+  console.warn('[trip-app] 拒绝非允许来源请求：', {
+    path: new URL(c.req.url).pathname,
+    client: getClientIP(c),
+    origins
+  });
+  return asJson
+    ? c.json({ error: 'FORBIDDEN_SOURCE', message: '请求来源不被允许。' }, 403)
+    : c.text('Forbidden source', 403);
+}
+
+function getExplicitRequestOrigins(c) {
+  const origins = [];
+  const origin = normalizeOrigin(c.req.header('origin'));
+  if (origin) origins.push(origin);
+  const referer = normalizeOrigin(c.req.header('referer'));
+  if (referer && referer !== origin) origins.push(referer);
+  return origins;
+}
+
+function normalizeOrigin(value) {
+  if (!value) return '';
+  try {
+    return new URL(value).origin;
+  } catch {
+    return '';
+  }
+}
+
+function rejectLargeBodyByHeader(c, maxBytes) {
+  const rawLength = c.req.header('content-length');
+  if (!rawLength) return null;
+  const byteLength = Number(rawLength);
+  if (!Number.isFinite(byteLength) || byteLength <= maxBytes) return null;
+  return c.json({ error: 'REQUEST_TOO_LARGE', message: '请求体过大，请缩短攻略文本后重试。' }, 413);
+}
+
+function enforceRateLimit(c, name, limit, windowMs, asJson = true) {
+  const now = Date.now();
+  if (rateBuckets.size > 10000) pruneRateBuckets(now);
+
+  const key = `${name}:${getClientIP(c)}`;
+  const existing = rateBuckets.get(key);
+  const bucket =
+    existing && existing.resetAt > now ? existing : { count: 0, resetAt: now + windowMs };
+  bucket.count += 1;
+  rateBuckets.set(key, bucket);
+
+  if (bucket.count <= limit) return null;
+
+  const retryAfter = Math.max(1, Math.ceil((bucket.resetAt - now) / 1000));
+  const response = asJson
+    ? c.json({ error: 'RATE_LIMITED', message: '请求过于频繁，请稍后再试。' }, 429)
+    : c.text('Too many requests', 429);
+  response.headers.set('retry-after', String(retryAfter));
+  return response;
+}
+
+function pruneRateBuckets(now = Date.now()) {
+  for (const [key, bucket] of rateBuckets) {
+    if (bucket.resetAt <= now) rateBuckets.delete(key);
+  }
+}
+
+function getClientIP(c) {
+  const forwarded = c.req.header('x-forwarded-for');
+  if (forwarded) return forwarded.split(',')[0].trim();
+  return c.req.header('cf-connecting-ip') || c.req.header('x-real-ip') || 'local';
+}
+
+function isValidTileCoord(x, y, z) {
+  if (z < 3 || z > 18) return false;
+  const max = 2 ** z;
+  return x >= 0 && y >= 0 && x < max && y < max;
+}
+
 function parseGuideJSON(content) {
   const normalized = stripMarkdownFence(String(content || '').trim());
   try {
     return JSON.parse(normalized);
-  } catch {}
+  } catch {
+    // Continue with tolerant extraction and repair below.
+  }
 
   const jsonLike = extractBalancedJSONObject(normalized);
   if (!jsonLike) return null;
@@ -375,9 +540,7 @@ function extractBalancedJSONObject(text) {
 }
 
 function repairCommonJSONIssues(text) {
-  return text
-    .replace(/,\s*([}\]])/g, '$1')
-    .replace(/:\s*undefined\b/g, ': null');
+  return text.replace(/,\s*([}\]])/g, '$1').replace(/:\s*undefined\b/g, ': null');
 }
 
 function previewText(content) {
@@ -403,13 +566,19 @@ function normalizeExtractedGuide(input = {}) {
     city: input.city ? String(input.city).trim() : null,
     title_suggestion: String(input.title_suggestion || '').trim(),
     events: Array.isArray(input.events)
-      ? input.events.map(event => ({
-          place_name: String(event?.place_name || '').trim(),
-          day: Number.isInteger(event?.day) && event.day > 0 ? event.day : null,
-          time_slot: timeSlots.has(event?.time_slot) ? event.time_slot : null,
-          note: String(event?.note || '').trim().slice(0, 120),
-          source_quote: String(event?.source_quote || '').trim().slice(0, 80)
-        })).filter(event => event.place_name)
+      ? input.events
+          .map(event => ({
+            place_name: String(event?.place_name || '').trim(),
+            day: Number.isInteger(event?.day) && event.day > 0 ? event.day : null,
+            time_slot: timeSlots.has(event?.time_slot) ? event.time_slot : null,
+            note: String(event?.note || '')
+              .trim()
+              .slice(0, 120),
+            source_quote: String(event?.source_quote || '')
+              .trim()
+              .slice(0, 80)
+          }))
+          .filter(event => event.place_name)
       : [],
     warnings: Array.isArray(input.warnings)
       ? input.warnings.map(item => String(item || '').trim()).filter(Boolean)
@@ -428,7 +597,10 @@ async function fetchWithRetry(url, init = {}, options = {}) {
     } catch (err) {
       lastError = err;
       if (attempt >= attempts) break;
-      console.warn(`[trip-app] ${label}请求失败，准备重试 ${attempt}/${attempts - 1}：`, summarizeFetchError(err));
+      console.warn(
+        `[trip-app] ${label}请求失败，准备重试 ${attempt}/${attempts - 1}：`,
+        summarizeFetchError(err)
+      );
       await sleep(500 * attempt);
     }
   }
