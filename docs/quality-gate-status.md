@@ -64,57 +64,57 @@ VQ0 target state:
 
 ## Completed Gates
 
-|   # | Gate                                                                                                                | Evidence                                                            |
-| --: | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-|   1 | Format, lint, and source style pass                                                                                 | `npm.cmd run check`                                                 |
-|   2 | Unit tests pass                                                                                                     | `npm.cmd test`: 29 files, 141 tests                                 |
-|   3 | Desktop browser smoke tests pass                                                                                    | Chromium smoke: 12 passed, 1 mobile-only skipped                    |
-|   4 | Tracked source does not contain known real API keys                                                                 | `git grep` secret scan returned no matches                          |
-|   5 | 2D AMap mode renders real map content after CSP fixes                                                               | Browser and E2E map flow                                            |
-|   6 | Local 2D fallback renders when AMap JS SDK fails                                                                    | `desktop falls back to local 2D map when AMap JS SDK fails`         |
-|   7 | 3D button stays in the bottom-right map control area                                                                | Desktop 3D E2E bounding-box assertions                              |
-|   8 | 3D entry remains available for degraded overview                                                                    | Fallback/degraded 3D E2E                                            |
-|   9 | Nonblank 3D slab/canvas appears within the current gate                                                             | `data-first-slab-ms <= 1500` E2E assertion                          |
-|  10 | 2D and 3D route hash match                                                                                          | Desktop 3D E2E route diagnostics                                    |
-|  11 | 2D and 3D route endpoints match                                                                                     | Desktop 3D E2E endpoint key assertion                               |
-|  12 | 2D and 3D route length stays consistent                                                                             | Desktop 3D E2E length assertion                                     |
-|  13 | Persisted route geometry is preserved through 3D render paths                                                       | `route-guidance-renderer` tests and E2E route hash                  |
-|  14 | Real routes render as continuous industrial safety-yellow guidance                                                  | 3D smoke and shared `route-guidance.js`                             |
-|  15 | Estimated fallback routes render as dashed geometry                                                                 | `route-guidance-renderer.test.js`                                   |
-|  16 | Geo asset upstream failure exposes degraded state                                                                   | Desktop 3D E2E degraded-state assertions                            |
-|  17 | Named generation timeline exists                                                                                    | `generation-timeline.test.js`                                       |
-|  18 | Timeline exposes foundation, terrain, carving, massing, and dissolve progress                                       | `generation-timeline.test.js`                                       |
-|  19 | Scene debug exposes route, camera, counts, quality, and provenance                                                  | Desktop 3D E2E `window.__threeDebug__` assertions                   |
-|  20 | Camera supports unlocked WASD translation with terrain-relative y clamp                                             | `desktop 3D camera supports unlocked WASD...` E2E                   |
-|  21 | Terrain foundation is separate from terrain relief                                                                  | `terrain-foundation.js`, `terrain-model.test.js`, 3D entry sequence |
-|  22 | Bridge decks render from attributable bridge data                                                                   | `geo-asset-renderer.test.js` and water/bridge E2E                   |
-|  23 | Roads render as muted terrain-following ribbons                                                                     | `geo-asset-renderer.test.js` and water/road E2E                     |
-|  24 | 3D overview can enter and exit without blanking                                                                     | `desktop can enter and exit nonblank 3D map view`                   |
-|  25 | 3D mode never auto-exits after 60 seconds                                                                           | `desktop 3D stays open after 60 seconds idle`                       |
-|  26 | No visible UI mojibake in maintained source, tests, and docs                                                        | `npm.cmd run check:encoding`: 300 files scanned                     |
-|  27 | Accepted 4s generation timing replaces the old `<= 3s` detail budget                                                | `generation-timing.js` and `generation-timeline.test.js`            |
-|  28 | Route clearance P95 is within 0.3m above terrain/road surface                                                       | `route-guidance-renderer.test.js` and WASD 3D E2E geometry metrics  |
-|  29 | Building base terrain error P95 is <= 0.25m in seeded scenes                                                        | `window.__threeDebug__.geometryMetrics` and WASD 3D E2E             |
-|  30 | Renderer modules cannot directly import provider/API or server modules                                              | `check:architecture`, ESLint `no-restricted-imports`                |
-|  31 | Live provider checks are explicit opt-in and excluded from default CI                                               | `test:e2e:live-provider`, skipped default test, manual workflow     |
-|  32 | Real fixture assets require complete source/licence/attribution/updatedAt                                           | `check:provenance`, `geo-assets.test.js`, scene fixture scan        |
-|  33 | Micro-street building LOD increases at inspect distance and recedes in overview                                     | `micro-street building LOD...` visual E2E and `qa.lod` metrics      |
-|  34 | River-bridge 30s camera stress preserves route readability and z-fighting budget                                    | `river-bridge route remains readable during 30s camera stress` E2E  |
-|  35 | Micro-street 30s dense-building stress preserves route readability                                                  | `micro-street route remains readable during 30s dense-building...`  |
-|  36 | Hiking-terrain 30s terrain stress preserves route readability                                                       | `hiking-terrain route remains readable during 30s terrain...`       |
-|  37 | Vegetation per-area template density is capped and QA-gated                                                         | `VEGETATION_DENSITY_CAP_EXCEEDED` unit gate and hiking visual E2E   |
-|  38 | Micro-street inspect close view is readable with terrain-relative y clamp                                           | `micro-street inspect view remains readable...` visual E2E          |
-|  39 | Waterways visibly carve downward or sit in a depressed channel                                                      | `terrainCarvingDepthP50` visual E2E gate                            |
-|  40 | Attributable water renders blue-grey water pixels instead of blank terrain                                          | `waterBluePixelRatio` visual E2E gate                               |
-|  41 | Close view building dissolve has no popping                                                                         | `micro-street building dissolve changes smoothly...` visual E2E     |
-|  42 | Route guidance remains readable above geographic, old-street, and landmark layers                                   | `old-street` and `landmark-pilot` visual readability E2E            |
-|  43 | Timeline screenshot gates capture foundation, carved geography, route highlight, massing, dissolve, and route focus | `river-bridge captures timeline visual stages...` visual E2E        |
-|  44 | City, scenic, and hiking scenes pass scenario-specific terrain precision review                                     | `passes ... terrain precision review` visual E2E                    |
-|  45 | Mountain, old-street storefront, and landmark route screenshots pass overview and inspect review                    | `passes overview and inspect screenshot review` visual E2E          |
-|  46 | Landmark true-restoration pipeline is release-gated                                                                 | `check:landmarks`, `landmark-assets.test.js`, QA allowlist metrics  |
-|  47 | Water and bridge correctness covers both narrow centerline river and wide polygon/multi-bridge shapes               | `river-bridge` and `wide-river-bridges` visual ROI gates            |
-|  48 | Building LOD near/far response covers old-street storefront and landmark scenes                                     | `old-street` and `landmark-pilot` building LOD visual E2E           |
-|  49 | Licensed vegetation exposes chunk/frustum telemetry and keeps it internally consistent                              | Landcover chunk bounds, `hiking-terrain` visual E2E, and QA tests   |
+|   # | Gate                                                                                                                | Evidence                                                                       |
+| --: | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+|   1 | Format, lint, and source style pass                                                                                 | `npm.cmd run check`                                                            |
+|   2 | Unit tests pass                                                                                                     | `npm.cmd test`: 29 files, 141 tests                                            |
+|   3 | Desktop browser smoke tests pass                                                                                    | Chromium smoke: 12 passed, 1 mobile-only skipped                               |
+|   4 | Tracked source does not contain known real API keys                                                                 | `git grep` secret scan returned no matches                                     |
+|   5 | 2D AMap mode renders real map content after CSP fixes                                                               | Browser and E2E map flow                                                       |
+|   6 | Local 2D fallback renders when AMap JS SDK fails                                                                    | `desktop falls back to local 2D map when AMap JS SDK fails`                    |
+|   7 | 3D button stays in the bottom-right map control area                                                                | Desktop 3D E2E bounding-box assertions                                         |
+|   8 | 3D entry remains available for degraded overview                                                                    | Fallback/degraded 3D E2E                                                       |
+|   9 | Nonblank 3D slab/canvas appears within the current gate                                                             | `data-first-slab-ms <= 1500` E2E assertion                                     |
+|  10 | 2D and 3D route hash match                                                                                          | Desktop 3D E2E route diagnostics                                               |
+|  11 | 2D and 3D route endpoints match                                                                                     | Desktop 3D E2E endpoint key assertion                                          |
+|  12 | 2D and 3D route length stays consistent                                                                             | Desktop 3D E2E length assertion                                                |
+|  13 | Persisted route geometry is preserved through 3D render paths                                                       | `route-guidance-renderer` tests and E2E route hash                             |
+|  14 | Real routes render as continuous industrial safety-yellow guidance                                                  | 3D smoke and shared `route-guidance.js`                                        |
+|  15 | Estimated fallback routes render as dashed geometry                                                                 | `route-guidance-renderer.test.js`                                              |
+|  16 | Geo asset upstream failure exposes degraded state                                                                   | Desktop 3D E2E degraded-state assertions                                       |
+|  17 | Named generation timeline exists                                                                                    | `generation-timeline.test.js`                                                  |
+|  18 | Timeline exposes foundation, terrain, carving, massing, and dissolve progress                                       | `generation-timeline.test.js`                                                  |
+|  19 | Scene debug exposes route, camera, counts, quality, and provenance                                                  | Desktop 3D E2E `window.__threeDebug__` assertions                              |
+|  20 | Camera supports unlocked WASD translation with terrain-relative y clamp                                             | `desktop 3D camera supports unlocked WASD...` E2E                              |
+|  21 | Terrain foundation is separate from terrain relief                                                                  | `terrain-foundation.js`, `terrain-model.test.js`, 3D entry sequence            |
+|  22 | Bridge decks render from attributable bridge data                                                                   | `geo-asset-renderer.test.js` and water/bridge E2E                              |
+|  23 | Roads render as muted terrain-following ribbons                                                                     | `geo-asset-renderer.test.js` and water/road E2E                                |
+|  24 | 3D overview can enter and exit without blanking                                                                     | `desktop can enter and exit nonblank 3D map view`                              |
+|  25 | 3D mode never auto-exits after 60 seconds                                                                           | `desktop 3D stays open after 60 seconds idle`                                  |
+|  26 | No visible UI mojibake in maintained source, tests, and docs                                                        | `npm.cmd run check:encoding`: 300 files scanned                                |
+|  27 | Accepted 4s generation timing replaces the old `<= 3s` detail budget                                                | `generation-timing.js` and `generation-timeline.test.js`                       |
+|  28 | Route clearance P95 is within 0.3m above terrain/road surface                                                       | `route-guidance-renderer.test.js` and WASD 3D E2E geometry metrics             |
+|  29 | Building base terrain error P95 is <= 0.25m in seeded scenes                                                        | `window.__threeDebug__.geometryMetrics` and WASD 3D E2E                        |
+|  30 | Renderer modules cannot directly import provider/API or server modules                                              | `check:architecture`, ESLint `no-restricted-imports`                           |
+|  31 | Live provider checks are explicit opt-in and excluded from default CI                                               | `test:e2e:live-provider`, skipped default test, manual workflow                |
+|  32 | Real fixture assets require complete source/licence/attribution/updatedAt                                           | `check:provenance`, `geo-assets.test.js`, scene fixture scan                   |
+|  33 | Micro-street building LOD increases at inspect distance and recedes in overview                                     | `micro-street building LOD...` visual E2E and `qa.lod` metrics                 |
+|  34 | River-bridge 30s camera stress preserves route readability and z-fighting budget                                    | `river-bridge route remains readable during 30s camera stress` E2E             |
+|  35 | Micro-street 30s dense-building stress preserves route readability                                                  | `micro-street route remains readable during 30s dense-building...`             |
+|  36 | Hiking-terrain 30s terrain stress preserves route readability                                                       | `hiking-terrain route remains readable during 30s terrain...`                  |
+|  37 | Vegetation per-area template density is capped and QA-gated                                                         | `VEGETATION_DENSITY_CAP_EXCEEDED` unit gate and hiking visual E2E              |
+|  38 | Micro-street inspect close view is readable with terrain-relative y clamp                                           | `micro-street inspect view remains readable...` visual E2E                     |
+|  39 | Waterways visibly carve downward or sit in a depressed channel                                                      | `terrainCarvingDepthP50` visual E2E gate                                       |
+|  40 | Attributable water renders blue-grey water pixels instead of blank terrain                                          | `waterBluePixelRatio` visual E2E gate                                          |
+|  41 | Close view building dissolve has no popping                                                                         | `micro-street`, `old-street`, and `landmark-pilot` stepped dissolve visual E2E |
+|  42 | Route guidance remains readable above geographic, old-street, and landmark layers                                   | `old-street` and `landmark-pilot` visual readability E2E                       |
+|  43 | Timeline screenshot gates capture foundation, carved geography, route highlight, massing, dissolve, and route focus | `river-bridge captures timeline visual stages...` visual E2E                   |
+|  44 | City, scenic, and hiking scenes pass scenario-specific terrain precision review                                     | `passes ... terrain precision review` visual E2E                               |
+|  45 | Mountain, old-street storefront, and landmark route screenshots pass overview and inspect review                    | `passes overview and inspect screenshot review` visual E2E                     |
+|  46 | Landmark true-restoration pipeline is release-gated                                                                 | `check:landmarks`, `landmark-assets.test.js`, QA allowlist metrics             |
+|  47 | Water and bridge correctness covers both narrow centerline river and wide polygon/multi-bridge shapes               | `river-bridge` and `wide-river-bridges` visual ROI gates                       |
+|  48 | Building LOD near/far response covers old-street storefront and landmark scenes                                     | `old-street` and `landmark-pilot` building LOD visual E2E                      |
+|  49 | Licensed vegetation exposes chunk/frustum telemetry and keeps it internally consistent                              | Landcover chunk bounds, `hiking-terrain` visual E2E, and QA tests              |
 
 ## Partial Gates
 
@@ -134,7 +134,7 @@ Self-audit on 2026-06-23 after `codex/next-beta-visual-calibration`:
 
 - Route-yellow readability thresholds are fixture-owned and missing thresholds fail the visual suite.
 - Water/bridge correctness now covers both the original narrow `river-bridge` fixture and the `wide-river-bridges` polygon-water, multi-span fixture.
-- Building near/far LOD response is gated for `micro-street`, `old-street`, and `landmark-pilot`; stepped no-pop remains gated on `micro-street`.
+- Building near/far LOD response and stepped no-pop dissolve are gated for `micro-street`, `old-street`, and `landmark-pilot`.
 - Licensed vegetation now reports density, chunk count, visible chunk count, and frustum-culled chunk count through `qa.budgets`.
 - Vegetation frustum telemetry now uses landcover chunk bounds, keeping camera-stress telemetry aligned with actual licensed vegetation areas.
 - The live 3D entry now starts on the same high-angle overview orbit used by idle auto-rotate and renders the 3D route as a narrow yellow guidance line.
@@ -161,7 +161,7 @@ Self-audit on 2026-06-23 after `codex/next-beta-visual-calibration`:
    - `routeGroundClearanceP95`;
    - `zFightingRisk`;
    - `bridgePierCount === 0` when no pier/support provenance exists.
-5. Add P3-adjacent building LOD response and no-pop gates. **near/far LOD implemented for micro-street, old-street, and landmark-pilot; stepped no-pop implemented for micro-street**
+5. Add P3-adjacent building LOD response and no-pop gates. **near/far LOD and stepped no-pop implemented for micro-street, old-street, and landmark-pilot**
    - `qa.lod.buildingDetailAlphaAverage`;
    - `qa.lod.buildingDetailRatio`;
    - `qa.lod.buildingDistanceP50`;

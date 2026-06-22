@@ -143,8 +143,8 @@ Default behavior:
 - asserts `river-bridge` and `wide-river-bridges` P2 water/bridge/route metrics;
 - asserts water ROI blue-pixel signal so attributable water cannot regress to terrain-colored blank space;
 - asserts `micro-street`, `old-street`, and `landmark-pilot` near/far building LOD response through `qa.lod` metrics;
-- asserts `micro-street` stepped building dissolve smoothness through bounded
-  `buildingDetailAlphaAverage` deltas;
+- asserts `micro-street`, `old-street`, and `landmark-pilot` stepped building dissolve smoothness
+  through bounded `buildingDetailAlphaAverage` deltas;
 - asserts `micro-street` inspect view readability with close-camera y clamp, route visibility, and building context;
 - asserts `old-street` and `landmark-pilot` route readability above contextual buildings and landmark metadata;
 - asserts `hiking-terrain`, `old-street`, and `landmark-pilot` overview-plus-inspect screenshot review through fixed camera presets;
@@ -241,7 +241,8 @@ Additional contextual LOD requirements:
 - `landmark-pilot` inspect LOD must retain at least two LOD-sampled buildings and two contextual building-layer entries;
 - `landmark-pilot` inspect LOD must keep at least one allowlisted landmark record in provenance QA.
 
-Current blocking `micro-street` building dissolve smoothness metrics:
+Current blocking building dissolve smoothness metrics for `micro-street`, `old-street`, and
+`landmark-pilot`:
 
 - seven stepped zoom samples must remain in `steady` phase;
 - every sample must keep route and building layers visible in structured QA;
@@ -250,6 +251,8 @@ Current blocking `micro-street` building dissolve smoothness metrics:
 - adjacent positive `buildingDetailAlphaAverage` delta must remain `<= 0.42`;
 - final `buildingDetailAlphaAverage` must increase by at least `0.20` versus the first sample;
 - final inspect ROI must retain `routeYellowPixelRatio >= expectations.route.minYellowPixelRatio`.
+- fixture-specific `qa.lod.buildingEntryCount` and building layer counts must satisfy
+  `expectations.building.minLodEntries` and `expectations.building.minContextBuildings` when set.
 
 Current blocking `micro-street` inspect metrics:
 

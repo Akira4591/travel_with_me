@@ -133,8 +133,8 @@ Next Beta work:
   **Started:** every visual fixture now owns an explicit `route.minYellowPixelRatio`; tests fail when
   this threshold is missing instead of falling back to a global default.
 - Extend the new `qa.lod` building near/far and stepped no-pop gates from `micro-street` to old-street and landmark-pilot after the current overview/inspect review gates are stable for five local runs.
-  **Started:** near/far `qa.lod` response is now covered for `old-street` and `landmark-pilot`;
-  stepped no-pop remains limited to `micro-street` until repeated-run stability is proven.
+  **Implemented:** near/far `qa.lod` response and stepped no-pop dissolve gates now cover
+  `micro-street`, `old-street`, and `landmark-pilot`.
 - Extend vegetation budget work from per-area density caps to chunking/frustum-culling performance telemetry.
   **Started:** vegetation QA now emits chunk count, visible chunk count, and culled chunk count;
   hiking visual gates assert the telemetry is internally consistent.
@@ -247,7 +247,7 @@ Tasks:
 QA:
 
 - building base terrain error P95 <= 0.25m in seeded scenes
-- LOD transition has no visible pop or flicker; current `micro-street` gates prove near/far detail response and stepped no-pop alpha continuity
+- LOD transition has no visible pop or flicker; current `micro-street`, `old-street`, and `landmark-pilot` gates prove near/far detail response and stepped no-pop alpha continuity
 - fallback buildings are deterministic across reloads
 - route guidance remains readable above building context
 - route guidance remains readable above old-street and landmark contextual layers

@@ -140,6 +140,21 @@ const BUILDING_LOD_REVIEW_SCENES = [
   }
 ];
 
+const BUILDING_DISSOLVE_REVIEW_SCENES = [
+  {
+    scene: 'micro-street',
+    point: 'micro-street-building-dissolve'
+  },
+  {
+    scene: 'old-street',
+    point: 'old-street-building-dissolve'
+  },
+  {
+    scene: 'landmark-pilot',
+    point: 'landmark-building-dissolve'
+  }
+];
+
 test.describe('@visual-roi desktop 3D visual baseline harness', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
@@ -787,78 +802,84 @@ test.describe('@visual-roi desktop 3D visual baseline harness', () => {
     });
   }
 
-  test('micro-street building dissolve changes smoothly during stepped zoom-in', async ({
-    page
-  }, testInfo) => {
-    test.setTimeout(90_000);
-    const fixture = await loadSceneFixture('micro-street');
-    await openVisualFixture(page, fixture);
-    await page.addStyleTag({ path: 'tests/visual/styles/screenshot-normalize.css' });
-    const canvas = page.locator('#map-3d canvas');
-    await canvas.hover();
+  for (const dissolveScene of BUILDING_DISSOLVE_REVIEW_SCENES) {
+    test(`${dissolveScene.scene} building dissolve changes smoothly during stepped zoom-in`, async ({
+      page
+    }, testInfo) => {
+      test.setTimeout(90_000);
+      const fixture = await loadSceneFixture(dissolveScene.scene);
+      await openVisualFixture(page, fixture);
+      await page.addStyleTag({ path: 'tests/visual/styles/screenshot-normalize.css' });
+      const canvas = page.locator('#map-3d canvas');
+      await canvas.hover();
 
-    await page.mouse.wheel(0, 2800);
-    await page.waitForTimeout(900);
-    const samples = [await exportVisualQa(page, fixture, 'building-dissolve-step-0')];
+      await page.mouse.wheel(0, 2800);
+      await page.waitForTimeout(900);
+      const samples = [await exportVisualQa(page, fixture, `${dissolveScene.point}-step-0`)];
 
-    for (let step = 1; step <= 6; step += 1) {
-      await page.mouse.wheel(0, -760);
-      await page.waitForTimeout(520);
-      samples.push(await exportVisualQa(page, fixture, `building-dissolve-step-${step}`));
-    }
+      for (let step = 1; step <= 6; step += 1) {
+        await page.mouse.wheel(0, -760);
+        await page.waitForTimeout(520);
+        samples.push(await exportVisualQa(page, fixture, `${dissolveScene.point}-step-${step}`));
+      }
 
-    const alphaValues = samples.map(sample => sample.qa.lod.buildingDetailAlphaAverage);
-    const alphaDeltas = alphaValues
-      .slice(1)
-      .map((value, index) => Number((value - alphaValues[index]).toFixed(5)));
-    const maxPositiveDelta = Math.max(...alphaDeltas);
-    const maxDrop = Math.max(0, ...alphaDeltas.map(delta => -delta));
-    const finalQa = samples.at(-1);
+      const alphaValues = samples.map(sample => sample.qa.lod.buildingDetailAlphaAverage);
+      const alphaDeltas = alphaValues
+        .slice(1)
+        .map((value, index) => Number((value - alphaValues[index]).toFixed(5)));
+      const maxPositiveDelta = Math.max(...alphaDeltas);
+      const maxDrop = Math.max(0, ...alphaDeltas.map(delta => -delta));
+      const finalQa = samples.at(-1);
+      const minContextBuildings = fixture.expectations.building?.minContextBuildings || 1;
+      const minLodEntries = fixture.expectations.building?.minLodEntries || minContextBuildings;
 
-    await testInfo.attach('micro-street-building-dissolve-samples.json', {
-      body: JSON.stringify(
-        {
-          alphaValues,
-          alphaDeltas,
-          maxPositiveDelta,
-          maxDrop,
-          cameraModes: samples.map(sample => sample.camera.mode),
-          routeYellowPixelRatios: samples.map(sample => sample.visual.routeYellowPixelRatio),
-          zFightingRisks: samples.map(sample => sample.qa.geometry.zFightingRisk)
-        },
-        null,
-        2
-      ),
-      contentType: 'application/json'
+      await testInfo.attach(`${dissolveScene.scene}-building-dissolve-samples.json`, {
+        body: JSON.stringify(
+          {
+            alphaValues,
+            alphaDeltas,
+            maxPositiveDelta,
+            maxDrop,
+            cameraModes: samples.map(sample => sample.camera.mode),
+            routeYellowPixelRatios: samples.map(sample => sample.visual.routeYellowPixelRatio),
+            zFightingRisks: samples.map(sample => sample.qa.geometry.zFightingRisk)
+          },
+          null,
+          2
+        ),
+        contentType: 'application/json'
+      });
+      await attachVisualEvidence(testInfo, {
+        fixture,
+        capturePoint: dissolveScene.point,
+        qa: finalQa,
+        screenshot: await page.screenshot({
+          animations: 'disabled',
+          caret: 'hide',
+          scale: 'css',
+          clip: visualRoiFor('inspect')
+        })
+      });
+
+      expect(samples.every(sample => sample.phase === 'steady')).toBe(true);
+      expect(samples.every(sample => sample.qa.layers.route.visible)).toBe(true);
+      expect(samples.every(sample => sample.qa.layers.buildings.count >= minContextBuildings)).toBe(
+        true
+      );
+      expect(samples.every(sample => sample.qa.geometry.zFightingRisk <= 0.01)).toBe(true);
+      expect(maxDrop).toBeLessThanOrEqual(BUILDING_DISSOLVE_ALPHA_DROP_TOLERANCE);
+      expect(maxPositiveDelta).toBeLessThanOrEqual(BUILDING_DISSOLVE_ALPHA_STEP_MAX);
+      expect(finalQa.qa.lod.buildingEntryCount).toBeGreaterThanOrEqual(minLodEntries);
+      expect(finalQa.qa.lod.buildingDetailAlphaAverage).toBeGreaterThan(alphaValues[0] + 0.2);
+      expect(finalQa.qa.lod.buildingDetailRatio).toBeGreaterThanOrEqual(
+        samples[0].qa.lod.buildingDetailRatio
+      );
+      expect(finalQa.visual.readable).toBe(true);
+      expect(finalQa.visual.routeYellowPixelRatio).toBeGreaterThanOrEqual(
+        routeYellowPixelRatioMin(fixture)
+      );
     });
-    await attachVisualEvidence(testInfo, {
-      fixture,
-      capturePoint: 'building-dissolve',
-      qa: finalQa,
-      screenshot: await page.screenshot({
-        animations: 'disabled',
-        caret: 'hide',
-        scale: 'css',
-        clip: visualRoiFor('inspect')
-      })
-    });
-
-    expect(samples.every(sample => sample.phase === 'steady')).toBe(true);
-    expect(samples.every(sample => sample.qa.layers.route.visible)).toBe(true);
-    expect(samples.every(sample => sample.qa.layers.buildings.count > 0)).toBe(true);
-    expect(samples.every(sample => sample.qa.geometry.zFightingRisk <= 0.01)).toBe(true);
-    expect(maxDrop).toBeLessThanOrEqual(BUILDING_DISSOLVE_ALPHA_DROP_TOLERANCE);
-    expect(maxPositiveDelta).toBeLessThanOrEqual(BUILDING_DISSOLVE_ALPHA_STEP_MAX);
-    expect(finalQa.qa.lod.buildingEntryCount).toBeGreaterThan(0);
-    expect(finalQa.qa.lod.buildingDetailAlphaAverage).toBeGreaterThan(alphaValues[0] + 0.2);
-    expect(finalQa.qa.lod.buildingDetailRatio).toBeGreaterThanOrEqual(
-      samples[0].qa.lod.buildingDetailRatio
-    );
-    expect(finalQa.visual.readable).toBe(true);
-    expect(finalQa.visual.routeYellowPixelRatio).toBeGreaterThanOrEqual(
-      routeYellowPixelRatioMin(fixture)
-    );
-  });
+  }
 
   for (const routeScene of ROUTE_READABILITY_SCENES) {
     test(`${routeScene.scene} route remains readable above contextual layers`, async ({
