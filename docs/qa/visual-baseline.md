@@ -57,14 +57,15 @@ Current VQ0 blocking metrics:
 
 The first blocking visual baseline covers:
 
-| Fixture          | Purpose                                       | First ROI captures                                        |
-| ---------------- | --------------------------------------------- | --------------------------------------------------------- |
-| `river-bridge`   | Water carve, bridge deck, route clearance     | `foundation-rise`, `water-road-bridge`, `route-highlight` |
-| `micro-street`   | Dense street readability and building massing | `route-highlight`, `building-massing`, `inspect`          |
-| `hiking-terrain` | Terrain relief and route height cue           | `foundation-rise`, `route-highlight`, `inspect`           |
-| `old-street`     | Narrow storefront street occlusion            | `route-highlight`, `inspect`                              |
-| `landmark-pilot` | Landmark workflow preflight and route clarity | `route-highlight`, `inspect`                              |
-| `scenic-park`    | Scenic park relief and landcover              | `route-highlight`, `inspect`                              |
+| Fixture              | Purpose                                       | First ROI captures                                        |
+| -------------------- | --------------------------------------------- | --------------------------------------------------------- |
+| `river-bridge`       | Water carve, bridge deck, route clearance     | `foundation-rise`, `water-road-bridge`, `route-highlight` |
+| `wide-river-bridges` | Wide polygon water and multiple bridge decks  | `water-road-bridge`                                       |
+| `micro-street`       | Dense street readability and building massing | `route-highlight`, `building-massing`, `inspect`          |
+| `hiking-terrain`     | Terrain relief and route height cue           | `foundation-rise`, `route-highlight`, `inspect`           |
+| `old-street`         | Narrow storefront street occlusion            | `route-highlight`, `inspect`                              |
+| `landmark-pilot`     | Landmark workflow preflight and route clarity | `route-highlight`, `inspect`                              |
+| `scenic-park`        | Scenic park relief and landcover              | `route-highlight`, `inspect`                              |
 
 Candidate fixture layout:
 
@@ -134,8 +135,8 @@ Default behavior:
 - runs Chromium only;
 - loads `river-bridge`, `micro-street`, and `hiking-terrain` from local fixtures;
 - attaches ROI screenshots plus fixture, camera, and QA JSON evidence;
-- asserts `river-bridge` P2 water/bridge/route metrics;
-- asserts `river-bridge` water ROI blue-pixel signal so attributable water cannot regress to terrain-colored blank space;
+- asserts `river-bridge` and `wide-river-bridges` P2 water/bridge/route metrics;
+- asserts water ROI blue-pixel signal so attributable water cannot regress to terrain-colored blank space;
 - asserts `micro-street` near/far building LOD response through `qa.lod` metrics;
 - asserts `micro-street` stepped building dissolve smoothness through bounded
   `buildingDetailAlphaAverage` deltas;
@@ -153,16 +154,17 @@ Default behavior:
 
 Set `VISUAL_BASELINE_ASSERT=1` only when intentionally creating or validating committed screenshot baselines.
 
-Current blocking `river-bridge` metrics:
+Current blocking water/bridge metrics for `river-bridge` and `wide-river-bridges`:
 
-- `waterCoverageRatio >= 0.97`;
-- `bridgeContinuity >= 0.95`;
+- `waterCoverageRatio >= expectations.water.minCoverageRatio`;
+- `bridgeContinuity >= expectations.bridge.minSpanCoverageRatio`;
 - `terrainCarvingDepthP50 >= expectations.water.minChannelDepthMeters`;
 - `routeVisiblePixelRatio >= 0.90`;
 - `routeYellowPixelRatio >= expectations.route.minYellowPixelRatio`;
 - `routeGrayOutlinePixelRatio === 0` for route guidance mesh roles;
-- `waterBluePixelRatio >= 0.00008`;
+- `waterBluePixelRatio >= expectations.water.minBluePixelRatio`;
 - `bridgePierCount === 0`;
+- `bridgeDecks >= expectations.bridge.minDeckCount`;
 - `zFightingRisk <= 0.01`.
 
 Current blocking `river-bridge` water-pixel metrics:
@@ -170,6 +172,13 @@ Current blocking `river-bridge` water-pixel metrics:
 - `waterVisual.readable === true`;
 - `waterVisual.waterBluePixelRatio >= 0.00008`;
 - `terrainCarvingDepthP50 >= expectations.water.minChannelDepthMeters`.
+
+Current blocking `wide-river-bridges` expansion metrics:
+
+- fixture uses polygon waterways instead of only centerline ribbons;
+- fixture includes at least two bridge decks over the water polygons;
+- all water/bridge thresholds are owned by `expectations.json`, not hard-coded in the test body;
+- this blocks regressions where a single narrow river fixture passes while broader rivers, canals, or multiple spans fail visually.
 
 Current blocking `river-bridge` camera stress metrics:
 

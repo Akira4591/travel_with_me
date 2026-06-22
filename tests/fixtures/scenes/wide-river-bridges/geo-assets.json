@@ -1,0 +1,94 @@
+{
+  "waterways": [
+    {
+      "id": "fixture-wide-main-river",
+      "polygon": [
+        [116.3972, 39.9087],
+        [116.3994, 39.9076],
+        [116.4052, 39.9111],
+        [116.403, 39.9124]
+      ],
+      "realityClaim": true,
+      "provenance": {
+        "source": "fixture-open-data",
+        "licence": "ODbL-compatible-test",
+        "attribution": "Travel With Me fixture data",
+        "updatedAt": "2026-06-23T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "fixture-side-canal",
+      "polygon": [
+        [116.3995, 39.9106],
+        [116.4002, 39.9101],
+        [116.4024, 39.9117],
+        [116.4017, 39.9122]
+      ],
+      "realityClaim": true,
+      "provenance": {
+        "source": "fixture-open-data",
+        "licence": "ODbL-compatible-test",
+        "attribution": "Travel With Me fixture data",
+        "updatedAt": "2026-06-23T00:00:00.000Z"
+      }
+    }
+  ],
+  "roads": [
+    {
+      "id": "fixture-wide-crossing-road",
+      "kind": "local",
+      "centerline": [
+        [116.3975, 39.9078],
+        [116.3992, 39.9089],
+        [116.401, 39.91],
+        [116.4028, 39.9111],
+        [116.4045, 39.9122]
+      ],
+      "widthMeters": 7,
+      "realityClaim": true,
+      "provenance": {
+        "source": "fixture-open-data",
+        "licence": "ODbL-compatible-test",
+        "attribution": "Travel With Me fixture data",
+        "updatedAt": "2026-06-23T00:00:00.000Z"
+      }
+    }
+  ],
+  "bridges": [
+    {
+      "id": "fixture-south-span",
+      "centerline": [
+        [116.3982, 39.9082],
+        [116.4002, 39.9095]
+      ],
+      "widthMeters": 9,
+      "deckHeightMeters": 5,
+      "realityClaim": true,
+      "provenance": {
+        "source": "fixture-open-data",
+        "licence": "ODbL-compatible-test",
+        "attribution": "Travel With Me fixture data",
+        "updatedAt": "2026-06-23T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "fixture-north-span",
+      "centerline": [
+        [116.4018, 39.9105],
+        [116.4038, 39.9118]
+      ],
+      "widthMeters": 9,
+      "deckHeightMeters": 5,
+      "realityClaim": true,
+      "provenance": {
+        "source": "fixture-open-data",
+        "licence": "ODbL-compatible-test",
+        "attribution": "Travel With Me fixture data",
+        "updatedAt": "2026-06-23T00:00:00.000Z"
+      }
+    }
+  ],
+  "buildings": [],
+  "landcover": [],
+  "landmarks": []
+}

@@ -25,10 +25,10 @@ Latest verified baseline from 2026-06-23. Detailed gate accounting is maintained
 | --------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | `npm.cmd run check`               | Passed                                                                                                            |
 | `npm.cmd test`                    | Passed: 29 files, 139 tests                                                                                       |
-| `npm.cmd run check:encoding`      | Passed: 301 visible source/doc/test files scanned                                                                 |
-| Full visual baseline suite        | Passed: 19 local ROI fixture captures/interactions with QA JSON and screenshots in 9.6m                           |
+| `npm.cmd run check:encoding`      | Passed: 307 visible source/doc/test files scanned                                                                 |
+| Full visual baseline suite        | Passed: 20 local ROI fixture captures/interactions with QA JSON and screenshots in 10.1m                          |
 | `npm.cmd run check:architecture`  | Passed: 35 render files scanned                                                                                   |
-| `npm.cmd run check:provenance`    | Passed: 36 scene fixture files scanned                                                                            |
+| `npm.cmd run check:provenance`    | Passed: 42 scene fixture files scanned                                                                            |
 | `npm.cmd run check:landmarks`     | Passed: 1 landmark record scanned                                                                                 |
 | Targeted desktop 3D smoke         | Passed: 3D enter/exit, water/roads/bridges, WASD camera, 60s no-auto-exit                                         |
 | Tracked-source secret scan        | Passed: no known real AMap/DeepSeek key patterns found                                                            |
@@ -39,10 +39,10 @@ Quality gate count from `docs/quality-gate-status.md`:
 
 | Status       | Count |
 | ------------ | ----: |
-| Complete     |    46 |
+| Complete     |    47 |
 | Partial      |     1 |
 | Not complete |     0 |
-| Total        |    47 |
+| Total        |    48 |
 
 VQ0 local visual reset implemented in code:
 
@@ -124,6 +124,8 @@ Current limitation: landmark restoration is now release-gated by allowlist, inte
 Next Beta work:
 
 - Calibrate water coverage and bridge continuity against additional river/bridge fixture shapes.
+  **Started:** added `wide-river-bridges` fixture coverage for polygon waterways, side canal
+  geometry, and multiple bridge decks; water and bridge thresholds are fixture-owned.
 - Calibrate the new `routeYellowPixelRatio` ROI metric beyond the initial `>= 0.00008` gate.
   **Started:** every visual fixture now owns an explicit `route.minYellowPixelRatio`; tests fail when
   this threshold is missing instead of falling back to a global default.

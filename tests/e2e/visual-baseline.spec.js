@@ -26,23 +26,14 @@ const CAPTURES = [
     scene: 'river-bridge',
     point: 'water-road-bridge',
     assert(qa, fixture) {
-      expect(qa.qa.version).toBe(1);
-      expect(qa.qa.geometry.waterCoverageRatio).toBeGreaterThanOrEqual(0.97);
-      expect(qa.qa.geometry.bridgeContinuity).toBeGreaterThanOrEqual(0.95);
-      expect(qa.qa.geometry.terrainCarvingDepthP50).toBeGreaterThanOrEqual(
-        qa.expectations.water.minChannelDepthMeters
-      );
-      expect(qa.qa.geometry.routeVisiblePixelRatio).toBeGreaterThanOrEqual(0.9);
-      expect(qa.visual.readable).toBe(true);
-      expect(qa.visual.routeYellowPixelRatio).toBeGreaterThanOrEqual(
-        routeYellowPixelRatioMin(fixture)
-      );
-      expect(qa.waterVisual.readable).toBe(true);
-      expect(qa.waterVisual.waterBluePixelRatio).toBeGreaterThanOrEqual(WATER_BLUE_PIXEL_RATIO_MIN);
-      expect(qa.qa.geometry.bridgePierCount).toBe(0);
-      expect(qa.qa.geometry.zFightingRisk).toBeLessThanOrEqual(0.01);
-      expect(qa.counts.waterMeshes).toBeGreaterThan(0);
-      expect(qa.counts.bridgeDecks).toBeGreaterThan(0);
+      assertWaterBridgeCoverage(qa, fixture);
+    }
+  },
+  {
+    scene: 'wide-river-bridges',
+    point: 'water-road-bridge',
+    assert(qa, fixture) {
+      assertWaterBridgeCoverage(qa, fixture);
     }
   },
   {
@@ -904,6 +895,28 @@ function routeYellowPixelRatioMin(fixture) {
     throw new Error(`${fixture?.id || 'unknown fixture'} is missing route.minYellowPixelRatio`);
   }
   return value;
+}
+
+function assertWaterBridgeCoverage(qa, fixture) {
+  const water = fixture?.expectations?.water || {};
+  const bridge = fixture?.expectations?.bridge || {};
+  expect(qa.qa.version).toBe(1);
+  expect(qa.qa.geometry.waterCoverageRatio).toBeGreaterThanOrEqual(water.minCoverageRatio ?? 0.97);
+  expect(qa.qa.geometry.bridgeContinuity).toBeGreaterThanOrEqual(
+    bridge.minSpanCoverageRatio ?? 0.95
+  );
+  expect(qa.qa.geometry.terrainCarvingDepthP50).toBeGreaterThanOrEqual(water.minChannelDepthMeters);
+  expect(qa.qa.geometry.routeVisiblePixelRatio).toBeGreaterThanOrEqual(0.9);
+  expect(qa.visual.readable).toBe(true);
+  expect(qa.visual.routeYellowPixelRatio).toBeGreaterThanOrEqual(routeYellowPixelRatioMin(fixture));
+  expect(qa.waterVisual.readable).toBe(true);
+  expect(qa.waterVisual.waterBluePixelRatio).toBeGreaterThanOrEqual(
+    water.minBluePixelRatio ?? WATER_BLUE_PIXEL_RATIO_MIN
+  );
+  expect(qa.qa.geometry.bridgePierCount).toBe(0);
+  expect(qa.qa.geometry.zFightingRisk).toBeLessThanOrEqual(0.01);
+  expect(qa.counts.waterMeshes).toBeGreaterThan(0);
+  expect(qa.counts.bridgeDecks).toBeGreaterThanOrEqual(bridge.minDeckCount ?? 1);
 }
 
 function assertCameraStress(
