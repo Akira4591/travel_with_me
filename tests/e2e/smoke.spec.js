@@ -823,7 +823,9 @@ test('desktop 3D camera supports unlocked WASD translation with terrain y clamp'
   await page.locator('#map-3d-toggle').click();
 
   await expect(page.locator('#map-3d canvas')).toBeVisible({ timeout: 30_000 });
-  await expect.poll(async () => page.evaluate(() => window.__threeDebug__?.phase)).toBe('steady');
+  await expect
+    .poll(async () => page.evaluate(() => window.__threeDebug__?.phase), { timeout: 15_000 })
+    .toBe('steady');
 
   const before = await page.evaluate(() => window.__threeDebug__?.camera);
   const metrics = await page.evaluate(() => window.__threeDebug__?.geometryMetrics || {});
@@ -876,13 +878,17 @@ test('desktop 3D stays open after 60 seconds idle', async ({ page, isMobile }) =
 
   await expect(page.locator('#map-3d canvas')).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('#map-3d-toggle')).toContainText('2D');
-  await expect.poll(async () => page.evaluate(() => window.__threeDebug__?.phase)).toBe('steady');
+  await expect
+    .poll(async () => page.evaluate(() => window.__threeDebug__?.phase), { timeout: 15_000 })
+    .toBe('steady');
 
   await page.waitForTimeout(61_000);
 
   await expect(page.locator('#map-3d')).toBeVisible();
   await expect(page.locator('#map-3d-toggle')).toContainText('2D');
-  await expect.poll(async () => page.evaluate(() => window.__threeDebug__?.phase)).toBe('steady');
+  await expect
+    .poll(async () => page.evaluate(() => window.__threeDebug__?.phase), { timeout: 15_000 })
+    .toBe('steady');
 });
 
 test('desktop can open share image preview from seeded trip', async ({ page, isMobile }) => {

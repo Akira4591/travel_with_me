@@ -69,6 +69,11 @@ const PARTICLE_COUNT = 0;
 // Auto orbit resumes after user drag only in overview-like modes.
 const IDLE_RESUME_DELAY = 25000;
 const AUTO_ROTATE_SPEED = 0.5;
+const OVERVIEW_CAMERA_OFFSET = {
+  x: 0.55,
+  y: 0.9,
+  z: 0.72
+};
 
 // Emergence animation constants.
 const EMERGE_DURATION = GENERATION_TIMING_MS.total;
@@ -163,14 +168,14 @@ export async function initDiorama({ container }) {
     pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     pointer.y = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
     raycaster.setFromCamera(pointer, camera);
-    const [hit] = raycaster.intersectObject(instance.terrainMesh, false);
-    if (!hit) return;
-    const lnglat = instance.proj.toLngLat({ x: hit.point.x, z: hit.point.z });
-    const elevation = instance.terrainModel.elevationAt(hit.point.x, hit.point.z);
+    const hitPoint = getTerrainClickPoint(raycaster, instance);
+    if (!hitPoint) return;
+    const lnglat = instance.proj.toLngLat({ x: hitPoint.x, z: hitPoint.z });
+    const elevation = instance.terrainModel.elevationAt(hitPoint.x, hitPoint.z);
     instance.onAnnotationRequest?.({
       lnglat,
       elevation: Number.isFinite(elevation) ? Math.round(elevation) : null,
-      terrainY: hit.point.y
+      terrainY: hitPoint.y
     });
   });
 
@@ -438,9 +443,7 @@ export async function enter3DMode(
   container.dataset.firstSlabMs = String(Math.round(performance.now() - enterStartedAt));
   renderer.setSize(container.clientWidth, container.clientHeight);
 
-  // Initialize camera at an oblique planning-diorama angle.
-  const cx = (bounds.minX + bounds.maxX) / 2;
-  const cz = (bounds.minZ + bounds.maxZ) / 2;
+  // Initialize camera on the same orbit used by idle overview mode.
   const sceneSpan = getBoundsSpan(bounds);
   camera.far = Math.max(2000, sceneSpan * 6);
   camera.updateProjectionMatrix();
@@ -448,8 +451,6 @@ export async function enter3DMode(
     scene.fog.near = Math.max(120, sceneSpan * 0.38);
     scene.fog.far = Math.max(900, sceneSpan * 3.6);
   }
-  camera.position.set(cx + sceneSpan * 0.55, sceneSpan * 0.95, cz + sceneSpan * 0.72);
-  controls.target.set(cx, 0, cz);
   const cameraDistances = getCameraControlDistances(sceneSpan, terrainMode);
   controls.minDistance = cameraDistances.minDistance;
   controls.maxDistance = cameraDistances.maxDistance;
@@ -458,7 +459,7 @@ export async function enter3DMode(
     terrainMode,
     groundOffsetY: 0
   });
-  controls.update();
+  applyOverviewCameraPose(diorama, bounds);
 
   if (shouldFreezeEmergenceForVisualQa()) {
     diorama.generationTimeline = createGenerationTimeline();
@@ -471,8 +472,8 @@ export async function enter3DMode(
   // Run emergence animation.
   await animateEmergence(diorama, bounds);
 
-  // Lock orbit target to the lifted terrain after the emergence animation.
-  controls.target.set(cx, dioramaGroup.position.y, cz);
+  // Keep the first steady frame on the same orbit as the entry frame.
+  applyOverviewCameraPose(diorama, bounds);
   diorama.cameraController?.setSceneContext({
     terrainModel,
     terrainMode,
@@ -551,6 +552,39 @@ export function refresh3DAnnotations(diorama, { trip }) {
   diorama.dioramaGroup.add(diorama.annotationGroup);
   updateThreeDebug(diorama);
   return diorama.annotationGroup.userData.count || 0;
+}
+
+function getTerrainClickPoint(raycaster, diorama) {
+  const [hit] = raycaster.intersectObject(diorama.terrainMesh, false);
+  if (hit?.point) return hit.point.clone();
+
+  const ray = raycaster.ray;
+  const targetY = Number(diorama.controls?.target?.y);
+  if (!Number.isFinite(targetY) || Math.abs(ray.direction.y) < 0.001) return null;
+  const t = (targetY - ray.origin.y) / ray.direction.y;
+  if (t < 0) return null;
+
+  const point = ray.origin.clone().addScaledVector(ray.direction, t);
+  const bounds = diorama.terrainModel?.bounds;
+  if (!bounds) return null;
+
+  const span = getBoundsSpan(bounds);
+  const margin = span * 0.18;
+  if (
+    point.x < bounds.minX - margin ||
+    point.x > bounds.maxX + margin ||
+    point.z < bounds.minZ - margin ||
+    point.z > bounds.maxZ + margin
+  ) {
+    return null;
+  }
+
+  point.x = clamp(point.x, bounds.minX, bounds.maxX);
+  point.z = clamp(point.z, bounds.minZ, bounds.maxZ);
+  point.y =
+    (Number(diorama.terrainModel?.heightAt?.(point.x, point.z)) || 0) +
+    (Number(diorama.dioramaGroup?.position?.y) || 0);
+  return point;
 }
 
 // Terrain geometry.
@@ -1343,19 +1377,14 @@ function animateEmergence(diorama, bounds) {
 
 function applyEmergenceProgress(diorama, bounds, rawProgress) {
   const progress = clamp(rawProgress, 0, 1);
-  const { dioramaGroup, camera, controls } = diorama;
-  const { span, liftTarget, centerX: cx, centerZ: cz } = createFoundationMetrics(bounds);
+  const { dioramaGroup } = diorama;
+  const { liftTarget } = createFoundationMetrics(bounds);
   updateGenerationTimeline(diorama, progress);
+  applyOverviewCameraPose(diorama, bounds);
 
   if (progress < FOUNDATION_END) {
     const eased = easeInOutCubic(progress / FOUNDATION_END);
     dioramaGroup.position.y = eased * liftTarget;
-    const targetY = liftTarget + span * 0.9;
-    const targetX = cx + span * 0.55;
-    const targetZ = cz + span * 0.72;
-    camera.position.lerp(new THREE.Vector3(targetX, targetY, targetZ), eased * 0.6);
-    controls.target.lerp(new THREE.Vector3(cx, liftTarget / 2, cz), eased);
-    controls.update();
     setTerrainReveal(diorama.terrainMesh, 0);
     setGroundAssetReveal(diorama.waterGroup, 0);
     setGroundAssetReveal(diorama.roadGroup, 0);
@@ -1389,12 +1418,6 @@ function applyEmergenceProgress(diorama, bounds, rawProgress) {
     const t = (progress - BUILDING_MASSING_END) / (1 - BUILDING_MASSING_END);
     const eased = easeInOutCubic(Math.min(t, 1));
     dioramaGroup.position.y = liftTarget;
-    const targetY = liftTarget + span * 0.9;
-    const targetX = cx + span * 0.55;
-    const targetZ = cz + span * 0.72;
-    camera.position.lerp(new THREE.Vector3(targetX, targetY, targetZ), eased * 0.6);
-    controls.target.lerp(new THREE.Vector3(cx, liftTarget / 2, cz), eased);
-    controls.update();
     setTerrainReveal(diorama.terrainMesh, 1);
     setGroundAssetReveal(diorama.waterGroup, 1);
     setGroundAssetReveal(diorama.roadGroup, 1);
@@ -1707,6 +1730,36 @@ function getOverviewFeatureScale(bounds) {
 
 function getBoundsSpan(bounds) {
   return Math.max(bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ);
+}
+
+export function getOverviewCameraPose(bounds, { terrainModel = null, terrainMode = null } = {}) {
+  const { span, liftTarget, centerX: cx, centerZ: cz } = createFoundationMetrics(bounds);
+  const centerTerrainY = Number(terrainModel?.heightAt?.(cx, cz));
+  const targetY = liftTarget + (Number.isFinite(centerTerrainY) ? centerTerrainY : 0);
+  const target = new THREE.Vector3(cx, targetY, cz);
+  const positionX = cx + span * OVERVIEW_CAMERA_OFFSET.x;
+  const positionZ = cz + span * OVERVIEW_CAMERA_OFFSET.z;
+  const desiredY = targetY + span * OVERVIEW_CAMERA_OFFSET.y;
+  const profile = getCameraProfile(terrainMode);
+  const terrainY = Number(terrainModel?.heightAt?.(positionX, positionZ));
+  const groundY = (Number.isFinite(terrainY) ? terrainY : 0) + liftTarget;
+  const positionY = clamp(desiredY, groundY + profile.minClearance, groundY + profile.maxClearance);
+  return {
+    position: new THREE.Vector3(positionX, positionY, positionZ),
+    target
+  };
+}
+
+function applyOverviewCameraPose(diorama, bounds) {
+  if (!diorama?.camera || !diorama?.controls) return null;
+  const pose = getOverviewCameraPose(bounds, {
+    terrainModel: diorama.terrainModel,
+    terrainMode: diorama.sceneBuildContext?.terrainMode
+  });
+  diorama.camera.position.copy(pose.position);
+  diorama.controls.target.copy(pose.target);
+  diorama.controls.update();
+  return pose;
 }
 
 function getCameraControlDistances(sceneSpan, terrainMode) {
