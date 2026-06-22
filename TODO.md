@@ -236,7 +236,7 @@ Goal: buildings provide useful planning context without pretending to be survey-
 Tasks:
 
 - Split `building-massing-renderer.js` from `building-dissolve-renderer.js`. **Implemented:** massing geometry and dissolve/LOD state now live in separate renderer modules; `map-3d.js` only orchestrates them.
-- Raise deterministic rectangular massing clusters first.
+- Raise deterministic rectangular massing clusters first. **Implemented:** generation timeline and `river-bridge` visual timeline gates prove building massing appears before dissolve.
 - Use authoritative footprint extrusion when available. **Implemented:** direct renderer tests cover flat-terrain footprint extrusion.
 - Keep fallback buildings neutral and deterministic. **Implemented:** direct renderer tests compare fallback massing outputs across rebuilds.
 - Add continuous massing-to-outline dissolve with distance hysteresis. **Implemented:** dissolve alpha now uses a tested distance hysteresis band to reduce threshold flicker.

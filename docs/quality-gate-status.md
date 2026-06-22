@@ -134,6 +134,7 @@ Self-audit on 2026-06-23 after `codex/next-beta-visual-calibration`:
 
 - Route-yellow readability thresholds are fixture-owned and missing thresholds fail the visual suite.
 - Water/bridge correctness now covers both the original narrow `river-bridge` fixture and the `wide-river-bridges` polygon-water, multi-span fixture.
+- The `river-bridge` timeline gate proves rectangular building massing appears before building dissolve: partial massing progress, zero dissolve progress, and a present building layer at the `building-massing` checkpoint.
 - Building near/far LOD response and stepped no-pop dissolve are gated for `micro-street`, `old-street`, and `landmark-pilot`.
 - Building dissolve now uses a tested distance hysteresis band so threshold-adjacent camera movement preserves the current massing/detail state instead of flickering.
 - Repeated fallback low-poly building massing now uses `InstancedMesh`; direct renderer tests prove deterministic fallback rebuilds, authoritative footprint extrusion, and synthetic fallback for rejected unlocated footprints.
