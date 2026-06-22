@@ -3,7 +3,9 @@ import { readFile } from 'node:fs/promises';
 const FILES = ['TODO.md', 'docs/quality-gate-status.md'];
 const STALE_PATTERNS = [
   { name: 'old unit-test count', regex: /30 files,\s*146 tests/u },
+  { name: 'old unit-test count', regex: /31 files,\s*15[12] tests/u },
   { name: 'old encoding count', regex: /31[02] visible source\/doc\/test files scanned/u },
+  { name: 'old encoding count', regex: /315 (?:visible source\/doc\/test )?files scanned/u },
   { name: 'old smoke count', regex: /12 desktop tests,\s*1 mobile-only test skipped/u },
   { name: 'old chromium smoke count', regex: /12 passed,\s*1 mobile-only skipped/u }
 ];
@@ -54,6 +56,24 @@ if (!verificationSmoke || !completedSmoke) {
 } else if (verificationSmoke.join('/') !== completedSmoke.join('/')) {
   findings.push(
     `docs/quality-gate-status.md [smoke-ledger] verification ${verificationSmoke.join('/')} != completed ${completedSmoke.join('/')}`
+  );
+}
+
+const verificationEncoding = matchFirst(
+  quality,
+  /\| `npm\.cmd run check:encoding`\s+\|\s+Passed:\s+(\d+) visible source\/doc\/test files scanned\s+\|/u
+);
+const completedEncoding = matchFirst(
+  quality,
+  /\|\s+26\s+\| No visible UI mojibake in maintained source, tests, and docs\s+\|\s+`npm\.cmd run check:encoding`:\s+(\d+) files scanned\s+\|/u
+);
+if (!verificationEncoding || !completedEncoding) {
+  findings.push(
+    'docs/quality-gate-status.md [encoding-ledger] could not parse encoding ledger rows'
+  );
+} else if (verificationEncoding[0] !== completedEncoding[0]) {
+  findings.push(
+    `docs/quality-gate-status.md [encoding-ledger] verification ${verificationEncoding[0]} != completed ${completedEncoding[0]}`
   );
 }
 

@@ -102,6 +102,16 @@ Recommended Playwright settings:
 - No animations during capture except the phase being intentionally captured.
 
 The first visual suite must prove five consecutive local passes before becoming a hard CI gate.
+Use the named repeatability runner for that evidence:
+
+```powershell
+npm.cmd run test:e2e:visual:stability -- --runs=5
+```
+
+The runner repeats the maintained visual baseline suite with fixture data and the Chromium project.
+It accepts Playwright arguments after `--`, so a narrow calibration run can scope by grep before the
+full five-run gate is attempted. Passing this command is required before capture-only ROI evidence is
+promoted to maintained golden screenshots.
 
 ## Failure Artifacts
 
