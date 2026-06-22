@@ -105,6 +105,7 @@ import {
   stringifyWorkspaceExport
 } from './storage.js';
 import { sleep } from './utils.js';
+import { resolveAnchored3DWorkArea } from './three-work-area.js';
 import { inferIconId } from './render/icons.js';
 import { createLogger } from './logger.js';
 import { buildGuideDraft, searchGuidePlaces } from './guide-import-flow.js';
@@ -305,12 +306,21 @@ async function enter3DView(workArea = null) {
   const { initDiorama, enter3DMode } =
     await import('./render/map-3d.js?v=20260623-gate50-orbit-pose-v3');
   dioramaInstance = await initDiorama({ container });
+  const anchoredWorkArea = resolveAnchored3DWorkArea(
+    workArea,
+    getTrip(),
+    getAppState().activeDayId
+  );
+  if (anchoredWorkArea?.anchorAdjusted) {
+    setStatus('所选位置缺少可用 3D 地理锚点，已吸附到最近路线生成工作区。');
+  }
+
   await enter3DMode(dioramaInstance, {
     trip: getTrip(),
     activeDayId: getAppState().activeDayId,
     onAnnotationRequest: open3DAnnotationFlow,
     loadElevationGrid: fetchElevationGrid,
-    workArea
+    workArea: anchoredWorkArea
   });
 }
 

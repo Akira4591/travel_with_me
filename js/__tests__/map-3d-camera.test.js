@@ -11,16 +11,16 @@ describe('3D map overview camera pose', () => {
     );
 
     expect(pose.target.toArray()).toEqual([0, 212, 0]);
-    expect(pose.position.x).toBeCloseTo(56.85);
-    expect(pose.position.z).toBeCloseTo(72.77);
-    expect(pose.position.y).toBeCloseTo(465.72);
+    expect(pose.position.x).toBeCloseTo(54.96);
+    expect(pose.position.z).toBeCloseTo(70.34);
+    expect(pose.position.y).toBeCloseTo(457.26);
     expect(pose.position.distanceTo(pose.target)).toBeGreaterThan(180 * 1.4);
     const [targetX, targetZ] = terrainModel.heightAt.mock.calls[0];
     expect(targetX).toBe(0);
     expect(targetZ).toBe(0);
     const [sampleX, sampleZ] = terrainModel.heightAt.mock.calls[1];
-    expect(sampleX).toBeCloseTo(56.85);
-    expect(sampleZ).toBeCloseTo(72.77);
+    expect(sampleX).toBeCloseTo(54.96);
+    expect(sampleZ).toBeCloseTo(70.34);
   });
 
   it('uses the overview orbit even before terrain data has loaded', () => {
@@ -32,6 +32,16 @@ describe('3D map overview camera pose', () => {
 
     expect(initialPose.target.toArray()).toEqual(defaultWorkAreaPose.target.toArray());
     expect(initialPose.position.toArray()).toEqual(defaultWorkAreaPose.position.toArray());
-    expect(initialPose.position.distanceTo(initialPose.target)).toBeGreaterThan(500);
+    expect(initialPose.position.distanceTo(initialPose.target)).toBeGreaterThan(300);
+  });
+
+  it('keeps micro-street overview close enough for first-screen readability', () => {
+    const pose = getOverviewCameraPose(
+      { minX: -250, maxX: 250, minZ: -250, maxZ: 250 },
+      { terrainMode: 'micro-street' }
+    );
+
+    expect(pose.position.distanceTo(pose.target)).toBeLessThan(420);
+    expect(pose.position.y - pose.target.y).toBeLessThan(370);
   });
 });

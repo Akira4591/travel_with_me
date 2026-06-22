@@ -77,6 +77,20 @@ const OVERVIEW_CAMERA_ORBIT = {
   distanceScale: 1.35,
   minInspectDistanceScale: 1.45
 };
+const OVERVIEW_DISTANCE_SCALE_BY_MODE = {
+  'micro-street': 0.62,
+  citywalk: 0.78,
+  'scenic-park': 1.05,
+  hiking: 1.2,
+  'region-overview': 1.35
+};
+const OVERVIEW_PITCH_BY_MODE = {
+  'micro-street': 58,
+  citywalk: 60,
+  'scenic-park': 64,
+  hiking: 68,
+  'region-overview': 70
+};
 
 // Emergence animation constants.
 const EMERGE_DURATION = GENERATION_TIMING_MS.total;
@@ -111,7 +125,8 @@ let instance = null;
  */
 
 /**
- * 鍒涘缓 3D diorama 瀹炰緥锛堜笉绔嬪嵆杩涘叆 3D 妯″紡锛? * @param {object} options
+ * Create a 3D diorama instance without entering 3D mode immediately.
+ * @param {object} options
  * @param {HTMLElement} options.container #map-3d container
  * @returns {Promise<DioramaInstance>}
  */
@@ -365,6 +380,11 @@ export async function enter3DMode(
   container.dataset.workAreaCenter = selectedWorkArea.center
     .map(value => value.toFixed(6))
     .join(',');
+  container.dataset.workAreaAnchorAdjusted = String(Boolean(selectedWorkArea.anchorAdjusted));
+  container.dataset.workAreaAnchorDistanceMeters = String(
+    selectedWorkArea.anchorDistanceMeters || 0
+  );
+  container.dataset.workAreaAnchorType = selectedWorkArea.anchorType || '';
   container.dataset.provenanceSourceCount = String(sceneContext.provenanceManifest.sources.length);
   container.dataset.waterCarveCount = String(terrainModel.carving?.waterwayCount || 0);
   renderTerrainInsight(container, terrainMode, terrainModel, locations.length);
@@ -532,7 +552,7 @@ export async function exit3DMode(diorama) {
   // Reverse animation: lower the lifted group and hide layers.
   await animateExit(diorama);
 
-  // 娓呯悊
+  // Cleanup scene layers.
   [
     diorama.terrainMesh,
     diorama.waterGroup,
@@ -573,6 +593,9 @@ export async function exit3DMode(diorama) {
   delete container.dataset.workAreaSpanMeters;
   delete container.dataset.workAreaHardCapMeters;
   delete container.dataset.workAreaCenter;
+  delete container.dataset.workAreaAnchorAdjusted;
+  delete container.dataset.workAreaAnchorDistanceMeters;
+  delete container.dataset.workAreaAnchorType;
   delete container.dataset.firstSlabMs;
   delete container.dataset.provenanceSourceCount;
   container.querySelector('.terrain-insight-panel')?.remove();
@@ -1495,6 +1518,13 @@ function normalizeWorkArea(workArea, fallbackLnglats) {
   return {
     source: workArea?.source || 'fallback-trip-center',
     center,
+    requestedCenter: isValidLngLat(workArea?.requestedCenter)
+      ? workArea.requestedCenter.map(Number)
+      : null,
+    anchorAdjusted: Boolean(workArea?.anchorAdjusted),
+    anchorReason: workArea?.anchorReason || '',
+    anchorDistanceMeters: Math.round(Number(workArea?.anchorDistanceMeters) || 0),
+    anchorType: workArea?.anchorType || '',
     spanMeters: Math.round(spanMeters),
     hardCapMeters: Math.round(hardCapMeters),
     profile: workArea?.profile || 'default',
@@ -1558,11 +1588,12 @@ export function getOverviewCameraPose(bounds, { terrainModel = null, terrainMode
   const target = new THREE.Vector3(cx, targetY, cz);
   const profile = getCameraProfile(terrainMode);
   const inspectDistance = Number(profile.inspectDistance) || 180;
+  const distanceScale = getOverviewDistanceScale(terrainMode);
   const distance = Math.max(
-    span * OVERVIEW_CAMERA_ORBIT.distanceScale,
+    span * distanceScale,
     inspectDistance * OVERVIEW_CAMERA_ORBIT.minInspectDistanceScale
   );
-  const modePitch = Number(terrainMode?.cameraPitchDeg);
+  const modePitch = Number(terrainMode?.cameraPitchDeg ?? getOverviewPitchDeg(terrainMode));
   const pitchDeg = Number.isFinite(modePitch)
     ? Math.max(modePitch, OVERVIEW_CAMERA_ORBIT.pitchDeg)
     : OVERVIEW_CAMERA_ORBIT.pitchDeg;
@@ -1579,6 +1610,16 @@ export function getOverviewCameraPose(bounds, { terrainModel = null, terrainMode
     position: new THREE.Vector3(positionX, positionY, positionZ),
     target
   };
+}
+
+function getOverviewDistanceScale(terrainMode) {
+  const id = typeof terrainMode === 'string' ? terrainMode : terrainMode?.id;
+  return OVERVIEW_DISTANCE_SCALE_BY_MODE[id] || OVERVIEW_CAMERA_ORBIT.distanceScale;
+}
+
+function getOverviewPitchDeg(terrainMode) {
+  const id = typeof terrainMode === 'string' ? terrainMode : terrainMode?.id;
+  return OVERVIEW_PITCH_BY_MODE[id] || OVERVIEW_CAMERA_ORBIT.pitchDeg;
 }
 
 export function getInitialOverviewCameraPose() {

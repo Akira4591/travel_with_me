@@ -47,6 +47,8 @@ The full command runs:
 7. Inspect the default overview without touching the camera.
 8. Drag, wheel, and use `WASD` to inspect the selected square.
 9. Return to overview-like distance and confirm the scene remains readable.
+10. As a negative-path check, select an empty map area away from the route and confirm the generated
+    3D work area anchors to nearby location context instead of opening as a blank slab.
 
 ## Acceptance Checklist
 
@@ -60,6 +62,10 @@ Accept gate 50 only if all items below are true in the live view:
 - The yellow route remains readable during overview, drag, wheel, and `WASD` movement.
 - The first camera angle and idle auto-orbit feel continuous; there is no initial snap to a
   different view.
+- The first camera angle is close enough to read the route and immediate context; it must not be a
+  distant blank slab with only a faint route line.
+- Empty off-route selections degrade by anchoring to nearby location context, not by generating an
+  empty raised square.
 - Roads, water, bridges, buildings, and annotations do not create obvious z-fighting or blank
   terrain gaps in the selected area.
 - Building massing appears as neutral planning context; fallback buildings are not presented as

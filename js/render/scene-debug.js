@@ -281,6 +281,9 @@ function syncDebugDataset(container, debug) {
   dataset.workAreaSpanMeters = String(
     debug.workArea?.spanMeters || dataset.workAreaSpanMeters || 0
   );
+  dataset.workAreaAnchorAdjusted = String(Boolean(debug.workArea?.anchorAdjusted));
+  dataset.workAreaAnchorDistanceMeters = String(debug.workArea?.anchorDistanceMeters || 0);
+  dataset.workAreaAnchorType = debug.workArea?.anchorType || '';
   dataset.qaBridgePierCount = String(debug.qa?.geometry?.bridgePierCount || 0);
   dataset.qaBuildingDetailRatio = String(debug.qa?.lod?.buildingDetailRatio || 0);
   dataset.qaBuildingDetailAlphaAverage = String(debug.qa?.lod?.buildingDetailAlphaAverage || 0);

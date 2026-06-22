@@ -24,9 +24,9 @@ Latest verified baseline from 2026-06-23. Detailed gate accounting is maintained
 | Gate                              | Result                                                                                                                               |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `npm.cmd run check`               | Passed                                                                                                                               |
-| `npm.cmd test`                    | Passed: 30 files, 146 tests                                                                                                          |
-| `npm.cmd run check:encoding`      | Passed: 312 visible source/doc/test files scanned                                                                                    |
-| Full visual baseline suite        | Passed: 24 local ROI fixture captures/interactions with QA JSON and screenshots in 12.4m                                             |
+| `npm.cmd test`                    | Passed: 31 files, 151 tests                                                                                                          |
+| `npm.cmd run check:encoding`      | Passed: 314 visible source/doc/test files scanned                                                                                    |
+| Full visual baseline suite        | Passed: 24 local ROI fixture captures/interactions with QA JSON and screenshots in 13.0m                                             |
 | `npm.cmd run check:architecture`  | Passed: 37 render files scanned                                                                                                      |
 | `npm.cmd run check:provenance`    | Passed: 42 scene fixture files scanned                                                                                               |
 | `npm.cmd run check:landmarks`     | Passed: 1 landmark record scanned                                                                                                    |
@@ -55,10 +55,18 @@ VQ0 local visual reset implemented in code:
 - Overview camera starts on the same high-angle orbit used by idle auto-rotate before terrain data loads, during entry, and after steady state; x/z remain unlocked for drag and WASD movement.
 - 3D route guidance is narrowed back to a 2D-style yellow navigation line instead of a thick road-surface band.
 - Vegetation frustum telemetry now uses landcover chunk bounds so licensed vegetation areas remain measurable during camera stress.
+- Empty 2D selections that fall outside available trip/route data now snap to the nearest POI/location
+  anchor before 3D generation, preventing a technically valid but visually blank work area.
+- Micro-street and citywalk overview camera presets are closer/lower so the initial and idle-orbit view
+  remains continuous while giving route, roads, and nearby context more first-screen presence.
+- The visible-text encoding gate now catches broader GBK/UTF-8 mojibake fragments; core utility and 3D
+  toggle strings have been cleaned and covered by tests.
 
 Remaining VQ0 acceptance item:
 
 - Run `npm.cmd run gate50:review`, complete `docs/qa/gate50-manual-review.md` against the new bounded diorama output, and if accepted move gate 50 from partial to complete.
+  The latest live browser check confirms blank off-route selections now anchor to a location and preserve
+  `qaPassed=true`, but final product-quality acceptance is still manual.
 
 Known remaining non-blocking follow-ups after VQ0:
 
