@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { validateGate50Evidence } from '../../scripts/gate50-evidence.mjs';
+import {
+  buildGate50ReviewPacket,
+  GATE50_MANUAL_CHECKLIST,
+  validateGate50Evidence
+} from '../../scripts/gate50-evidence.mjs';
 
 const baseEvidence = Object.freeze({
   version: 1,
@@ -64,6 +68,29 @@ describe('gate50 evidence validator', () => {
     expect(validateGate50Evidence(evidence)).toContain(
       'durationMs must equal the sum of step durationMs values'
     );
+  });
+
+  it('builds a manual review packet from valid evidence', () => {
+    const packet = buildGate50ReviewPacket(clone(baseEvidence), {
+      sourcePath: 'output/gate50/dry-run.json',
+      generatedAt: '2026-06-23T10:10:00.000Z'
+    });
+
+    expect(packet).toContain('# Gate 50 Manual Review Packet');
+    expect(packet).toContain('Evidence source: output/gate50/dry-run.json');
+    expect(packet).toContain('| Static quality gates | dry-run | 0 | 0ms |');
+    expect(packet).toContain('- [ ] Accepted');
+    expect(packet).toContain('- [ ] Rejected');
+    for (const item of GATE50_MANUAL_CHECKLIST) {
+      expect(packet).toContain(`- [ ] ${item}`);
+    }
+  });
+
+  it('refuses to build a review packet from invalid evidence', () => {
+    const evidence = clone(baseEvidence);
+    evidence.steps = [];
+
+    expect(() => buildGate50ReviewPacket(evidence)).toThrow('Gate 50 evidence is invalid');
   });
 });
 

@@ -24,8 +24,8 @@ Latest verified baseline from 2026-06-23. Detailed gate accounting is maintained
 | Gate                              | Result                                                                                                                               |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `npm.cmd run check`               | Passed                                                                                                                               |
-| `npm.cmd test`                    | Passed: 34 files, 168 tests                                                                                                          |
-| `npm.cmd run check:encoding`      | Passed: 325 visible source/doc/test files scanned                                                                                    |
+| `npm.cmd test`                    | Passed: 34 files, 170 tests                                                                                                          |
+| `npm.cmd run check:encoding`      | Passed: 327 visible source/doc/test files scanned                                                                                    |
 | Full visual baseline suite        | Passed: 24 local ROI fixture captures/interactions with QA JSON and screenshots in 13.0m                                             |
 | `npm.cmd run check:architecture`  | Passed: 37 render files scanned                                                                                                      |
 | `npm.cmd run check:provenance`    | Passed: 42 scene fixture files scanned                                                                                               |
@@ -75,6 +75,8 @@ Remaining VQ0 acceptance item:
   Use `--evidence-json=output/gate50/evidence.json` when a machine-readable local evidence record is
   needed for the review meeting, then validate it with
   `npm.cmd run check:gate50-evidence -- output/gate50/evidence.json`.
+  Generate the local review packet with
+  `npm.cmd run gate50:packet -- output/gate50/evidence.json output/gate50/manual-review-packet.md`.
 
 Known remaining non-blocking follow-ups after VQ0:
 

@@ -26,6 +26,7 @@ To persist a machine-readable evidence summary:
 ```powershell
 npm.cmd run gate50:review -- --evidence-json=output/gate50/evidence.json
 npm.cmd run check:gate50-evidence -- output/gate50/evidence.json
+npm.cmd run gate50:packet -- output/gate50/evidence.json output/gate50/manual-review-packet.md
 ```
 
 Useful scoped reruns:
@@ -63,6 +64,10 @@ Evidence JSON is a local artifact. Keep it under ignored `output/` unless a rele
 explicitly requested. Validate the JSON before using it in review notes; the validator checks the
 root status, timestamps, options, required Gate 50 steps, step statuses, exit codes, and duration
 totals.
+
+The review packet is also a local artifact. It contains the validated automated evidence summary and
+an unchecked manual decision/checklist section. Do not use it to close Gate 50 until the live visual
+result is reviewed by a human.
 
 ## Manual Review Steps
 

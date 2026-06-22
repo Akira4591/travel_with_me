@@ -22,6 +22,7 @@
     "test:e2e:visual:stability": "node scripts/run-visual-stability.mjs",
     "test:e2e:live-provider": "node scripts/run-live-provider-smoke.mjs",
     "gate50:review": "node scripts/run-gate50-review.mjs",
+    "gate50:packet": "node scripts/create-gate50-review-packet.mjs",
     "test:guide-import": "node scripts/evaluate-guide-import.mjs",
     "test:watch": "vitest",
     "prepare": "husky"

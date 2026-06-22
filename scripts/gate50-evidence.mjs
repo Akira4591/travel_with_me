@@ -5,6 +5,21 @@ const VALID_STEP_STATUSES = new Set(['passed', 'failed', 'dry-run']);
 
 const BASE_REQUIRED_LABELS = ['Static quality gates', 'Unit tests', 'Visible text encoding gate'];
 
+export const GATE50_MANUAL_CHECKLIST = Object.freeze([
+  'The 3D scene is a bounded square work area, not an unbounded route-wide board.',
+  'The selected work area is visually raised and clearly separated from the dimmed outside context.',
+  'The ground palette stays bone-white and does not reintroduce the previous gray base-map look.',
+  'The route guidance is a narrow industrial-yellow line with no gray route outline or thick gray route bed.',
+  'The yellow route remains readable during overview, drag, wheel, and WASD movement.',
+  'The first camera angle and idle auto-orbit feel continuous; there is no initial snap to a different view.',
+  'The first camera angle is close enough to read the route and immediate context; it must not be a distant blank slab with only a faint route line.',
+  'Empty off-route selections degrade by anchoring to nearby location context, not by generating an empty raised square.',
+  'Roads, water, bridges, buildings, and annotations do not create obvious z-fighting or blank terrain gaps in the selected area.',
+  'Building massing appears as neutral planning context; fallback buildings are not presented as real exterior reconstructions.',
+  'Close-view building dissolve does not visibly pop or flicker.',
+  'The result is visually acceptable for the current low-poly planning-diorama style.'
+]);
+
 export function readGate50EvidenceFile(path) {
   return JSON.parse(readFileSync(path, 'utf8'));
 }
@@ -44,6 +59,64 @@ export function validateGate50Evidence(evidence) {
   }
 
   return issues;
+}
+
+export function buildGate50ReviewPacket(evidence, options = {}) {
+  const issues = validateGate50Evidence(evidence);
+  if (issues.length > 0) {
+    throw new Error(
+      `Gate 50 evidence is invalid:\n${issues.map(issue => `- ${issue}`).join('\n')}`
+    );
+  }
+
+  const sourcePath = options.sourcePath || 'unknown evidence path';
+  const generatedAt = options.generatedAt || new Date().toISOString();
+  const command = evidence.command.join(' ');
+  const duration = formatDuration(evidence.durationMs);
+  const mode = evidence.options?.dryRun ? 'dry-run wiring check' : 'executed evidence run';
+
+  return [
+    '# Gate 50 Manual Review Packet',
+    '',
+    `Generated at: ${generatedAt}`,
+    `Evidence source: ${sourcePath}`,
+    `Evidence status: ${evidence.status}`,
+    `Evidence mode: ${mode}`,
+    `Evidence command: \`${command}\``,
+    `Evidence duration: ${duration}`,
+    '',
+    '## Automated Evidence Summary',
+    '',
+    '| Step | Status | Exit code | Duration |',
+    '| --- | --- | ---: | ---: |',
+    ...evidence.steps.map(
+      step =>
+        `| ${escapeMarkdownCell(step.label)} | ${step.status} | ${step.exitCode} | ${formatDuration(step.durationMs)} |`
+    ),
+    '',
+    '## Manual Review Decision',
+    '',
+    '- [ ] Accepted',
+    '- [ ] Rejected',
+    '',
+    'Reviewer:',
+    '',
+    'Decision notes:',
+    '',
+    '## Required Live Visual Checklist',
+    '',
+    ...GATE50_MANUAL_CHECKLIST.map(item => `- [ ] ${item}`),
+    '',
+    '## Rejection Record',
+    '',
+    'Use this section only if the packet is rejected.',
+    '',
+    '- Screenshot path:',
+    '- One-sentence defect:',
+    '- Defect class: route / terrain / water / road / bridge / building / camera / lighting / palette / UI',
+    '- Next TODO item:',
+    ''
+  ].join('\n');
 }
 
 function validateSteps(evidence, issues) {
@@ -111,6 +184,16 @@ function requiredLabels(options) {
   if (!options.skipVisual) labels.push('Full 3D visual baseline');
   if (options.includeStability) labels.push('3D visual stability repeatability');
   return labels;
+}
+
+function formatDuration(ms) {
+  if (!Number.isFinite(ms)) return 'unknown';
+  if (ms < 1000) return `${ms}ms`;
+  return `${(ms / 1000).toFixed(1)}s`;
+}
+
+function escapeMarkdownCell(value) {
+  return String(value).replaceAll('|', '\\|');
 }
 
 function validateStringArray(value, name, issues) {
