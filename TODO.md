@@ -11,7 +11,8 @@ The project is now in:
 ```text
 S1 desktop private-test baseline closed
   -> S2 differentiation validation closed at code level
-  -> 3D Alpha/Beta/Delta local quality gates closed
+  -> 3D structural gates closed
+  -> VQ0 local visual-quality reset reopened by manual screenshot review
 ```
 
 Desktop Web is the only active product surface. Mobile Web remains a compatibility guard only. Native Android is deferred as a separate Kotlin product after the desktop Web value and data model stabilize.
@@ -20,18 +21,19 @@ Desktop Web is the only active product surface. Mobile Web remains a compatibili
 
 Latest verified baseline from 2026-06-22. Detailed gate accounting is maintained in `docs/quality-gate-status.md`.
 
-| Gate                                                                 | Result                                                                          |
-| -------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `npm.cmd run check`                                                  | Passed                                                                          |
-| `npm.cmd test`                                                       | Passed: 28 files, 138 tests                                                     |
-| `npm.cmd run check:encoding`                                         | Passed: 300 visible source/doc/test files scanned                               |
-| `npm.cmd run test:e2e:visual`                                        | Passed: 19 local ROI fixture captures/interactions with QA JSON and screenshots |
-| `npm.cmd run check:architecture`                                     | Passed: 35 render files scanned                                                 |
-| `npm.cmd run check:provenance`                                       | Passed: 36 scene fixture files scanned                                          |
-| `npm.cmd run check:landmarks`                                        | Passed: 1 landmark record scanned                                               |
-| `npx.cmd playwright test tests/e2e/smoke.spec.js --project=chromium` | Passed: 12 desktop tests, 1 mobile-only test skipped in Chromium                |
-| Tracked-source secret scan                                           | Passed: no known real AMap/DeepSeek key patterns found                          |
-| In-app browser 2D/3D visual check                                    | Passed: 2D AMap provider loaded, 3D enters, canvas visible, DOM metrics present |
+| Gate                                                                 | Result                                                                                                                 |
+| -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `npm.cmd run check`                                                  | Passed                                                                                                                 |
+| `npm.cmd test`                                                       | Passed: 28 files, 138 tests                                                                                            |
+| `npm.cmd run check:encoding`                                         | Passed: 300 visible source/doc/test files scanned                                                                      |
+| `npm.cmd run test:e2e:visual`                                        | Passed: 19 local ROI fixture captures/interactions with QA JSON and screenshots                                        |
+| `npm.cmd run check:architecture`                                     | Passed: 35 render files scanned                                                                                        |
+| `npm.cmd run check:provenance`                                       | Passed: 36 scene fixture files scanned                                                                                 |
+| `npm.cmd run check:landmarks`                                        | Passed: 1 landmark record scanned                                                                                      |
+| `npx.cmd playwright test tests/e2e/smoke.spec.js --project=chromium` | Passed: 12 desktop tests, 1 mobile-only test skipped in Chromium                                                       |
+| Tracked-source secret scan                                           | Passed: no known real AMap/DeepSeek key patterns found                                                                 |
+| In-app browser 2D/3D visual check                                    | Passed: 2D AMap provider loaded, 3D enters, canvas visible, DOM metrics present                                        |
+| Manual 3D visual review                                              | Failed: current user screenshot scored 1/10 due to unbounded white-board scene, gray route artifacts, and route jitter |
 
 Quality gate count from `docs/quality-gate-status.md`:
 
@@ -39,10 +41,19 @@ Quality gate count from `docs/quality-gate-status.md`:
 | ------------ | ----: |
 | Complete     |    46 |
 | Partial      |     0 |
-| Not complete |     0 |
-| Total        |    46 |
+| Not complete |     1 |
+| Total        |    47 |
 
-Known remaining non-blocking follow-ups:
+Current blocking visual-quality reset:
+
+- Remove the gray 3D route outline/bed and keep yellow guidance as the only primary route layer.
+- Add 2D red-pin selection before 3D generation.
+- Build 3D from a fixed square work area centered on the selected 2D point.
+- Default work area to 800m, use 600m/1000m/2000m for urban/scenic/hiking profiles, and hard-cap at 2000m.
+- Raise only the selected square and dim/simplify outside context.
+- Add visual QA for no gray route outline, route stability, bounded span, selected-square visibility, and outside dimming.
+
+Known remaining non-blocking follow-ups after VQ0:
 
 - Promote maintained golden screenshot assertions after the current stage screenshot capture gate is stable across repeated local runs.
 - Promote city/scenic/hiking precision gates from fixture coverage to repeated-run baseline once thresholds stabilize.
@@ -51,19 +62,31 @@ Known remaining non-blocking follow-ups:
 Next-stage deep-research decision:
 
 ```text
-visual proof infrastructure first
-  -> P2 water / road / bridge visual correctness
-  -> P3 building massing / dissolve
-  -> inspect camera and scene precision profiles
+VQ0 local visual-quality reset
+  -> route layer repair
+  -> 2D red-pin selection
+  -> bounded square work area
+  -> outside-context dimming
+  -> bounded-scene visual gates
+  -> resume visual proof / P2 / P3 / inspect profile work
 ```
 
-Do not start P4 DEM tiles, P5 landmark restoration, or commercial 3D provider routing until the first visual baseline and P2 visual correctness gates are stable.
+Do not start P4 DEM tiles, P5 landmark restoration, or commercial 3D provider routing until VQ0, the first visual baseline, and P2 visual correctness gates are stable.
 
-## Immediate Next Batch: Visual Proof Infrastructure
+## Immediate Next Batch: VQ0 Local Visual Reset
 
-Goal: make 3D visual quality regression-testable before adding more visual complexity.
+Goal: make 3D visual quality acceptable and regression-testable before adding more visual
+complexity. The immediate batch is now VQ0; the previous Alpha visual proof infrastructure remains
+the testing foundation.
 
 Tasks:
+
+0. Complete VQ0 local visual reset. **Blocking.**
+   - Modules: 2D/3D entry controller, route guidance renderer, scene envelope/work-area builder,
+     outside context renderer, visual QA.
+   - Acceptance: user selects a 2D point with red pin, 3D builds only the bounded square, outside
+     context is dimmed, gray route outline is gone, yellow route no longer jitters, VQ0 QA passes.
+   - Rollback: keep 3D disabled with a reason when no work-area center is selected.
 
 1. Build ROI visual baseline harness for `river-bridge`, `micro-street`, and `hiking-terrain`. **Implemented.**
    - Modules: tests, QA docs, Playwright helpers.

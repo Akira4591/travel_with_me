@@ -19,6 +19,13 @@ Execution details now live in `docs/qa/visual-baseline.md`. The debug payload co
 The implementation order is fixed:
 
 ```text
+local visual reset
+  -> route de-gray and anti-jitter repair
+  -> red-pin 2D work-area selection
+  -> bounded square work-area proof
+  -> outside-context dimming proof
+  -> bounded-scene screenshot gates
+  -> then resume:
 visual proof infrastructure
   -> P2 water / road / bridge visual correctness
   -> P3 building massing / dissolve refinement
@@ -38,6 +45,22 @@ Maintain five deterministic scene fixtures:
 | `hiking-terrain` | Mountain or hiking relief                     | terrain variance, slope honesty, route height cue                   |
 | `old-street`     | Narrow storefront route readability           | route clarity above dense low-rise storefront context               |
 | `landmark-pilot` | Allowlisted real landmark workflow            | provenance, attribution, fallback when model is unavailable         |
+
+Every fixture used for 3D visual review must declare a bounded work area:
+
+```json
+{
+  "workArea": {
+    "center": [116.397, 39.908],
+    "spanMeters": 800,
+    "profile": "scenic-park",
+    "hardCapMeters": 2000
+  }
+}
+```
+
+Route, water, road, bridge, building, vegetation, and landmark context must be clipped or
+degraded at the work-area boundary.
 
 Fixtures must be local and deterministic. Live provider calls are not allowed in baseline tests.
 
@@ -83,6 +106,10 @@ The structured QA payload must expose:
 - `phase`
 - `fixture.id`
 - `fixture.profile`
+- `workArea.center`
+- `workArea.spanMeters`
+- `workArea.hardCapMeters`
+- `workArea.bounds`
 - `fixture.routeHash`
 - `camera.mode`
 - `qa.version`
@@ -96,7 +123,11 @@ The structured QA payload must expose:
 - `qa.geometry.zFightingRisk`
 - `qa.geometry.terrainCarvingDepthP50`
 - `qa.geometry.routeVisiblePixelRatio`
+- `qa.geometry.routeYellowPixelRatio`
+- `qa.geometry.routeGrayOutlinePixelRatio`
 - `qa.geometry.bridgePierCount`
+- `qa.geometry.workAreaRaisedPixelRatio`
+- `qa.geometry.outsideDimmedPixelRatio`
 - `qa.budgets.visibleMeshCount`
 - `qa.budgets.triangleCount`
 - `qa.budgets.frameTimeP95`
@@ -116,6 +147,21 @@ The structured QA payload must expose:
 - `qa.lod.buildingDistanceP50`
 
 The DOM clipped contract must expose equivalent `data-qa-*` values on `#map-3d` for browser containers that cannot reliably read `window.__threeDebug__`.
+
+## Bounded-Scene Visual Gates
+
+The local visual reset adds these blocking gates before more terrain/building detail is accepted:
+
+| Gate                     | Required proof                                                                           |
+| ------------------------ | ---------------------------------------------------------------------------------------- |
+| `selecting-3d-center`    | 2D click on the 3D button enters selection mode; red pin and square preview are visible. |
+| `work-area-hard-cap`     | `workArea.spanMeters <= 2000` for all 3D builds.                                         |
+| `work-area-raised`       | selected square is visually distinguishable from outside context after foundation rise.  |
+| `outside-context-dimmed` | outside-area ROI is lower brightness/detail than the selected square.                    |
+| `route-no-gray-outline`  | `routeGrayOutlinePixelRatio` remains below the calibrated threshold.                     |
+| `route-yellow-primary`   | yellow route pixels remain the dominant route guidance signal.                           |
+| `route-no-jitter`        | camera stress sampling keeps `zFightingRisk` and route-pixel variance below threshold.   |
+| `no-unbounded-envelope`  | scene envelope source is the selected work area, not route/all-trip bbox.                |
 
 ## Merge Gate
 

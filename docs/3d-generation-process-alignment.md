@@ -10,6 +10,7 @@ The correct product metaphor is:
 
 ```text
 2D map
+  -> red-pin local 3D work-area selection
   -> raised foundation slab
   -> carved / emerged geographic skeleton
   -> rectangular building massing clusters
@@ -24,10 +25,26 @@ The animation must explain where every object comes from. Objects should feel li
 
 The user clicks the explicit `2D / 3D` toggle. The control must stay in the map control area, visually aligned with the existing UI style, and appear in the bottom-right map region.
 
-The control has four product states:
+The first click does not immediately build an unbounded 3D scene. It arms 3D selection in the 2D
+map:
+
+```text
+idle-2d
+  -> selecting-3d-center
+  -> prebuilding-3d
+  -> transitioning-3d
+  -> steady-3d
+```
+
+In `selecting-3d-center`, the cursor carries a red pin and the 2D map shows a square preview of the
+3D work area. A map click commits the center point from the 2D provider event coordinates. `Esc`,
+right click, or clicking the 3D toggle again cancels selection and returns to normal 2D.
+
+The control has five product states:
 
 ```text
 enabled-2d
+selecting-3d-center
 loading-3d
 enabled-3d
 disabled-with-reason
@@ -47,6 +64,17 @@ The 2D map is frozen as the geographic source of truth. 3D must consume persiste
 - provider provenance
 
 3D must not reinterpret AMap JS renderer internals.
+
+The selected 3D work area is the scene envelope:
+
+```text
+centerLngLat = user selected 2D map point
+spanMeters = profile default, normally 800m
+hardCapMeters = 2000m
+```
+
+The full route and all trip points are no longer allowed to expand the scene. They can only
+contribute clipped geometry, boundary direction cues, and warnings.
 
 ### Step 2: Raise the Terrain Foundation
 
@@ -89,8 +117,12 @@ foundation surface
   -> water surface
   -> neutral roads
   -> bridges
-  -> itinerary route bed / outline / safety-yellow line
+  -> itinerary route safety-yellow line
 ```
+
+The route must not use a gray 3D outline. Road bed belongs to the muted road/context layer, not to
+the route guidance layer. If contrast is later needed, only a narrow warm low-opacity halo is
+allowed, and it must not be gray.
 
 ### Step 4: Raise Rectangular Building Clusters
 
@@ -132,6 +164,12 @@ The current implementation has the correct data boundary and can render terrain,
 
 Current remaining gaps from visual QA and quality-gate review:
 
+- 3D currently lacks the required 2D red-pin selection flow and bounded square work-area contract.
+- Scene bounds can still read like a route-wide or map-wide board instead of a user-selected local
+  diorama.
+- The 3D route can show a thick gray outline/bed that competes with the industrial-yellow guidance
+  line.
+- Yellow route pixels can jitter or flicker when layered close to terrain/roads.
 - Terrain can fall back to an overly flat board.
 - Water currently reads as a surface ribbon more than a carved channel.
 - Roads and bridges render, but lack a clear "emerge from ground" stage.
@@ -186,18 +224,19 @@ Use a single timeline contract so screenshots and tests can verify the expected 
 
 ```text
 phase 0: idle-2d
-phase 1: freeze-2d
-phase 2: derive-scene-envelope
-phase 3: slab-rise
-phase 4: terrain-refine
-phase 5: water-carve
-phase 6: road-emerge
-phase 7: bridge-resolve
-phase 8: route-highlight
-phase 9: building-massing
-phase 10: building-dissolve
-phase 11: camera-overview
-phase 12: camera-route-focus-or-inspect
+phase 1: selecting-3d-center
+phase 2: freeze-2d
+phase 3: derive-work-area-envelope
+phase 4: slab-rise
+phase 5: terrain-refine
+phase 6: water-carve
+phase 7: road-emerge
+phase 8: bridge-resolve
+phase 9: route-highlight
+phase 10: building-massing
+phase 11: building-dissolve
+phase 12: camera-overview
+phase 13: camera-route-focus-or-inspect
 ```
 
 Each phase must expose debug state:
@@ -243,11 +282,17 @@ Recommended target timing:
 P0 visual acceptance:
 
 - 3D button is visible in the bottom-right map control area.
+- Clicking the 3D button from 2D enters red-pin selection mode instead of building an unbounded
+  route-wide scene.
+- The user-selected work area is a visible square centered on the clicked 2D map point.
+- `spanMeters` defaults to the scene profile and never exceeds the V1 hard cap of 2000m.
+- The selected square is raised first; outside context is dimmed or simplified.
 - 3D button remains visible at low precision, either enabled for degraded overview or disabled with a reason.
 - 3D mode does not auto-exit after idle time.
 - 2D to 3D transition starts with a raised foundation, not instantly visible final layers.
 - The canvas is nonblank within 1.5 seconds.
 - Real route geometry renders as a continuous safety-yellow line.
+- Real route geometry has no gray outline, thick gray bed, or flickering layered shadow in 3D.
 - Estimated fallback route renders dashed and is clearly labelled.
 - Text in 3D UI contains no mojibake.
 - Route hash, first point, last point, and length diagnostics are exposed in debug state.

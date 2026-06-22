@@ -11,6 +11,21 @@ This contract is versioned. New fields should be additive until the visual basel
 ```js
 window.__threeDebug__ = {
   phase: 'foundation-rise',
+  workArea: {
+    source: 'selected-2d-point',
+    center: { lng: 116.397, lat: 39.908 },
+    spanMeters: 800,
+    hardCapMeters: 2000,
+    profile: 'scenic-park',
+    bounds: {
+      west: 0,
+      south: 0,
+      east: 0,
+      north: 0
+    },
+    clippedRoute: true,
+    outsideContextDimmed: true
+  },
   fixture: {
     id: 'river-bridge',
     profile: 'scenic',
@@ -38,6 +53,11 @@ window.__threeDebug__ = {
       zFightingRisk: 0,
       terrainCarvingDepthP50: 0,
       routeVisiblePixelRatio: 0,
+      routeYellowPixelRatio: 0,
+      routeGrayOutlinePixelRatio: 0,
+      routePixelVarianceDuringStress: 0,
+      workAreaRaisedPixelRatio: 0,
+      outsideDimmedPixelRatio: 0,
       bridgePierCount: 0
     },
     budgets: {
@@ -83,22 +103,30 @@ window.__threeDebug__ = {
 
 These values are starting points and must be calibrated against local fixture evidence before they become hard release gates.
 
-| Metric                          | Initial target                                           | Gate phase   |
-| ------------------------------- | -------------------------------------------------------- | ------------ |
-| `waterCoverageRatio`            | `>= 0.97` for `river-bridge`                             | Sprint Beta  |
-| `bridgeContinuity`              | `>= fixture bridge.minSpanCoverageRatio`                 | Sprint Beta  |
-| `bridgePierCount`               | `0` when no pier/support provenance exists               | Sprint Beta  |
-| `terrainCarvingDepthP50`        | `>= fixture water.minChannelDepthMeters`                 | Sprint Beta  |
-| `routeVisiblePixelRatio`        | `>= 0.90` for the first `river-bridge` ROI gate          | Sprint Beta  |
-| `routeGroundClearanceP95`       | visible above terrain/roads without floating unnaturally | Sprint Beta  |
-| `buildingBaseTerrainErrorP95`   | `<= 0.25m`                                               | Sprint Gamma |
-| `buildingDetailAlphaAverage`    | increases when zooming into `micro-street` inspect view  | Sprint Gamma |
-| `vegetationMaxInstancesPerArea` | `<= vegetationDensityCap` for licensed landcover         | Sprint Beta  |
-| `landmarkAllowlisted`           | equals `landmarkCount` before any landmark model is used | Sprint P5    |
+| Metric                           | Initial target                                           | Gate phase   |
+| -------------------------------- | -------------------------------------------------------- | ------------ |
+| `workArea.spanMeters`            | `<= 2000m`                                               | VQ0          |
+| `routeGrayOutlinePixelRatio`     | below calibrated threshold; target no visible gray route | VQ0          |
+| `routePixelVarianceDuringStress` | stable during drag/WASD/wheel camera stress              | VQ0          |
+| `workAreaRaisedPixelRatio`       | selected square is visibly raised                        | VQ0          |
+| `outsideDimmedPixelRatio`        | outside context is visibly dimmer/lower detail           | VQ0          |
+| `waterCoverageRatio`             | `>= 0.97` for `river-bridge`                             | Sprint Beta  |
+| `bridgeContinuity`               | `>= fixture bridge.minSpanCoverageRatio`                 | Sprint Beta  |
+| `bridgePierCount`                | `0` when no pier/support provenance exists               | Sprint Beta  |
+| `terrainCarvingDepthP50`         | `>= fixture water.minChannelDepthMeters`                 | Sprint Beta  |
+| `routeVisiblePixelRatio`         | `>= 0.90` for the first `river-bridge` ROI gate          | Sprint Beta  |
+| `routeGroundClearanceP95`        | visible above terrain/roads without floating unnaturally | Sprint Beta  |
+| `buildingBaseTerrainErrorP95`    | `<= 0.25m`                                               | Sprint Gamma |
+| `buildingDetailAlphaAverage`     | increases when zooming into `micro-street` inspect view  | Sprint Gamma |
+| `vegetationMaxInstancesPerArea`  | `<= vegetationDensityCap` for licensed landcover         | Sprint Beta  |
+| `landmarkAllowlisted`            | equals `landmarkCount` before any landmark model is used | Sprint P5    |
 
 ## Rules
 
 - Route readability is the highest rendering priority.
+- The scene envelope source must be explicit. `workArea.source` must be `selected-2d-point` for
+  user-entered 3D mode.
+- Route guidance must not use gray outline/bed geometry as the primary route visual.
 - Metrics that are not calibrated should start as warnings, not blocking errors.
 - Real-world asset provenance failures block real-world rendering, not synthetic planning context.
 - Synthetic fallback buildings must remain marked as synthetic and must not be labelled as true exterior reconstructions.

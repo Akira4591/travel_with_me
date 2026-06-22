@@ -45,6 +45,56 @@ The current QA observation contract is also split into three channels:
 
 Do not add new 3D effects until the next gate work is done through scenario fixtures and visual baselines. New effect work without a fixture, ROI capture, or quality assertion is treated as regression risk.
 
+## 1.2 Bounded Work Area Decision
+
+The latest visual-quality research supersedes any plan that derives the 3D scene extent from the
+full route bounding box or all itinerary points. The project must stop treating 3D as an
+unbounded map mode. The new product contract is:
+
+```text
+2D map
+  -> user clicks the 3D button
+  -> 2D enters selecting-3d-center state
+  -> red pin follows the cursor with a square range preview
+  -> user clicks a 2D map position
+  -> Three.js builds a fixed square 3D work area centered on that position
+  -> content outside the work area is dim context, not full-detail 3D
+```
+
+This is a quality control decision, not a capability downgrade. The current renderer can produce
+nonblank scenes and pass structural tests, but user screenshots show that large unbounded scenes
+collapse into a low-detail white board with unstable route layering. The fix is to give the 3D
+renderer a finite spatial contract before adding more building, vegetation, DEM, or landmark
+detail.
+
+First-release scope policy:
+
+| Scene profile                  | Default square side | Allowed range | Rule                                                                           |
+| ------------------------------ | ------------------: | ------------: | ------------------------------------------------------------------------------ |
+| Urban old street / small shops |                600m |      500-700m | Prioritize storefront context, route turns, and dense building massing.        |
+| Scenic / park / city walk      |               1000m |     800-1200m | Preserve water, paths, light relief, and POI context without becoming a board. |
+| Hiking / mountain terrain      |               2000m |    1500-2000m | Show slope and route elevation while staying inside the V1 geometry budget.    |
+| Unknown profile                |                800m |          800m | Default to a conservative, readable local diorama.                             |
+| V1 hard cap                    |               2000m |       no more | Above this, ask the user to select a smaller area. Do not silently degrade.    |
+
+The implementation must make `spanMeters` an explicit business parameter. It must not be inferred
+from route length or all trip points. Routes, roads, water, bridges, buildings, and vegetation are
+clipped to the square. If a route leaves the square, render only the in-work-area segment and show a
+low-key boundary direction cue instead of extending the scene.
+
+Immediate visual correction decisions:
+
+- Remove the gray 3D route outline. It currently competes with and visually swallows the yellow
+  guidance line.
+- Keep the itinerary route as the only primary 3D guidance layer, using the same industrial safety
+  yellow identity as 2D.
+- Treat road bed and road context as muted geographic layers, not route-outline layers.
+- Apply strict route render ordering and z-fighting controls: route geometry above terrain/roads,
+  `depthWrite=false`, stable `renderOrder`, controlled `polygonOffset`, higher route sampling, and
+  no unnecessary transparent `DoubleSide` route passes.
+- Add visual QA that can fail the build when a gray outline, route flicker, unbounded span, or
+  missing work-area dimming returns.
+
 ## 2. Fixed Product Sequence
 
 The user-visible 2D-to-3D generation sequence is fixed:
@@ -92,15 +142,21 @@ timeline explains the scene
 
 ## 3. Scene Envelope and Foundation Rules
 
-The slab is derived from the currently relevant trip context, not from an arbitrary fixed board:
+The slab is derived from the selected bounded work area, not from the entire trip, route, or all
+itinerary points:
 
 ```text
-sceneBBox = union(routeBBox, selectedPOIsBBox, relevantGeoAssetsBBox)
-pad = max(sceneLongSide * 0.15, 120m)
-slabWidth = sceneBBox.width + 2 * pad
-slabDepth = sceneBBox.depth + 2 * pad
+workArea.center = selectedLngLat
+workArea.spanMeters = profileSpanMeters
+workArea.hardCapMeters = 2000
+sceneBBox = squareBounds(workArea.center, workArea.spanMeters)
+slabWidth = workArea.spanMeters
+slabDepth = workArea.spanMeters
 slabHeight = clamp(max(localRelief * 0.18, 8m), 8m, 120m)
 ```
+
+Route/POI/geoAsset bounds are now used for filtering, clipping, labels, and warnings. They no
+longer decide the 3D scene size.
 
 Flat terrain is still derived from elevation facts when available. It must not become random decorative noise. For flat cities, preserve weak real variation:
 
@@ -247,9 +303,14 @@ Automated gates:
 Visual gates:
 
 - Bottom-right 3D button is visible and aligned with the existing style.
+- Clicking the 3D button from 2D enters a red-pin selection state before building 3D.
+- The selected work area is a bounded square with `spanMeters <= 2000`.
+- The selected square is visually raised and readable; outside context is dimmed or simplified.
 - The transition starts from foundation rise, not instant final-layer reveal.
 - Water channels read as carved/depressed when data exists.
 - Roads are muted; route guidance is industrial safety yellow, not gold.
+- The 3D route has no gray outline or thick gray bed competing with the yellow guidance line.
+- The route remains stable during camera movement with no visible z-fighting or line jitter.
 - Close view shows building detail dissolve without popping or hiding route guidance.
 - Overview ignores unnecessary detail while keeping route, terrain, water, and bridge relationships legible.
 
@@ -267,6 +328,11 @@ The current project should not jump directly into commercial DEM, full Overture 
 8. Continue splitting building massing from building dissolve LOD.
 9. Add Playwright screenshots for foundation, carved geography, building massing, building dissolve, and route focus.
 10. Keep current Overpass/OSM context ingestion labelled as prototype context, not production commercial truth.
+11. Replace full-route scene bounds with explicit 2D-selected bounded work areas.
+12. Add a visible red-pin selection flow before 3D generation.
+13. Remove gray route outline in 3D and keep road context separate from route guidance.
+14. Treat user-reported 1/10 screenshots as a manual visual gate failure even when automated
+    structure gates pass.
 
 Latest code-level repair implications from the deep research report:
 
@@ -341,3 +407,18 @@ Beta then promotes P2 visual metrics from existence checks to correctness checks
 - `routeGroundClearanceP95`;
 - `zFightingRisk`;
 - `bridgePierCount === 0` when no pier/support provenance exists.
+
+The latest visual-quality reset inserts a narrower blocking sequence before further P3/P4/P5
+expansion:
+
+```text
+Local Visual Reset
+  -> route de-gray and anti-jitter repair
+  -> 2D red-pin selection state
+  -> fixed square work area contract
+  -> outside-context dimming and boundary treatment
+  -> bounded-scene visual QA gates
+```
+
+This reset must complete before more terrain precision, building dissolve detail, vegetation, or
+landmark work is treated as product-quality progress.

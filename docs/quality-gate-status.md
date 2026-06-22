@@ -15,20 +15,38 @@ This document is the current status ledger for engineering, 2D map, 3D generatio
 
 Commands run on 2026-06-22:
 
-| Check                                                                | Result                                                                                    |
-| -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `npm.cmd run check`                                                  | Passed                                                                                    |
-| `npm.cmd test`                                                       | Passed: 28 files, 138 tests                                                               |
-| `npm.cmd run check:encoding`                                         | Passed: 300 visible source/doc/test files scanned                                         |
-| `npm.cmd run check:architecture`                                     | Passed: 35 render files scanned; renderer/provider boundary enforced                      |
-| `npm.cmd run check:provenance`                                       | Passed: 36 scene fixture files scanned                                                    |
-| `npm.cmd run check:landmarks`                                        | Passed: 1 landmark record scanned with allowlist, integrity, LOD, and budget validation   |
-| `npx.cmd playwright test tests/e2e/smoke.spec.js --project=chromium` | Passed: 12 desktop tests, 1 mobile-only test skipped in Chromium                          |
-| `npx.cmd playwright test tests/e2e/live-provider.spec.js`            | Passed by skip: live provider smoke is explicit opt-in only                               |
-| `npm.cmd run test:e2e:visual`                                        | Passed: 19 local ROI fixture captures/interactions with QA JSON and screenshots           |
-| targeted 3D/2D gate E2E                                              | Passed: nonblank 3D, geo assets, WASD camera, geometry P95, 2D fallback, 60s no-auto-exit |
-| tracked-source secret scan for known AMap/DeepSeek patterns          | Passed: no matches in tracked source                                                      |
-| in-app browser 2D/3D visual check                                    | Passed: 2D AMap provider loaded, 3D enters, canvas visible, 3D DOM metrics populated      |
+| Check                                                                | Result                                                                                                                     |
+| -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `npm.cmd run check`                                                  | Passed                                                                                                                     |
+| `npm.cmd test`                                                       | Passed: 28 files, 138 tests                                                                                                |
+| `npm.cmd run check:encoding`                                         | Passed: 300 visible source/doc/test files scanned                                                                          |
+| `npm.cmd run check:architecture`                                     | Passed: 35 render files scanned; renderer/provider boundary enforced                                                       |
+| `npm.cmd run check:provenance`                                       | Passed: 36 scene fixture files scanned                                                                                     |
+| `npm.cmd run check:landmarks`                                        | Passed: 1 landmark record scanned with allowlist, integrity, LOD, and budget validation                                    |
+| `npx.cmd playwright test tests/e2e/smoke.spec.js --project=chromium` | Passed: 12 desktop tests, 1 mobile-only test skipped in Chromium                                                           |
+| `npx.cmd playwright test tests/e2e/live-provider.spec.js`            | Passed by skip: live provider smoke is explicit opt-in only                                                                |
+| `npm.cmd run test:e2e:visual`                                        | Passed: 19 local ROI fixture captures/interactions with QA JSON and screenshots                                            |
+| targeted 3D/2D gate E2E                                              | Passed: nonblank 3D, geo assets, WASD camera, geometry P95, 2D fallback, 60s no-auto-exit                                  |
+| tracked-source secret scan for known AMap/DeepSeek patterns          | Passed: no matches in tracked source                                                                                       |
+| in-app browser 2D/3D visual check                                    | Passed: 2D AMap provider loaded, 3D enters, canvas visible, 3D DOM metrics populated                                       |
+| manual 3D screenshot review                                          | Failed: current 3D view is not product-quality; unbounded white-board scene, gray route artifacts, and route jitter remain |
+
+## Manual Visual Override
+
+The automated gates above prove structural presence and deterministic fixture behavior. They do
+not yet prove that the current live 3D composition is acceptable. The 2026-06-22 manual screenshot
+review reopens the visual-quality gate and blocks P4 DEM tiles, P5 landmark restoration, and
+additional decorative detail work until VQ0 is complete.
+
+VQ0 target state:
+
+- 2D 3D-button click enters red-pin center selection.
+- 3D is built from a fixed square work area, not from full route/all-point bounds.
+- Default work area is 800m; profile defaults are urban 600m, scenic 1000m, hiking 2000m.
+- V1 hard cap is 2000m.
+- Selected square raises first; outside context is dimmed or simplified.
+- 3D route guidance has no gray outline/bed and keeps yellow as the only primary route layer.
+- Route pixels remain stable during drag, WASD, and wheel camera stress.
 
 ## Summary
 
@@ -36,8 +54,8 @@ Commands run on 2026-06-22:
 | ------------ | ----: | ----------------------------------------------------------------------------------------------------- |
 | Complete     |    46 | Implemented and covered by automated evidence or current browser verification                         |
 | Partial      |     0 | Implemented or directionally present, but missing a dedicated gate, full scenario, or visual baseline |
-| Not complete |     0 | Not implemented, not verified, or contradicted by current evidence                                    |
-| Total        |    46 | Current tracked quality gates                                                                         |
+| Not complete |     1 | Contradicted by current manual visual evidence                                                        |
+| Total        |    47 | Current tracked quality gates                                                                         |
 
 ## Completed Gates
 
@@ -96,17 +114,28 @@ No partial gates remain in the current ledger. New gaps should enter this sectio
 
 ## Not Complete Gates
 
-No tracked quality gates remain incomplete in the current ledger. Real landmark model rendering still remains a future P5 feature, but the release gate that prevents unsafe or unlicensed landmark assets from entering the renderer is now implemented.
+|   # | Gate                                                                 | Evidence                                                                                                                                    | Required fix                                                                                                              |
+| --: | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+|  47 | Live 3D composition reaches product-quality bounded diorama standard | Manual screenshot review scored current view 1/10; gray route artifacts, route jitter, and unbounded white-board composition remain visible | Complete VQ0: route de-gray, 2D red-pin selection, bounded square work area, outside dimming, and bounded-scene visual QA |
+
+Real landmark model rendering still remains a future P5 feature, but the release gate that prevents unsafe or unlicensed landmark assets from entering the renderer is now implemented.
 
 ## Immediate Fix Order
 
-1. Add deterministic visual proof infrastructure before more visual fixes: **first Alpha subset implemented**
+1. Complete VQ0 local visual reset: **blocking**
+   - remove gray 3D route outline/bed;
+   - keep yellow guidance as the only primary route layer;
+   - add 2D red-pin work-area selection;
+   - build 3D from a fixed square selected work area;
+   - dim/simplify outside context;
+   - add no-gray-route, route-stability, work-area-cap, selected-square, and outside-dimming QA.
+2. Add deterministic visual proof infrastructure before more visual fixes: **first Alpha subset implemented**
    - ROI screenshots for `river-bridge`, `micro-street`, and `hiking-terrain`;
    - fixed camera presets;
    - screenshot normalization stylesheet;
    - visual attachments with screenshots, fixture JSON, camera JSON, QA JSON, and Playwright report context.
-2. Formalize `window.__threeDebug__.qa` v1 and expose geometry, budget, provenance, and layer metrics. **implemented**
-3. Close P2 visual correctness: **river-bridge first gate expanded; broader calibration remains**
+3. Formalize `window.__threeDebug__.qa` v1 and expose geometry, budget, provenance, and layer metrics. **implemented**
+4. Close P2 visual correctness: **river-bridge first gate expanded; broader calibration remains**
    - `waterCoverageRatio`;
    - `bridgeContinuity`;
    - `terrainCarvingDepthP50`;
@@ -115,12 +144,12 @@ No tracked quality gates remain incomplete in the current ledger. Real landmark 
    - `routeGroundClearanceP95`;
    - `zFightingRisk`;
    - `bridgePierCount === 0` when no pier/support provenance exists.
-4. Add P3-adjacent building LOD response and no-pop gates. **implemented for micro-street**
+5. Add P3-adjacent building LOD response and no-pop gates. **implemented for micro-street**
    - `qa.lod.buildingDetailAlphaAverage`;
    - `qa.lod.buildingDetailRatio`;
    - `qa.lod.buildingDistanceP50`;
    - near/far zoom interaction evidence;
    - stepped zoom-in evidence with bounded alpha deltas.
-5. Continue P3 building massing/dissolve modularization after the current visual gates are stable. Inspect-camera visual review is **implemented** for maintained review scenes.
-6. Add 30-second P2 camera stress gate for route readability and z-fighting. **implemented for river-bridge, micro-street, and hiking-terrain**
-7. Extend route readability above dense contextual layers. **implemented for old-street and landmark-pilot**
+6. Continue P3 building massing/dissolve modularization after the current visual gates are stable. Inspect-camera visual review is **implemented** for maintained review scenes.
+7. Add 30-second P2 camera stress gate for route readability and z-fighting. **implemented for river-bridge, micro-street, and hiking-terrain**
+8. Extend route readability above dense contextual layers. **implemented for old-street and landmark-pilot**

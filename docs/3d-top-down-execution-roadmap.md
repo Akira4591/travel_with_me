@@ -31,6 +31,12 @@ The renderer is replaceable. The data contract is the product asset.
 8. Desktop Web is the only active target. Mobile Web and Kotlin Android are deferred.
 9. Route and road are separate layers: roads are muted geographic context; the itinerary route is the persisted 2D route rendered in industrial safety yellow.
 10. Production 3D data must move through provider-neutral BFF normalizers, cache keys, provenance, and attribution gates before being rendered as real-world facts.
+11. 3D V1 is a bounded local work area, not an unbounded route-wide map. The user must select a
+    2D center point with the red-pin flow before 3D generation.
+12. V1 work-area span defaults to 800m, uses 600m / 1000m / 2000m for urban / scenic / hiking
+    profiles, and hard-caps at 2000m.
+13. The 3D route must not use gray outline/bed geometry as route guidance. Only the industrial
+    safety-yellow route is the primary action layer.
 
 ## 3. Product capability tree
 
@@ -38,9 +44,11 @@ The renderer is replaceable. The data contract is the product asset.
 3D planning diorama
   1. Enter 3D reliably
      1.1 right-bottom 3D button
-     1.2 2D camera freeze
-     1.3 nonblank slab within 1.5s
-     1.4 graceful exit to 2D
+     1.2 red-pin center selection on the 2D map
+     1.3 square work-area preview
+     1.4 2D camera freeze
+     1.5 nonblank slab within 1.5s
+     1.6 graceful exit to 2D
 
   2. Preserve geographic truth
      2.1 persisted places
@@ -51,7 +59,7 @@ The renderer is replaceable. The data contract is the product asset.
 
   3. Build terrain foundation
      3.1 local projection
-     3.2 terrain bounds and chunk bbox
+     3.2 bounded square work-area bounds and chunk bbox
      3.3 absolute-elevation foundation
      3.4 local relief height grid
      3.5 sampleHeight as the only vertical authority
@@ -88,6 +96,20 @@ The renderer is replaceable. The data contract is the product asset.
 ## 4. Phase plan
 
 ### Current repair plan from the latest deep research report
+
+The latest visual-quality reset adds a blocking sequence before any further visual expansion:
+
+```text
+VQ0 route layer repair
+  -> VQ1 2D red-pin selection
+  -> VQ2 fixed square work-area scene envelope
+  -> VQ3 outside-context dimming and edge treatment
+  -> VQ4 bounded-scene visual gates
+```
+
+This sequence is now the immediate roadmap. Existing Alpha/Beta/Delta QA remains useful, but it is
+not sufficient because the current user-facing screenshot can still score 1/10 while automated
+structure gates pass.
 
 The latest code scan and deep research report agree on the long-term repair order:
 
@@ -151,6 +173,10 @@ Goal: 3D must not lie, blank, or desync from 2D.
 
 Engineering tasks:
 
+- Replace any route-wide or all-point scene envelope path with an explicit selected work area:
+  `{ centerLngLat, spanMeters, hardCapMeters, profile }`.
+- Add `selecting-3d-center` before 3D generation. The 2D map owns cursor pin position, square
+  preview, click commit, and cancel handling.
 - Restore the source quality gate by excluding generated artifact directories from Prettier
   and Git tracking rules.
 - Lock route geometry to persisted `event.routeToNext.geometry`.
@@ -171,6 +197,9 @@ Data tasks:
 
 Visual tasks:
 
+- Remove gray route outline/bed from 3D route guidance.
+- Keep the yellow route stable above terrain, roads, water, and bridges during camera movement.
+- Raise only the selected square work area and dim/simplify outside context.
 - Keep route guidance industrial safety yellow, not gold.
 - Keep the current planning-diorama palette and low-poly terrain style.
 - Use the fixed entry sequence: 2D freeze -> foundation raise -> water carving ->
@@ -178,6 +207,11 @@ Visual tasks:
 
 QA gates:
 
+- Work-area span is explicit and `<= 2000m`.
+- Red-pin 2D selection E2E proves center selection and cancellation.
+- The selected square is visibly raised and outside context is dimmed.
+- Route gray-outline pixels remain below the calibrated threshold.
+- Route jitter/z-fighting remains below the calibrated threshold during camera movement.
 - `npm run check`, `npm test`, and the targeted 3D E2E pass.
 - 2D and 3D route hash match.
 - Route length differs from persisted/provider length by no more than 1-2%.
@@ -443,8 +477,48 @@ Do not do:
 
 ## 5. Immediate Next Batch
 
-The next executable batch is Alpha visual proof infrastructure, not P4/P5 expansion. P0 correctness
-floor and core P1/P2 code paths were implemented before this batch:
+The next executable batch is now the local visual-quality reset. P4/P5 expansion remains blocked.
+P0 correctness floor and core P1/P2 code paths were implemented before this batch, but the latest
+manual visual review proved that automated structure gates were insufficient.
+
+VQ reset tasks:
+
+1. Repair route guidance rendering:
+   - remove gray 3D outline/bed from route guidance;
+   - keep road bed as muted context only;
+   - enforce route `renderOrder`, `depthWrite=false`, route lift, and anti-z-fighting discipline;
+   - increase route sampling where needed.
+
+2. Implement 2D red-pin selection:
+   - 3D button enters `selecting-3d-center`;
+   - red pin follows the cursor;
+   - square preview follows the selected center and profile span;
+   - click commits `centerLngLat`;
+   - `Esc`, right click, and toggle click cancel.
+
+3. Implement fixed square work-area envelope:
+   - default 800m;
+   - urban 600m;
+   - scenic 1000m;
+   - hiking 2000m;
+   - hard cap 2000m;
+   - routes and assets are clipped to the square.
+
+4. Implement outside-context dimming:
+   - selected square uses the existing bone-white terrain style;
+   - outside context is lower brightness and lower detail;
+   - edge skirt/fade makes the work-area boundary legible without decorative borders.
+
+5. Add bounded visual QA:
+   - route gray-outline pixel threshold;
+   - route yellow-pixel stability threshold;
+   - work-area span and center assertions;
+   - outside dimming ROI assertion;
+   - no unbounded scene envelope assertion.
+
+Previous Alpha/Beta context remains:
+
+The Alpha visual proof infrastructure is still required after the reset stabilizes:
 
 - cached route geometry now stores recomputed diagnostics: hash, point count, length, first point,
   and last point;

@@ -10,12 +10,43 @@ This plan is intentionally limited to desktop Chromium, deterministic local fixt
 
 | Sprint | Objective                                            | Output                                                                                   | Rollback                                                                                 |
 | ------ | ---------------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| VQ0    | Repair route layer and local 3D scope                | No-gray route, red-pin selection, bounded square work area, outside dimming              | Fall back to 2D and disable 3D generation until a local center is selected               |
 | Alpha  | Establish deterministic visual proof infrastructure  | ROI screenshot suite, frozen camera presets, QA schema v1, failure attachments           | Keep screenshot capture and QA JSON, disable blocking screenshot assertions until stable |
 | Beta   | Close P2 water, road, bridge visual correctness      | Water carve, bridge continuity, route clearance, z-fighting metrics plus ROI baselines   | Downgrade unstable thresholds to warnings while preserving evidence                      |
 | Gamma  | Modularize P3 building massing and dissolve          | Split building renderers, deterministic synthetic massing metadata, LOD transition gates | Keep massing-only renderer active and guard dissolve behind a feature flag               |
 | Delta  | Complete inspect camera and scene precision profiles | Camera state machine, scene budgets, graceful degradation                                | Lock profile selection to fixture-declared profiles until thresholds are calibrated      |
 
-Do not start P4 DEM tiles, P5 landmark restoration, or commercial 3D provider routing before Delta is stable.
+Do not start P4 DEM tiles, P5 landmark restoration, or commercial 3D provider routing before
+VQ0 and Delta are stable.
+
+## VQ0 Local Visual Reset
+
+The manual screenshot review from 2026-06-22 overrides the previous "all green" automated status:
+the current rendered 3D view can still look like an unbounded white board with gray route artifacts.
+VQ0 is therefore a blocking visual-quality reset.
+
+Required VQ0 evidence:
+
+- The 3D button from 2D enters `selecting-3d-center` instead of immediately building 3D.
+- A red pin follows the cursor and a square work-area preview is visible on the 2D map.
+- A 2D map click commits `workArea.center`.
+- The selected 3D square defaults to 800m unless profile rules select 600m, 1000m, or 2000m.
+- `workArea.spanMeters` never exceeds the V1 hard cap of 2000m.
+- The selected square rises with the existing bone-white terrain style.
+- Outside context is dimmer or lower detail than the selected square.
+- The 3D route does not render a gray outline or thick gray bed as route guidance.
+- The yellow route remains stable during drag, WASD, and wheel interaction.
+
+Current VQ0 blocking metrics to add:
+
+| Metric                           | Initial target                                                                |
+| -------------------------------- | ----------------------------------------------------------------------------- |
+| `routeGrayOutlinePixelRatio`     | `<= 0.00002` after calibration; start as warning if fixture variance is high. |
+| `routeYellowPixelRatio`          | Remains above the fixture-specific readable threshold.                        |
+| `routePixelVarianceDuringStress` | Does not spike during camera stress sampling.                                 |
+| `workArea.spanMeters`            | `<= 2000`.                                                                    |
+| `workAreaRaisedPixelRatio`       | Above the calibrated selected-square visibility threshold.                    |
+| `outsideDimmedPixelRatio`        | Proves outside context is lower brightness/detail than the selected square.   |
 
 ## Fixture Scope
 
@@ -124,6 +155,7 @@ Current blocking `river-bridge` metrics:
 - `terrainCarvingDepthP50 >= expectations.water.minChannelDepthMeters`;
 - `routeVisiblePixelRatio >= 0.90`;
 - `routeYellowPixelRatio >= 0.00008`;
+- `routeGrayOutlinePixelRatio` below the VQ0 calibrated threshold once implemented;
 - `waterBluePixelRatio >= 0.00008`;
 - `bridgePierCount === 0`;
 - `zFightingRisk <= 0.01`.
