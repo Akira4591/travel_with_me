@@ -199,6 +199,18 @@ describe('scene quality gates', () => {
           buildingMassingProgress: 1,
           buildingDissolveProgress: 1
         })
+      },
+      cameraController: {
+        getDebugSnapshot: () => ({
+          mode: 'overview',
+          autoRotate: true,
+          userInteracting: false,
+          distance: 540,
+          polarAngle: 0.35,
+          position: { x: 12.34, y: 420.5, z: 56.78 },
+          target: { x: 0, y: 400, z: 0 },
+          clearance: 20.5
+        })
       }
     };
     const context = {
@@ -223,6 +235,13 @@ describe('scene quality gates', () => {
     expect(debug.quality.passed).toBe(true);
     expect(container.dataset.qaPhase).toBe('steady');
     expect(container.dataset.qaPassed).toBe('true');
+    expect(container.dataset.qaCameraMode).toBe('overview');
+    expect(container.dataset.qaCameraAutoRotate).toBe('true');
+    expect(container.dataset.qaCameraDistance).toBe('540');
+    expect(container.dataset.qaCameraPolarAngle).toBe('0.35');
+    expect(container.dataset.qaCameraClearance).toBe('20.5');
+    expect(container.dataset.qaCameraPosition).toBe('12.34,420.50,56.78');
+    expect(container.dataset.qaCameraTarget).toBe('0.00,400.00,0.00');
     expect(container.dataset.qaRouteClearanceP95).toBe('0.18');
     expect(container.dataset.qaBuildingBaseErrorP95).toBe('0.1');
     expect(container.dataset.qaBuildingDetailRatio).toBe('1');

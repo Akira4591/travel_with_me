@@ -269,7 +269,7 @@ interact
 idle
 ```
 
-Auto-orbit is allowed only in overview or route-focus, and only at low speed. Inspect mode should not auto-rotate because the user is reading local terrain/building relationships. User drag pauses orbit immediately and resumes only after a delay when returning to overview-like states.
+Auto-orbit is allowed only in overview or route-focus, and only at low speed. Inspect mode should not auto-rotate because the user is reading local terrain/building relationships. User drag pauses orbit immediately and resumes only after a delay when returning to overview-like states. The pre-load 3D camera, entry animation camera, and idle overview orbit must share one overview pose model so opening 3D does not show a temporary angle and then snap into auto-orbit.
 
 ## 7. Performance Budgets
 

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { getOverviewCameraPose } from '../render/map-3d.js';
+import { getInitialOverviewCameraPose, getOverviewCameraPose } from '../render/map-3d.js';
 
 describe('3D map overview camera pose', () => {
   it('starts on the same lifted orbit target used by idle auto-orbit', () => {
@@ -21,5 +21,17 @@ describe('3D map overview camera pose', () => {
     const [sampleX, sampleZ] = terrainModel.heightAt.mock.calls[1];
     expect(sampleX).toBeCloseTo(56.85);
     expect(sampleZ).toBeCloseTo(72.77);
+  });
+
+  it('uses the overview orbit even before terrain data has loaded', () => {
+    const initialPose = getInitialOverviewCameraPose();
+    const defaultWorkAreaPose = getOverviewCameraPose(
+      { minX: -200, maxX: 200, minZ: -200, maxZ: 200 },
+      { terrainMode: 'citywalk' }
+    );
+
+    expect(initialPose.target.toArray()).toEqual(defaultWorkAreaPose.target.toArray());
+    expect(initialPose.position.toArray()).toEqual(defaultWorkAreaPose.position.toArray());
+    expect(initialPose.position.distanceTo(initialPose.target)).toBeGreaterThan(500);
   });
 });

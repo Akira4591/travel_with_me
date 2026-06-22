@@ -224,7 +224,7 @@ generation-timeline.js
   -> owns animation phases and reveal progress
 
 camera-rig.js
-  -> entry camera, idle orbit, drag pause, route focus, inspect mode
+  -> shared pre-load/entry/idle overview orbit, drag pause, route focus, inspect mode
 ```
 
 ## 5. Generation Timeline Contract

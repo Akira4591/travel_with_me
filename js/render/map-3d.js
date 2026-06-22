@@ -126,8 +126,9 @@ export async function initDiorama({ container }) {
 
   // Camera
   const camera = new THREE.PerspectiveCamera(50, width / height, 0.5, 2000);
-  camera.position.set(0, 120, 180);
-  camera.lookAt(0, 0, 0);
+  const initialCameraPose = getInitialOverviewCameraPose();
+  camera.position.copy(initialCameraPose.position);
+  camera.lookAt(initialCameraPose.target);
 
   // Renderer
   const renderer = new THREE.WebGLRenderer({
@@ -147,7 +148,7 @@ export async function initDiorama({ container }) {
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
-  controls.target.set(0, 0, 0);
+  controls.target.copy(initialCameraPose.target);
   controls.minDistance = 30;
   controls.maxDistance = 600;
   controls.maxPolarAngle = Math.PI * 0.48;
@@ -499,9 +500,9 @@ export async function enter3DMode(
     terrainMode,
     groundOffsetY: dioramaGroup.position.y
   });
+  diorama.cameraController?.setMode('overview');
   diorama.cameraController?.setPhase('steady');
   diorama.cameraController?.setEnabled(true);
-  diorama.cameraController?.setMode('overview');
   diorama.cameraController?.update(0);
   installVisualDebugControls(diorama, bounds);
   updateThreeDebug(diorama);
@@ -1943,6 +1944,10 @@ export function getOverviewCameraPose(bounds, { terrainModel = null, terrainMode
   };
 }
 
+export function getInitialOverviewCameraPose() {
+  return getOverviewCameraPose(getDefaultOverviewBounds(), { terrainMode: 'citywalk' });
+}
+
 function applyOverviewCameraPose(diorama, bounds) {
   if (!diorama?.camera || !diorama?.controls) return null;
   const pose = getOverviewCameraPose(bounds, {
@@ -1953,6 +1958,12 @@ function applyOverviewCameraPose(diorama, bounds) {
   diorama.controls.target.copy(pose.target);
   diorama.controls.update();
   return pose;
+}
+
+function getDefaultOverviewBounds() {
+  const span = DEFAULT_WORK_AREA_SPAN_METERS * 0.5;
+  const half = span / 2;
+  return { minX: -half, maxX: half, minZ: -half, maxZ: half };
 }
 
 function getCameraControlDistances(sceneSpan, terrainMode) {

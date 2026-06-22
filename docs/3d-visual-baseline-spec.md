@@ -112,6 +112,12 @@ The structured QA payload must expose:
 - `workArea.bounds`
 - `fixture.routeHash`
 - `camera.mode`
+- `camera.autoRotate`
+- `camera.distance`
+- `camera.polarAngle`
+- `camera.clearance`
+- `camera.position`
+- `camera.target`
 - `qa.version`
 - `qa.passed`
 - `qa.errors`
@@ -147,7 +153,7 @@ The structured QA payload must expose:
 - `qa.lod.buildingDetailAlphaAverage`
 - `qa.lod.buildingDistanceP50`
 
-The DOM clipped contract must expose equivalent `data-qa-*` values on `#map-3d` for browser containers that cannot reliably read `window.__threeDebug__`.
+The DOM clipped contract must expose equivalent `data-qa-*` values on `#map-3d` for browser containers that cannot reliably read `window.__threeDebug__`. Camera fields are exposed as `data-qa-camera-mode`, `data-qa-camera-auto-rotate`, `data-qa-camera-distance`, `data-qa-camera-polar-angle`, `data-qa-camera-clearance`, `data-qa-camera-position`, and `data-qa-camera-target`.
 
 ## Bounded-Scene Visual Gates
 

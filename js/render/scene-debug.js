@@ -255,6 +255,13 @@ function syncDebugDataset(container, debug) {
   const dataset = container.dataset;
   dataset.qaPhase = debug.phase || '';
   dataset.qaPassed = String(Boolean(debug.quality?.passed));
+  dataset.qaCameraMode = debug.camera?.mode || '';
+  dataset.qaCameraAutoRotate = String(Boolean(debug.camera?.autoRotate));
+  dataset.qaCameraDistance = String(debug.camera?.distance || 0);
+  dataset.qaCameraPolarAngle = String(debug.camera?.polarAngle || 0);
+  dataset.qaCameraClearance = String(debug.camera?.clearance || 0);
+  dataset.qaCameraPosition = formatVectorDataset(debug.camera?.position);
+  dataset.qaCameraTarget = formatVectorDataset(debug.camera?.target);
   dataset.qaSceneId = debug.sceneId || '';
   dataset.qaTerrainMode = debug.terrainMode || '';
   dataset.qaTerrainConfidence = debug.terrainConfidence || '';
@@ -288,6 +295,13 @@ function syncDebugDataset(container, debug) {
   dataset.qaVegetationCulledChunkCount = String(debug.qa?.budgets?.vegetationCulledChunkCount || 0);
   dataset.qaWarningCount = String(debug.quality?.warnings?.length || 0);
   dataset.qaErrorCount = String(debug.quality?.errors?.length || 0);
+}
+
+function formatVectorDataset(vector) {
+  if (!vector) return '';
+  const values = [vector.x, vector.y, vector.z].map(value => Number(value));
+  if (values.some(value => !Number.isFinite(value))) return '';
+  return values.map(value => value.toFixed(2)).join(',');
 }
 
 function createEventPayload(debug) {
