@@ -25,6 +25,7 @@ To persist a machine-readable evidence summary:
 
 ```powershell
 npm.cmd run gate50:review -- --evidence-json=output/gate50/evidence.json
+npm.cmd run check:gate50-evidence -- output/gate50/evidence.json
 ```
 
 Useful scoped reruns:
@@ -59,7 +60,9 @@ The optional stability step is explicit because the full five-run visual baselin
 expensive. It strengthens evidence but still does not replace the human Gate 50 visual decision.
 
 Evidence JSON is a local artifact. Keep it under ignored `output/` unless a release-review record is
-explicitly requested.
+explicitly requested. Validate the JSON before using it in review notes; the validator checks the
+root status, timestamps, options, required Gate 50 steps, step statuses, exit codes, and duration
+totals.
 
 ## Manual Review Steps
 

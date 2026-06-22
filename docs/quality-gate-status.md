@@ -18,8 +18,8 @@ Commands run on 2026-06-23:
 | Check                                                                                     | Result                                                                                                                                 |
 | ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm.cmd run check`                                                                       | Passed                                                                                                                                 |
-| `npm.cmd test`                                                                            | Passed: 33 files, 163 tests                                                                                                            |
-| `npm.cmd run check:encoding`                                                              | Passed: 322 visible source/doc/test files scanned                                                                                      |
+| `npm.cmd test`                                                                            | Passed: 34 files, 168 tests                                                                                                            |
+| `npm.cmd run check:encoding`                                                              | Passed: 325 visible source/doc/test files scanned                                                                                      |
 | `npm.cmd run check:architecture`                                                          | Passed: 37 render files scanned; renderer/provider boundary enforced                                                                   |
 | `npm.cmd run check:provenance`                                                            | Passed: 42 scene fixture files scanned                                                                                                 |
 | `npm.cmd run check:landmarks`                                                             | Passed: 1 landmark record scanned with allowlist, integrity, LOD, and budget validation                                                |
@@ -35,6 +35,7 @@ Commands run on 2026-06-23:
 | `npm.cmd run gate50:review -- --skip-visual --skip-smoke`                                 | Passed: validates gate 50 review command wiring, static gates, unit tests, and encoding gate                                           |
 | `npm.cmd run gate50:review -- --dry-run --include-stability --stability-preset=precision` | Passed: validates optional Gate 50 visual-stability evidence wiring                                                                    |
 | `npm.cmd run gate50:review -- --dry-run --evidence-json=output/gate50/dry-run.json`       | Passed: validates local machine-readable evidence summary output                                                                       |
+| `npm.cmd run check:gate50-evidence -- output/gate50/dry-run.json`                         | Passed: validates Gate 50 evidence JSON status, required steps, timestamps, exit codes, and duration totals                            |
 | live blank-selection anchoring check                                                      | Passed: off-route 2D center selection snapped to `workAreaAnchorType=location`, kept route/building data, and reported `qaPassed=true` |
 | in-app browser 2D/3D visual check                                                         | Passed: 2D marker selection enters bounded 3D; QA passed; route gray outline is 0; initial/loading/idle camera uses one overview orbit |
 | manual 3D screenshot review                                                               | Pending after VQ0 implementation; previous screenshot scored 1/10 before bounded work-area and route-layer repair                      |
@@ -77,7 +78,7 @@ VQ0 target state:
 |   # | Gate                                                                                                                | Evidence                                                                       |
 | --: | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
 |   1 | Format, lint, and source style pass                                                                                 | `npm.cmd run check`                                                            |
-|   2 | Unit tests pass                                                                                                     | `npm.cmd test`: 33 files, 163 tests                                            |
+|   2 | Unit tests pass                                                                                                     | `npm.cmd test`: 34 files, 168 tests                                            |
 |   3 | Desktop browser smoke tests pass                                                                                    | Smoke runner: 15 Chromium desktop tests passed, 13 scoped skips                |
 |   4 | Tracked source does not contain known real API keys                                                                 | `git grep` secret scan returned no matches                                     |
 |   5 | 2D AMap mode renders real map content after CSP fixes                                                               | Browser and E2E map flow                                                       |
@@ -101,7 +102,7 @@ VQ0 target state:
 |  23 | Roads render as muted terrain-following ribbons                                                                     | `geo-asset-renderer.test.js` and water/road E2E                                |
 |  24 | 3D overview can enter and exit without blanking                                                                     | `desktop can enter and exit nonblank 3D map view`                              |
 |  25 | 3D mode never auto-exits after 60 seconds                                                                           | `desktop 3D stays open after 60 seconds idle`                                  |
-|  26 | No visible UI mojibake in maintained source, tests, and docs                                                        | `npm.cmd run check:encoding`: 322 files scanned                                |
+|  26 | No visible UI mojibake in maintained source, tests, and docs                                                        | `npm.cmd run check:encoding`: 325 files scanned                                |
 |  27 | Accepted 4s generation timing replaces the old `<= 3s` detail budget                                                | `generation-timing.js` and `generation-timeline.test.js`                       |
 |  28 | Route clearance P95 is within 0.3m above terrain/road surface                                                       | `route-guidance-renderer.test.js` and WASD 3D E2E geometry metrics             |
 |  29 | Building base terrain error P95 is <= 0.25m in seeded scenes                                                        | `window.__threeDebug__.geometryMetrics` and WASD 3D E2E                        |
@@ -159,6 +160,8 @@ Self-audit on 2026-06-23 after `codex/next-beta-visual-calibration`:
   readability while preserving idle overview orbit continuity.
 - Visual repeatability now has a named runner and scoped presets so five local visual-baseline
   passes can be collected before promoting capture evidence to maintained golden assertions.
+- Gate 50 evidence summaries now have a standalone validator, so persisted local evidence can be
+  checked before it is referenced in a manual review.
 - The encoding gate now catches broader mojibake fragments; `utils`, 3D toggle text, and affected tests
   use clean UTF-8 strings.
 - Remaining partial item is not an automated gap: the live bounded 3D composition still needs manual product-quality acceptance before gate 50 can close.
