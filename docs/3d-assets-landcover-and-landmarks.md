@@ -87,6 +87,7 @@ Candidate data classes to evaluate during provider onboarding: official municipa
 - A waterway/bridge scene must have no terrain-colored gap where an attributable polygon or centerline is present.
 - Vegetation density is capped per terrain chunk and disabled before it harms itinerary/road readability.
 - At least one mountain, an old-street storefront, and a landmark route must pass desktop screenshot review at overview and inspect distances.
+- Landmark model metadata must pass `npm.cmd run check:landmarks` before a record can survive normalization. The gate validates URL allowlist, `model/gltf-*` content type, byte size, texture budget, triangle/material budgets, footprint drift, `sha256-*` integrity, `optimized: true`, and required LOD1 plus placeholder outputs.
 
 ## 8. Implemented workspace contract
 
@@ -121,12 +122,25 @@ Candidate data classes to evaluate during provider onboarding: official municipa
   }],
   landmarks: [{
     id: 'landmark-1', lnglat: [lng, lat], modelUrl: 'https://...',
+    asset: {
+      sourceFormat: 'owner-provided-glb' | 'municipal-cityjson' | 'municipal-citygml',
+      contentType: 'model/gltf-binary' | 'model/gltf+json',
+      byteSize, textureBytes, triangleCount, materialCount,
+      footprintDriftMeters,
+      optimized: true,
+      integrity: 'sha256-...',
+      lods: [
+        { level: 'LOD2', modelUrl, byteSize, triangleCount, integrity: 'sha256-...' },
+        { level: 'LOD1', modelUrl, byteSize, triangleCount, integrity: 'sha256-...' },
+        { level: 'placeholder', modelUrl, byteSize, triangleCount, integrity: 'sha256-...' }
+      ]
+    },
     provenance: { source, licence, attribution, updatedAt }
   }]
 }
 ```
 
-Current renderer behavior: an authorized `buildings[].locationId` replaces that POI's fallback block with a footprint extrusion. An attributable building without `locationId` is rendered as surrounding context, capped to keep the frame and GPU budget stable. Attributable roads become a muted terrain-conforming base layer, while the selected itinerary uses a warm road bed, graphite outline, and industrial safety-yellow guidance stripe. Authorized land-cover polygons generate deterministic vegetation clusters on the terrain; attributable waterways and bridges render on the same terrain model as roads. Landmark records are validated and retained but intentionally do not auto-load remote model URLs yet: model delivery requires an allowlist, content-type/size validation, integrity metadata, and GLTF/GLB optimization before it may execute in the renderer.
+Current renderer behavior: an authorized `buildings[].locationId` replaces that POI's fallback block with a footprint extrusion. An attributable building without `locationId` is rendered as surrounding context, capped to keep the frame and GPU budget stable. Attributable roads become a muted terrain-conforming base layer, while the selected itinerary uses a warm road bed, graphite outline, and industrial safety-yellow guidance stripe. Authorized land-cover polygons generate deterministic vegetation clusters on the terrain; attributable waterways and bridges render on the same terrain model as roads. Landmark records are retained only after `js/render/landmark-assets.js` validates their release-gate metadata. The renderer still does not auto-load remote model URLs; the gate exists so future model loading cannot begin without allowlist, content-type/size validation, integrity metadata, LOD outputs, and GLTF/GLB optimization.
 
 ### OpenStreetMap context ingestion
 

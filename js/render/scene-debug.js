@@ -5,6 +5,7 @@ export function createDioramaDebugSnapshot(diorama, sceneContext) {
   const layerCounts = sceneContext?.layerCounts || {};
   const manifestSources = sceneContext?.provenanceManifest?.sources || [];
   const qualityFlags = sceneContext?.qualityFlags || {};
+  const landmarkAssetStats = sceneContext?.landmarkAssetStats || {};
   const timeline = diorama.generationTimeline?.snapshot?.() || {
     phase: 'steady',
     phaseProgress: 1,
@@ -94,6 +95,12 @@ export function createDioramaDebugSnapshot(diorama, sceneContext) {
       bridges: layerCounts.bridges || 0,
       landcover: layerCounts.landcover || 0,
       landmarks: layerCounts.landmarks || 0
+    },
+    landmarkAssetStats: {
+      total: Number(landmarkAssetStats.total || 0),
+      allowlisted: Number(landmarkAssetStats.allowlisted || 0),
+      optimized: Number(landmarkAssetStats.optimized || 0),
+      withIntegrity: Number(landmarkAssetStats.withIntegrity || 0)
     },
     quality: {
       degraded: Boolean(qualityFlags.degraded),

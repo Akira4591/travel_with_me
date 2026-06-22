@@ -16,6 +16,7 @@ export function createSceneBuildContext({
     terrainModel
   });
   const layerCounts = countGeoAssetLayers(normalizedGeoAssets);
+  const landmarkAssetStats = countLandmarkAssetStats(normalizedGeoAssets.landmarks);
   const geoAssetStatus = normalizeGeoAssetStatus(trip?.geoAssetStatus);
   const missingLayers = getMissingGeoAssetLayers(layerCounts);
 
@@ -32,6 +33,7 @@ export function createSceneBuildContext({
     geoAssets: normalizedGeoAssets,
     geoAssetStatus,
     layerCounts,
+    landmarkAssetStats,
     provenanceManifest,
     qualityFlags: {
       hasRealGeoAssets: Object.values(layerCounts).some(count => count > 0),
@@ -55,6 +57,16 @@ export function createSceneBuildContext({
       maxLandcoverAreas: 48,
       maxLandmarks: 16
     }
+  };
+}
+
+function countLandmarkAssetStats(landmarks = []) {
+  const items = Array.isArray(landmarks) ? landmarks : [];
+  return {
+    total: items.length,
+    allowlisted: items.filter(item => item.assetValidation?.passed).length,
+    optimized: items.filter(item => item.asset?.optimized === true).length,
+    withIntegrity: items.filter(item => /^sha256-/.test(String(item.asset?.integrity || ''))).length
   };
 }
 

@@ -811,6 +811,11 @@ test.describe('@visual-roi desktop 3D visual baseline harness', () => {
       expect(qa.qa.layers.route.visible).toBe(true);
       expect(qa.qa.layers.buildings.count).toBeGreaterThanOrEqual(routeScene.minBuildings);
       expect(qa.geoAssetCounts.landmarks).toBeGreaterThanOrEqual(routeScene.minLandmarks);
+      if (routeScene.minLandmarks > 0) {
+        expect(qa.qa.provenance.landmarkAllowlisted).toBeGreaterThanOrEqual(
+          routeScene.minLandmarks
+        );
+      }
       expect(qa.visual.readable).toBe(true);
       expect(qa.visual.routeYellowPixelRatio).toBeGreaterThanOrEqual(ROUTE_YELLOW_PIXEL_RATIO_MIN);
       expect(qa.qa.geometry.zFightingRisk).toBeLessThanOrEqual(0.01);
@@ -869,6 +874,9 @@ function assertOverviewInspectReview(qa, reviewScene, fixture) {
   );
   expect(qa.qa.layers.buildings.count).toBeGreaterThanOrEqual(reviewScene.minBuildings);
   expect(qa.geoAssetCounts.landmarks).toBeGreaterThanOrEqual(reviewScene.minLandmarks);
+  if (reviewScene.minLandmarks > 0) {
+    expect(qa.qa.provenance.landmarkAllowlisted).toBeGreaterThanOrEqual(reviewScene.minLandmarks);
+  }
   expect(qa.qa.geometry.zFightingRisk).toBeLessThanOrEqual(0.01);
   if (reviewScene.requiresLandcover) {
     expect(qa.geoAssetCounts.landcover).toBeGreaterThan(0);

@@ -11,7 +11,7 @@ The project is now in:
 ```text
 S1 desktop private-test baseline closed
   -> S2 differentiation validation closed at code level
-  -> 3D P0/P1 correctness convergence
+  -> 3D Alpha/Beta/Delta local quality gates closed
 ```
 
 Desktop Web is the only active product surface. Mobile Web remains a compatibility guard only. Native Android is deferred as a separate Kotlin product after the desktop Web value and data model stabilize.
@@ -23,11 +23,12 @@ Latest verified baseline from 2026-06-22. Detailed gate accounting is maintained
 | Gate                                                                 | Result                                                                          |
 | -------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | `npm.cmd run check`                                                  | Passed                                                                          |
-| `npm.cmd test`                                                       | Passed: 27 files, 135 tests                                                     |
-| `npm.cmd run check:encoding`                                         | Passed: 297 visible source/doc/test files scanned                               |
+| `npm.cmd test`                                                       | Passed: 28 files, 138 tests                                                     |
+| `npm.cmd run check:encoding`                                         | Passed: 300 visible source/doc/test files scanned                               |
 | `npm.cmd run test:e2e:visual`                                        | Passed: 19 local ROI fixture captures/interactions with QA JSON and screenshots |
-| `npm.cmd run check:architecture`                                     | Passed: 34 render files scanned                                                 |
+| `npm.cmd run check:architecture`                                     | Passed: 35 render files scanned                                                 |
 | `npm.cmd run check:provenance`                                       | Passed: 36 scene fixture files scanned                                          |
+| `npm.cmd run check:landmarks`                                        | Passed: 1 landmark record scanned                                               |
 | `npx.cmd playwright test tests/e2e/smoke.spec.js --project=chromium` | Passed: 12 desktop tests, 1 mobile-only test skipped in Chromium                |
 | Tracked-source secret scan                                           | Passed: no known real AMap/DeepSeek key patterns found                          |
 | In-app browser 2D/3D visual check                                    | Passed: 2D AMap provider loaded, 3D enters, canvas visible, DOM metrics present |
@@ -36,16 +37,16 @@ Quality gate count from `docs/quality-gate-status.md`:
 
 | Status       | Count |
 | ------------ | ----: |
-| Complete     |    45 |
+| Complete     |    46 |
 | Partial      |     0 |
-| Not complete |     1 |
+| Not complete |     0 |
 | Total        |    46 |
 
-Known remaining gaps:
+Known remaining non-blocking follow-ups:
 
 - Promote maintained golden screenshot assertions after the current stage screenshot capture gate is stable across repeated local runs.
 - Promote city/scenic/hiking precision gates from fixture coverage to repeated-run baseline once thresholds stabilize.
-- Keep landmark true-restoration release-gated until a licensed model pipeline is validated.
+- Keep real landmark model rendering disabled until an actual licensed model package passes the release gate.
 
 Next-stage deep-research decision:
 
@@ -89,7 +90,7 @@ Tasks:
    - Acceptance: local and CI visual gates are deterministic and use only fixture data.
    - Rollback: keep live-provider smoke as explicit opt-in only.
 
-Current limitation: landmark restoration remains placeholder/provenance-gated; remote model loading is not release-ready.
+Current limitation: landmark restoration is now release-gated by allowlist, integrity, LOD, optimization, and budget metadata. Remote model loading remains disabled until a real licensed model package passes that gate.
 
 Next Beta work:
 

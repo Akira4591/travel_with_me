@@ -62,6 +62,12 @@ describe('3D visual scene fixtures', () => {
     expect(landmarkAssets.buildings).toHaveLength(2);
     expect(landmarkAssets.roads).toHaveLength(1);
     expect(landmarkAssets.landmarks).toHaveLength(1);
+    expect(landmarkAssets.landmarks[0].assetValidation.passed).toBe(true);
+    expect(landmarkAssets.landmarks[0].asset.lods.map(lod => lod.level)).toEqual([
+      'LOD2',
+      'LOD1',
+      'placeholder'
+    ]);
 
     const scenicAssets = normalizeGeoAssets(readFixture('scenic-park', 'geo-assets.json'));
     expect(scenicAssets.landcover).toHaveLength(1);

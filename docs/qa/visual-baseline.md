@@ -198,6 +198,7 @@ Current blocking `old-street` / `landmark-pilot` contextual route metrics:
 - inspect ROI must retain `routeYellowPixelRatio >= 0.00008`;
 - `old-street` must render at least four contextual building entries;
 - `landmark-pilot` must retain at least one attributable landmark record;
+- `landmark-pilot` must report `qa.provenance.landmarkAllowlisted >= 1`;
 - `buildingBaseTerrainErrorP95 <= 0.25`;
 - `zFightingRisk <= 0.01`.
 
@@ -211,6 +212,7 @@ Current blocking overview / inspect review metrics:
 - `hiking-terrain` must retain attributable landcover, vegetation budget evidence, and terrain height variance at the mountain threshold;
 - `old-street` must retain at least four contextual building entries;
 - `landmark-pilot` must retain at least one attributable landmark record;
+- `landmark-pilot` must report `qa.provenance.landmarkAllowlisted >= 1`;
 - all captures must keep `zFightingRisk <= 0.01`.
 
 Current blocking `river-bridge` timeline stage metrics:

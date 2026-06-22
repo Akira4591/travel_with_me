@@ -29,7 +29,8 @@ describe('scene quality gates', () => {
         maxInstancesPerArea: 12,
         densityCap: 12
       },
-      geoAssetCounts: { waterways: 2, bridges: 1, roads: 3, buildings: 2, landmarks: 0 },
+      geoAssetCounts: { waterways: 2, bridges: 1, roads: 3, buildings: 2, landmarks: 1 },
+      landmarkAssetStats: { total: 1, allowlisted: 1, optimized: 1, withIntegrity: 1 },
       counts: {
         waterMeshes: 2,
         bridgeDecks: 1,
@@ -69,6 +70,9 @@ describe('scene quality gates', () => {
     expect(result.budgets.vegetationMaxInstancesPerArea).toBe(12);
     expect(result.budgets.vegetationDensityCap).toBe(12);
     expect(result.layers.water).toMatchObject({ visible: true, count: 2, expected: 2 });
+    expect(result.provenance.landmarkAllowlisted).toBe(1);
+    expect(result.provenance.landmarkOptimized).toBe(1);
+    expect(result.provenance.landmarkIntegrityCount).toBe(1);
   });
 
   it('fails hard geometry violations and keeps degraded provider state as warning', () => {
@@ -122,6 +126,17 @@ describe('scene quality gates', () => {
     expect(result.errors).toContain('VEGETATION_DENSITY_CAP_EXCEEDED:13/12');
   });
 
+  it('fails when landmark records are not release-gated by asset validation', () => {
+    const result = evaluateSceneQuality({
+      firstSlabMs: 420,
+      geoAssetCounts: { landmarks: 1 },
+      landmarkAssetStats: { total: 1, allowlisted: 0, optimized: 0, withIntegrity: 0 }
+    });
+
+    expect(result.passed).toBe(false);
+    expect(result.errors).toContain('LANDMARK_ASSET_NOT_RELEASE_GATED:0/1');
+  });
+
   it('publishes a clipped QA dataset for browser automation', () => {
     const container = { dataset: { terrainMode: 'citywalk', firstSlabMs: '300' } };
     const diorama = {
@@ -158,6 +173,7 @@ describe('scene quality gates', () => {
           densityCap: 12
         }
       },
+      sceneBuildContext: {},
       generationTimeline: {
         snapshot: () => ({
           phase: 'steady',
@@ -174,6 +190,7 @@ describe('scene quality gates', () => {
     };
     const context = {
       layerCounts: { waterways: 1, bridges: 1, roads: 1, buildings: 1 },
+      landmarkAssetStats: { total: 0, allowlisted: 0, optimized: 0, withIntegrity: 0 },
       provenanceManifest: {
         sceneId: 'trip:all',
         sources: [

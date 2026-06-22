@@ -66,6 +66,40 @@
       "id": "pilot-landmark-placeholder",
       "lnglat": [116.4079, 39.91925],
       "modelUrl": "fixture://allowlisted-landmark-placeholder.glb",
+      "asset": {
+        "sourceFormat": "owner-provided-glb",
+        "contentType": "model/gltf-binary",
+        "byteSize": 32768,
+        "textureBytes": 4096,
+        "triangleCount": 1800,
+        "materialCount": 2,
+        "footprintDriftMeters": 0.4,
+        "optimized": true,
+        "integrity": "sha256-fixtureLandmarkRootIntegrity000000000000=",
+        "lods": [
+          {
+            "level": "LOD2",
+            "modelUrl": "fixture://allowlisted-landmark-placeholder-lod2.glb",
+            "byteSize": 32768,
+            "triangleCount": 1800,
+            "integrity": "sha256-fixtureLandmarkLod2Integrity000000000000="
+          },
+          {
+            "level": "LOD1",
+            "modelUrl": "fixture://allowlisted-landmark-placeholder-lod1.glb",
+            "byteSize": 18432,
+            "triangleCount": 820,
+            "integrity": "sha256-fixtureLandmarkLod1Integrity000000000000="
+          },
+          {
+            "level": "placeholder",
+            "modelUrl": "fixture://allowlisted-landmark-placeholder-box.glb",
+            "byteSize": 4096,
+            "triangleCount": 48,
+            "integrity": "sha256-fixtureLandmarkPlaceholderIntegrity000="
+          }
+        ]
+      },
       "realityClaim": true,
       "provenance": {
         "source": "fixture-owner-provided",

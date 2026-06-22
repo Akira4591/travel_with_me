@@ -52,6 +52,10 @@ window.__threeDebug__ = {
     },
     provenance: {
       totalRealAssets: 0,
+      landmarkCount: 0,
+      landmarkAllowlisted: 0,
+      landmarkOptimized: 0,
+      landmarkIntegrityCount: 0,
       missingSourceCount: 0,
       missingLicenceCount: 0,
       missingAttributionCount: 0,
@@ -90,6 +94,7 @@ These values are starting points and must be calibrated against local fixture ev
 | `buildingBaseTerrainErrorP95`   | `<= 0.25m`                                               | Sprint Gamma |
 | `buildingDetailAlphaAverage`    | increases when zooming into `micro-street` inspect view  | Sprint Gamma |
 | `vegetationMaxInstancesPerArea` | `<= vegetationDensityCap` for licensed landcover         | Sprint Beta  |
+| `landmarkAllowlisted`           | equals `landmarkCount` before any landmark model is used | Sprint P5    |
 
 ## Rules
 
@@ -108,3 +113,4 @@ Current deliberately non-blocking field:
 - `terrainHeightVariance` for `hiking-terrain`; this remains telemetry until scene precision profiles are implemented.
 - `routeYellowPixelRatio`; it is currently a Playwright ROI metric with an initial `>= 0.00008` threshold and should be recalibrated after more route-focus fixtures exist.
 - `qa.lod.*`; current gates prove near/far building detail response, while module split and video-style no-pop review remain future P3 work.
+- `qa.provenance.landmarkAllowlisted`, `landmarkOptimized`, and `landmarkIntegrityCount`; these are now blocking release-gate evidence for landmark records, even though remote landmark model rendering remains disabled.

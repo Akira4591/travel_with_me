@@ -46,6 +46,11 @@ export function evaluateSceneQuality(debug = {}) {
   if (provenance.missingRequiredFieldCount > 0) {
     warnings.push(`MISSING_PROVENANCE_FIELDS:${provenance.missingRequiredFieldCount}`);
   }
+  if (provenance.landmarkCount > 0 && provenance.landmarkAllowlisted < provenance.landmarkCount) {
+    errors.push(
+      `LANDMARK_ASSET_NOT_RELEASE_GATED:${provenance.landmarkAllowlisted}/${provenance.landmarkCount}`
+    );
+  }
 
   return {
     version: 1,
@@ -138,12 +143,15 @@ function normalizeProvenance(debug) {
   );
   const buildingCount = Number(debug.geoAssetCounts?.buildings || 0);
   const landmarkCount = Number(debug.geoAssetCounts?.landmarks || 0);
+  const landmarkAssetStats = debug.landmarkAssetStats || {};
 
   return {
     totalRealAssets: sources.length,
     buildingRealRatio: buildingCount > 0 ? 1 : 0,
-    landmarkAllowlisted: 0,
+    landmarkAllowlisted: Number(landmarkAssetStats.allowlisted || 0),
     landmarkCount,
+    landmarkOptimized: Number(landmarkAssetStats.optimized || 0),
+    landmarkIntegrityCount: Number(landmarkAssetStats.withIntegrity || 0),
     missingSourceCount: sources.filter(source => !source.source).length,
     missingLicenceCount: sources.filter(source => !source.licence).length,
     missingAttributionCount: sources.filter(source => !source.attribution).length,
