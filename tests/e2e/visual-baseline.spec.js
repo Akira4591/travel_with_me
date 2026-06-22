@@ -14,7 +14,6 @@ import {
 } from './helpers/visual-fixtures.js';
 
 const ASSERT_SCREENSHOTS = process.env.VISUAL_BASELINE_ASSERT === '1';
-const ROUTE_YELLOW_PIXEL_RATIO_MIN = 0.00008;
 const WATER_BLUE_PIXEL_RATIO_MIN = 0.00008;
 const BUILDING_DISSOLVE_ALPHA_STEP_MAX = 0.42;
 const BUILDING_DISSOLVE_ALPHA_DROP_TOLERANCE = 0.03;
@@ -26,7 +25,7 @@ const CAPTURES = [
   {
     scene: 'river-bridge',
     point: 'water-road-bridge',
-    assert(qa) {
+    assert(qa, fixture) {
       expect(qa.qa.version).toBe(1);
       expect(qa.qa.geometry.waterCoverageRatio).toBeGreaterThanOrEqual(0.97);
       expect(qa.qa.geometry.bridgeContinuity).toBeGreaterThanOrEqual(0.95);
@@ -35,7 +34,9 @@ const CAPTURES = [
       );
       expect(qa.qa.geometry.routeVisiblePixelRatio).toBeGreaterThanOrEqual(0.9);
       expect(qa.visual.readable).toBe(true);
-      expect(qa.visual.routeYellowPixelRatio).toBeGreaterThanOrEqual(ROUTE_YELLOW_PIXEL_RATIO_MIN);
+      expect(qa.visual.routeYellowPixelRatio).toBeGreaterThanOrEqual(
+        routeYellowPixelRatioMin(fixture)
+      );
       expect(qa.waterVisual.readable).toBe(true);
       expect(qa.waterVisual.waterBluePixelRatio).toBeGreaterThanOrEqual(WATER_BLUE_PIXEL_RATIO_MIN);
       expect(qa.qa.geometry.bridgePierCount).toBe(0);
@@ -47,19 +48,25 @@ const CAPTURES = [
   {
     scene: 'micro-street',
     point: 'building-massing',
-    assert(qa) {
+    assert(qa, fixture) {
       expect(qa.qa.version).toBe(1);
       expect(qa.qa.geometry.buildingBaseTerrainErrorP95).toBeLessThanOrEqual(0.25);
       expect(qa.qa.layers.route.visible).toBe(true);
+      expect(qa.visual.routeYellowPixelRatio).toBeGreaterThanOrEqual(
+        routeYellowPixelRatioMin(fixture)
+      );
       expect(qa.qa.layers.buildings.count).toBeGreaterThan(0);
     }
   },
   {
     scene: 'hiking-terrain',
     point: 'route-highlight',
-    assert(qa) {
+    assert(qa, fixture) {
       expect(qa.qa.version).toBe(1);
       expect(qa.qa.layers.route.visible).toBe(true);
+      expect(qa.visual.routeYellowPixelRatio).toBeGreaterThanOrEqual(
+        routeYellowPixelRatioMin(fixture)
+      );
       expect(qa.qa.geometry.terrainHeightVariance).toBeGreaterThanOrEqual(0);
       expect(qa.geoAssetCounts.landcover).toBeGreaterThan(0);
       expect(qa.qa.budgets.vegetationAreaCount).toBeGreaterThan(0);
@@ -153,7 +160,7 @@ test.describe('@visual-roi desktop 3D visual baseline harness', () => {
         qa,
         screenshot
       });
-      capture.assert(qa);
+      capture.assert(qa, fixture);
 
       if (ASSERT_SCREENSHOTS) {
         await expect(page).toHaveScreenshot(`${capture.scene}-${capture.point}.png`, {
@@ -303,7 +310,7 @@ test.describe('@visual-roi desktop 3D visual baseline harness', () => {
     expect(routeFocus.qa.layers.route.visible).toBe(true);
     expect(routeFocus.visual.readable).toBe(true);
     expect(routeFocus.visual.routeYellowPixelRatio).toBeGreaterThanOrEqual(
-      ROUTE_YELLOW_PIXEL_RATIO_MIN
+      routeYellowPixelRatioMin(fixture)
     );
   });
 
@@ -341,7 +348,7 @@ test.describe('@visual-roi desktop 3D visual baseline harness', () => {
       expect(qa.qa.layers.route.visible).toBe(true);
       expect(qa.visual.readable).toBe(true);
       expect(qa.visual.routeYellowPixelRatio).toBeGreaterThanOrEqual(
-        fixture.expectations.route?.minYellowPixelRatio || ROUTE_YELLOW_PIXEL_RATIO_MIN
+        routeYellowPixelRatioMin(fixture)
       );
       expect(qa.qa.geometry.zFightingRisk).toBeLessThanOrEqual(0.01);
       if (terrainExpectations.requiresLandcover) {
@@ -410,7 +417,7 @@ test.describe('@visual-roi desktop 3D visual baseline harness', () => {
       expect(inspect.camera.clearance).toBeGreaterThanOrEqual(inspect.camera.minClearance);
       expect(inspect.camera.clearance).toBeLessThanOrEqual(inspect.camera.maxClearance);
       expect(inspect.visual.routeYellowPixelRatio).toBeGreaterThanOrEqual(
-        fixture.expectations.route?.minYellowPixelRatio || ROUTE_YELLOW_PIXEL_RATIO_MIN
+        routeYellowPixelRatioMin(fixture)
       );
     });
   }
@@ -451,7 +458,9 @@ test.describe('@visual-roi desktop 3D visual baseline harness', () => {
 
     expect(before.readable).toBe(true);
     expect(after.visual.readable).toBe(true);
-    expect(after.visual.routeYellowPixelRatio).toBeGreaterThanOrEqual(ROUTE_YELLOW_PIXEL_RATIO_MIN);
+    expect(after.visual.routeYellowPixelRatio).toBeGreaterThanOrEqual(
+      routeYellowPixelRatioMin(fixture)
+    );
     expect(after.qa.geometry.zFightingRisk).toBeLessThanOrEqual(0.01);
     expect(after.phase).toBe('steady');
   });
@@ -492,7 +501,7 @@ test.describe('@visual-roi desktop 3D visual baseline harness', () => {
       })
     });
 
-    assertCameraStress(stress);
+    assertCameraStress(stress, { minRouteYellowPixelRatio: routeYellowPixelRatioMin(fixture) });
     expect(finalQa.visual.readable).toBe(true);
     expect(finalQa.phase).toBe('steady');
   });
@@ -533,7 +542,7 @@ test.describe('@visual-roi desktop 3D visual baseline harness', () => {
       })
     });
 
-    assertCameraStress(stress);
+    assertCameraStress(stress, { minRouteYellowPixelRatio: routeYellowPixelRatioMin(fixture) });
     expect(finalQa.qa.layers.buildings.count).toBeGreaterThan(0);
     expect(finalQa.visual.readable).toBe(true);
     expect(finalQa.phase).toBe('steady');
@@ -582,8 +591,7 @@ test.describe('@visual-roi desktop 3D visual baseline harness', () => {
 
     assertCameraStress(stress, {
       minSamples: 2,
-      minRouteYellowPixelRatio:
-        fixture.expectations.route?.minYellowPixelRatio || ROUTE_YELLOW_PIXEL_RATIO_MIN,
+      minRouteYellowPixelRatio: routeYellowPixelRatioMin(fixture),
       maxUnreadableSamples: Number.POSITIVE_INFINITY
     });
     expect(finalQa.geoAssetCounts.landcover).toBeGreaterThan(0);
@@ -592,7 +600,7 @@ test.describe('@visual-roi desktop 3D visual baseline harness', () => {
     );
     expect(finalQa.visual.readable).toBe(true);
     expect(finalQa.visual.routeYellowPixelRatio).toBeGreaterThanOrEqual(
-      fixture.expectations.route?.minYellowPixelRatio || ROUTE_YELLOW_PIXEL_RATIO_MIN
+      routeYellowPixelRatioMin(fixture)
     );
     expect(finalQa.phase).toBe('steady');
   });
@@ -635,7 +643,7 @@ test.describe('@visual-roi desktop 3D visual baseline harness', () => {
     expect(inspect.qa.lod.buildingDetailAlphaAverage).toBeGreaterThan(0);
     expect(inspect.visual.readable).toBe(true);
     expect(inspect.visual.routeYellowPixelRatio).toBeGreaterThanOrEqual(
-      ROUTE_YELLOW_PIXEL_RATIO_MIN
+      routeYellowPixelRatioMin(fixture)
     );
     expect(inspect.qa.geometry.zFightingRisk).toBeLessThanOrEqual(0.01);
     expect(inspect.phase).toBe('steady');
@@ -776,7 +784,7 @@ test.describe('@visual-roi desktop 3D visual baseline harness', () => {
     );
     expect(finalQa.visual.readable).toBe(true);
     expect(finalQa.visual.routeYellowPixelRatio).toBeGreaterThanOrEqual(
-      ROUTE_YELLOW_PIXEL_RATIO_MIN
+      routeYellowPixelRatioMin(fixture)
     );
   });
 
@@ -817,7 +825,9 @@ test.describe('@visual-roi desktop 3D visual baseline harness', () => {
         );
       }
       expect(qa.visual.readable).toBe(true);
-      expect(qa.visual.routeYellowPixelRatio).toBeGreaterThanOrEqual(ROUTE_YELLOW_PIXEL_RATIO_MIN);
+      expect(qa.visual.routeYellowPixelRatio).toBeGreaterThanOrEqual(
+        routeYellowPixelRatioMin(fixture)
+      );
       expect(qa.qa.geometry.zFightingRisk).toBeLessThanOrEqual(0.01);
       expect(qa.qa.geometry.buildingBaseTerrainErrorP95).toBeLessThanOrEqual(0.25);
     });
@@ -869,9 +879,7 @@ function assertOverviewInspectReview(qa, reviewScene, fixture) {
   expect(qa.qa.version).toBe(1);
   expect(qa.qa.layers.route.visible).toBe(true);
   expect(qa.visual.readable).toBe(true);
-  expect(qa.visual.routeYellowPixelRatio).toBeGreaterThanOrEqual(
-    fixture.expectations.route?.minYellowPixelRatio || ROUTE_YELLOW_PIXEL_RATIO_MIN
-  );
+  expect(qa.visual.routeYellowPixelRatio).toBeGreaterThanOrEqual(routeYellowPixelRatioMin(fixture));
   expect(qa.qa.layers.buildings.count).toBeGreaterThanOrEqual(reviewScene.minBuildings);
   expect(qa.geoAssetCounts.landmarks).toBeGreaterThanOrEqual(reviewScene.minLandmarks);
   if (reviewScene.minLandmarks > 0) {
@@ -890,14 +898,21 @@ function assertOverviewInspectReview(qa, reviewScene, fixture) {
   }
 }
 
+function routeYellowPixelRatioMin(fixture) {
+  const value = Number(fixture?.expectations?.route?.minYellowPixelRatio);
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new Error(`${fixture?.id || 'unknown fixture'} is missing route.minYellowPixelRatio`);
+  }
+  return value;
+}
+
 function assertCameraStress(
   stress,
-  {
-    minSamples = 4,
-    minRouteYellowPixelRatio = ROUTE_YELLOW_PIXEL_RATIO_MIN,
-    maxUnreadableSamples = 0
-  } = {}
+  { minSamples = 4, minRouteYellowPixelRatio, maxUnreadableSamples = 0 } = {}
 ) {
+  if (!Number.isFinite(minRouteYellowPixelRatio)) {
+    throw new Error('assertCameraStress requires an explicit minRouteYellowPixelRatio');
+  }
   expect(stress.durationMs).toBeGreaterThanOrEqual(STRESS_DURATION_MS);
   expect(stress.samples.length).toBeGreaterThanOrEqual(minSamples);
   expect(stress.nonSteadySamples).toEqual([]);

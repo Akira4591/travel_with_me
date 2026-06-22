@@ -125,6 +125,8 @@ Next Beta work:
 
 - Calibrate water coverage and bridge continuity against additional river/bridge fixture shapes.
 - Calibrate the new `routeYellowPixelRatio` ROI metric beyond the initial `>= 0.00008` gate.
+  **Started:** every visual fixture now owns an explicit `route.minYellowPixelRatio`; tests fail when
+  this threshold is missing instead of falling back to a global default.
 - Extend the new `qa.lod` building near/far and stepped no-pop gates from `micro-street` to old-street and landmark-pilot after the current overview/inspect review gates are stable for five local runs.
 - Extend vegetation budget work from per-area density caps to chunking/frustum-culling performance telemetry.
 

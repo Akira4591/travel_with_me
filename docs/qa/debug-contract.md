@@ -144,7 +144,8 @@ The Alpha implementation currently emits the v1 geometry, budget, provenance, an
 Current deliberately non-blocking field:
 
 - `terrainHeightVariance` for `hiking-terrain`; this remains telemetry until scene precision profiles are implemented.
-- `routeYellowPixelRatio`; it is currently a Playwright ROI metric with an initial `>= 0.00008` threshold and should be recalibrated after more route-focus fixtures exist.
+- `routeYellowPixelRatio`; it is currently a Playwright ROI metric. Each maintained visual fixture
+  must declare `expectations.route.minYellowPixelRatio`, and tests fail if the threshold is missing.
 - `routeGrayOutlinePixelRatio`, `workAreaRaisedPixelRatio`, and `outsideDimmedPixelRatio`; these
   are emitted by VQ0 and mirrored to `#map-3d.dataset.qa*`.
 - `qa.lod.*`; current gates prove near/far building detail response, while module split and video-style no-pop review remain future P3 work.

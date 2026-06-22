@@ -159,7 +159,7 @@ Current blocking `river-bridge` metrics:
 - `bridgeContinuity >= 0.95`;
 - `terrainCarvingDepthP50 >= expectations.water.minChannelDepthMeters`;
 - `routeVisiblePixelRatio >= 0.90`;
-- `routeYellowPixelRatio >= 0.00008`;
+- `routeYellowPixelRatio >= expectations.route.minYellowPixelRatio`;
 - `routeGrayOutlinePixelRatio === 0` for route guidance mesh roles;
 - `waterBluePixelRatio >= 0.00008`;
 - `bridgePierCount === 0`;
@@ -175,7 +175,7 @@ Current blocking `river-bridge` camera stress metrics:
 
 - interaction duration must be at least 30 seconds;
 - at least four sampled QA snapshots must remain in `steady` phase;
-- sampled `routeYellowPixelRatio` must remain `>= 0.00008`;
+- sampled `routeYellowPixelRatio` must remain `>= expectations.route.minYellowPixelRatio`;
 - sampled `zFightingRisk` must remain `<= 0.01`;
 - final ROI capture must remain route-readable.
 
@@ -183,7 +183,7 @@ Current blocking `micro-street` dense-building camera stress metrics:
 
 - interaction duration must be at least 30 seconds;
 - at least four sampled QA snapshots must remain in `steady` phase;
-- sampled `routeYellowPixelRatio` must remain `>= 0.00008`;
+- sampled `routeYellowPixelRatio` must remain `>= expectations.route.minYellowPixelRatio`;
 - sampled `zFightingRisk` must remain `<= 0.01`;
 - final ROI capture must remain route-readable;
 - final capture must include visible building layer context.
@@ -192,7 +192,7 @@ Current blocking `hiking-terrain` terrain camera stress metrics:
 
 - interaction duration must be at least 30 seconds;
 - at least two full sampled QA snapshots must remain in `steady` phase because terrain pixel reads are slower than city fixtures;
-- sampled `routeYellowPixelRatio` must remain `>= 0.00008`;
+- sampled `routeYellowPixelRatio` must remain `>= expectations.route.minYellowPixelRatio`;
 - sampled `zFightingRisk` must remain `<= 0.01`;
 - final ROI capture must remain route-readable;
 - final capture must include attributable landcover context.
@@ -218,7 +218,7 @@ Current blocking `micro-street` building dissolve smoothness metrics:
 - `buildingDetailAlphaAverage` may not drop by more than `0.03` between adjacent samples;
 - adjacent positive `buildingDetailAlphaAverage` delta must remain `<= 0.42`;
 - final `buildingDetailAlphaAverage` must increase by at least `0.20` versus the first sample;
-- final inspect ROI must retain `routeYellowPixelRatio >= 0.00008`.
+- final inspect ROI must retain `routeYellowPixelRatio >= expectations.route.minYellowPixelRatio`.
 
 Current blocking `micro-street` inspect metrics:
 
@@ -226,13 +226,13 @@ Current blocking `micro-street` inspect metrics:
 - `camera.clearance` stays between `camera.minClearance` and `camera.maxClearance`;
 - route and building layers are visible together;
 - `qa.lod.buildingDetailAlphaAverage > 0`;
-- `routeYellowPixelRatio >= 0.00008`;
+- `routeYellowPixelRatio >= expectations.route.minYellowPixelRatio`;
 - `zFightingRisk <= 0.01`.
 
 Current blocking `old-street` / `landmark-pilot` contextual route metrics:
 
 - route layer must remain visible in structured QA;
-- inspect ROI must retain `routeYellowPixelRatio >= 0.00008`;
+- inspect ROI must retain `routeYellowPixelRatio >= expectations.route.minYellowPixelRatio`;
 - `old-street` must render at least four contextual building entries;
 - `landmark-pilot` must retain at least one attributable landmark record;
 - `landmark-pilot` must report `qa.provenance.landmarkAllowlisted >= 1`;
@@ -259,7 +259,7 @@ Current blocking `river-bridge` timeline stage metrics:
 - `route-highlight` must remain in `route-highlight`, expose route layer diagnostics, and have route draw progress `>= 0.95`;
 - `building-massing` must remain in `building-massing`, expose partial building massing progress, and keep dissolve progress at `0`;
 - `building-dissolve` must remain in `building-dissolve`, expose completed massing plus active dissolve progress;
-- `route-focus` must finish emergence, enter `camera.mode === "route-focus"`, and retain `routeYellowPixelRatio >= 0.00008`.
+- `route-focus` must finish emergence, enter `camera.mode === "route-focus"`, and retain `routeYellowPixelRatio >= expectations.route.minYellowPixelRatio`.
 
 Current blocking scenario precision metrics:
 
@@ -267,3 +267,20 @@ Current blocking scenario precision metrics:
 - `scenic-park` must choose `terrainMode === "scenic-park"`, retain attributable landcover and water, and show medium terrain relief;
 - `hiking-terrain` must choose `terrainMode === "hiking"` and show high mountain elevation range;
 - all three scenario reviews must keep route layer visible, route pixels readable at the scene-specific threshold, and `zFightingRisk <= 0.01`.
+
+## Beta Route Yellow Calibration
+
+Each maintained visual fixture must declare `expectations.route.minYellowPixelRatio`. The visual
+tests intentionally fail when the value is missing, so a new scene cannot silently inherit a global
+default.
+
+Calibration sample from 2026-06-23:
+
+| Fixture          | Configured minimum | Overview sample | Inspect sample |
+| ---------------- | -----------------: | --------------: | -------------: |
+| `river-bridge`   |           0.000300 |         0.00128 |        0.00727 |
+| `micro-street`   |           0.000350 |         0.00149 |        0.00901 |
+| `hiking-terrain` |           0.000035 |         0.00213 |        0.00387 |
+| `old-street`     |           0.000080 |         0.00184 |        0.00883 |
+| `scenic-park`    |           0.000050 |         0.00149 |        0.01965 |
+| `landmark-pilot` |           0.000150 |         0.00064 |        0.00759 |

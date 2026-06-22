@@ -2,7 +2,8 @@
   "scene": "micro-street",
   "route": {
     "hash": "fixture-micro-street-route-v1",
-    "maxOccludedRatio": 0.25
+    "maxOccludedRatio": 0.25,
+    "minYellowPixelRatio": 0.00035
   },
   "water": {
     "requiresCoverage": false,

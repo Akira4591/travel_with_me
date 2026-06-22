@@ -2,7 +2,8 @@
   "scene": "river-bridge",
   "route": {
     "hash": "fixture-river-bridge-route-v1",
-    "maxOccludedRatio": 0.2
+    "maxOccludedRatio": 0.2,
+    "minYellowPixelRatio": 0.0003
   },
   "water": {
     "requiresCoverage": true,

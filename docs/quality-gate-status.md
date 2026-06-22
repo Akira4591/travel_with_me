@@ -26,6 +26,7 @@ Commands run on 2026-06-23:
 | `npx.cmd playwright test tests/e2e/smoke.spec.js --project=chromium` | Passed: 12 desktop tests, 1 mobile-only test skipped in Chromium                                                  |
 | `npx.cmd playwright test tests/e2e/live-provider.spec.js`            | Passed by skip: live provider smoke is explicit opt-in only                                                       |
 | Full visual baseline suite                                           | Passed: 19 local ROI fixture captures/interactions with QA JSON and screenshots in 9.6m                           |
+| Beta route-yellow fixture calibration                                | Passed: all maintained visual fixtures declare `route.minYellowPixelRatio`; visual suite rejects missing values   |
 | targeted 3D/2D gate E2E                                              | Passed: nonblank 3D, geo assets, WASD camera, geometry P95, 2D fallback, 60s no-auto-exit                         |
 | tracked-source secret scan for known AMap/DeepSeek patterns          | Passed: no matches in tracked source                                                                              |
 | in-app browser 2D/3D visual check                                    | Partial: exposed an empty-workspace stale 3D state; VQ0 now throws/recover instead of silently entering stale 3D  |
@@ -133,12 +134,12 @@ Real landmark model rendering still remains a future P5 feature, but the release
    - screenshot normalization stylesheet;
    - visual attachments with screenshots, fixture JSON, camera JSON, QA JSON, and Playwright report context.
 3. Formalize `window.__threeDebug__.qa` v1 and expose geometry, budget, provenance, and layer metrics. **implemented**
-4. Close P2 visual correctness: **river-bridge first gate expanded; broader calibration remains**
+4. Close P2 visual correctness: **river-bridge first gate expanded; route-yellow fixture thresholds calibrated**
    - `waterCoverageRatio`;
    - `bridgeContinuity`;
    - `terrainCarvingDepthP50`;
    - `routeVisiblePixelRatio`;
-   - `routeYellowPixelRatio`;
+   - `routeYellowPixelRatio` now reads explicit `expectations.route.minYellowPixelRatio` per fixture;
    - `routeGroundClearanceP95`;
    - `zFightingRisk`;
    - `bridgePierCount === 0` when no pier/support provenance exists.

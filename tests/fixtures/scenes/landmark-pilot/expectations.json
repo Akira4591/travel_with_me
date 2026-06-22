@@ -2,7 +2,8 @@
   "scene": "landmark-pilot",
   "route": {
     "hash": "fixture-landmark-pilot-route-v1",
-    "maxOccludedRatio": 0.25
+    "maxOccludedRatio": 0.25,
+    "minYellowPixelRatio": 0.00015
   },
   "water": {
     "requiresCoverage": false,
