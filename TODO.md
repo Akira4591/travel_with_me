@@ -25,7 +25,7 @@ Latest verified baseline from 2026-06-22. Detailed gate accounting is maintained
 | `npm.cmd run check`                                                  | Passed                                                                          |
 | `npm.cmd test`                                                       | Passed: 27 files, 133 tests                                                     |
 | `npm.cmd run check:encoding`                                         | Passed: 291 visible source/doc/test files scanned                               |
-| `npm.cmd run test:e2e:visual`                                        | Passed: 12 local ROI fixture captures/interactions with QA JSON and screenshots |
+| `npm.cmd run test:e2e:visual`                                        | Passed: 13 local ROI fixture captures/interactions with QA JSON and screenshots |
 | `npm.cmd run check:architecture`                                     | Passed: 34 render files scanned                                                 |
 | `npm.cmd run check:provenance`                                       | Passed: 30 scene fixture files scanned                                          |
 | `npx.cmd playwright test tests/e2e/smoke.spec.js --project=chromium` | Passed: 12 desktop tests, 1 mobile-only test skipped in Chromium                |
@@ -36,14 +36,14 @@ Quality gate count from `docs/quality-gate-status.md`:
 
 | Status       | Count |
 | ------------ | ----: |
-| Complete     |    42 |
+| Complete     |    43 |
 | Partial      |     0 |
-| Not complete |     4 |
+| Not complete |     3 |
 | Total        |    46 |
 
 Known remaining gaps:
 
-- Add maintained screenshot baselines for foundation, carved water, route highlight, building massing, building dissolve, route focus, and inspect.
+- Promote maintained golden screenshot assertions after the current stage screenshot capture gate is stable across repeated local runs.
 - Add city/scenic/hiking scenario visual baselines beyond the current first-fixture gates.
 - Extend maintained overview screenshot baselines for mountain, old-street, and landmark review cases.
 
@@ -151,13 +151,13 @@ Tasks:
 - Add debug metrics for mesh counts, terrain confidence, route diagnostics, generation phase and frame timing.
 - Add `camera-controller.js` for overview, route-focus, inspect, drag-pause and orbit recovery.
 - Add `terrain-foundation.js` so slab rise is independent from terrain refinement and layer reveal.
-- Add Playwright screenshot gates for foundation, carved geography, route highlight, massing, dissolve and route focus.
+- Add Playwright screenshot gates for foundation, carved geography, route highlight, massing, dissolve and route focus. **Implemented for `river-bridge` timeline capture.**
 
 QA:
 
 - timeline phase values observable in `window.__threeDebug__`
 - debug exposes `mode`, `phase`, `phaseProgress`, `quality`, `counts`, `camera`, and `provenance`
-- screenshots prove stage order
+- screenshots and QA JSON prove stage order
 - no direct provider renderer fetch for rendered trip state
 - provenance gate blocks real-world asset rendering when source data is missing
 

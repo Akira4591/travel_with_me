@@ -34,9 +34,10 @@ export async function loadSceneFixture(sceneId) {
   };
 }
 
-export async function openVisualFixture(page, fixture) {
+export async function openVisualFixture(page, fixture, { freezeEmergence = false } = {}) {
   await installMockAMap(page);
   await installFixtureElevation(page, fixture.demGrid);
+  if (freezeEmergence) await installFrozenEmergence(page);
   await seedFixtureWorkspace(page, fixture);
   await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 45_000 });
   await expect(page.locator('#trip-title-text')).toHaveText(fixture.trip.title, {
@@ -44,10 +45,30 @@ export async function openVisualFixture(page, fixture) {
   });
   await page.locator('#map-3d-toggle').click();
   await expect(page.locator('#map-3d canvas')).toBeVisible({ timeout: 30_000 });
-  await expect.poll(async () => page.evaluate(() => window.__threeDebug__?.phase)).toBe('steady');
+  if (freezeEmergence) {
+    await expect
+      .poll(async () =>
+        page.evaluate(() => typeof window.__threeDebugControls?.setEmergenceProgress)
+      )
+      .toBe('function');
+  } else {
+    await expect.poll(async () => page.evaluate(() => window.__threeDebug__?.phase)).toBe('steady');
+  }
   await page.evaluate(expectations => {
     window.__visualFixtureExpectations = expectations;
   }, fixture.expectations);
+}
+
+export async function setEmergenceProgress(page, progress) {
+  return page.evaluate(value => window.__threeDebugControls?.setEmergenceProgress(value), progress);
+}
+
+export async function finishFrozenEmergence(page) {
+  return page.evaluate(() => window.__threeDebugControls?.finishEmergence());
+}
+
+export async function focusFrozenRoute(page, segmentId) {
+  return page.evaluate(value => window.__threeDebugControls?.focusRoute(value), segmentId);
 }
 
 export async function exportVisualQa(page, fixture, capturePoint) {
@@ -62,6 +83,13 @@ export async function exportVisualQa(page, fixture, capturePoint) {
         phase: debug.phase,
         fixture: debug.fixture || {},
         camera: debug.camera || {},
+        foundationProgress: debug.foundationProgress,
+        terrainRefineProgress: debug.terrainRefineProgress,
+        carvingProgress: debug.carvingProgress,
+        roadBridgeProgress: debug.roadBridgeProgress,
+        routeDrawProgress: debug.routeDrawProgress,
+        buildingMassingProgress: debug.buildingMassingProgress,
+        buildingDissolveProgress: debug.buildingDissolveProgress,
         qa: debug.qa || {},
         counts: debug.counts || {},
         geoAssetCounts: debug.geoAssetCounts || {},
@@ -230,9 +258,12 @@ export async function attachVisualEvidence(testInfo, { fixture, capturePoint, qa
 export function visualRoiFor(capturePoint) {
   const rois = {
     'foundation-rise': { x: 280, y: 80, width: 560, height: 360 },
+    'carved-geography': { x: 300, y: 90, width: 620, height: 390 },
     'water-road-bridge': { x: 300, y: 90, width: 620, height: 390 },
     'route-highlight': { x: 260, y: 90, width: 620, height: 400 },
     'building-massing': { x: 250, y: 70, width: 620, height: 420 },
+    'building-dissolve': { x: 250, y: 70, width: 620, height: 420 },
+    'route-focus': { x: 260, y: 90, width: 620, height: 400 },
     inspect: { x: 310, y: 80, width: 560, height: 390 }
   };
   return rois[capturePoint] || rois['route-highlight'];
@@ -274,6 +305,12 @@ async function installFixtureElevation(page, demGrid) {
       contentType: 'application/json',
       body: JSON.stringify({ elevation })
     });
+  });
+}
+
+async function installFrozenEmergence(page) {
+  await page.addInitScript(() => {
+    window.__visualFreezeEmergence = true;
   });
 }
 

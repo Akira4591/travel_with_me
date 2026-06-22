@@ -459,6 +459,14 @@ export async function enter3DMode(
   });
   controls.update();
 
+  if (shouldFreezeEmergenceForVisualQa()) {
+    diorama.generationTimeline = createGenerationTimeline();
+    applyEmergenceProgress(diorama, bounds, 0);
+    installEmergenceDebugControls(diorama, bounds);
+    updateThreeDebug(diorama);
+    return;
+  }
+
   // Run emergence animation.
   await animateEmergence(diorama, bounds);
 
@@ -1310,13 +1318,42 @@ function setupLighting(scene) {
 // Emergence animation.
 
 function animateEmergence(diorama, bounds) {
-  const { dioramaGroup, camera, controls } = diorama;
-  const { span, liftTarget, centerX: cx, centerZ: cz } = createFoundationMetrics(bounds);
-
   return new Promise(resolve => {
     const startTime = performance.now();
     diorama.generationTimeline = createGenerationTimeline();
-    updateGenerationTimeline(diorama, 0);
+    applyEmergenceProgress(diorama, bounds, 0);
+
+    function step(now) {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / EMERGE_DURATION, 1);
+      applyEmergenceProgress(diorama, bounds, progress);
+
+      if (progress < 1) {
+        requestAnimationFrame(step);
+      } else {
+        updateGenerationTimeline(diorama, 1, true);
+        resolve();
+      }
+    }
+    requestAnimationFrame(step);
+  });
+}
+
+function applyEmergenceProgress(diorama, bounds, rawProgress) {
+  const progress = clamp(rawProgress, 0, 1);
+  const { dioramaGroup, camera, controls } = diorama;
+  const { span, liftTarget, centerX: cx, centerZ: cz } = createFoundationMetrics(bounds);
+  updateGenerationTimeline(diorama, progress);
+
+  if (progress < FOUNDATION_END) {
+    const eased = easeInOutCubic(progress / FOUNDATION_END);
+    dioramaGroup.position.y = eased * liftTarget;
+    const targetY = liftTarget + span * 0.9;
+    const targetX = cx + span * 0.55;
+    const targetZ = cz + span * 0.72;
+    camera.position.lerp(new THREE.Vector3(targetX, targetY, targetZ), eased * 0.6);
+    controls.target.lerp(new THREE.Vector3(cx, liftTarget / 2, cz), eased);
+    controls.update();
     setTerrainReveal(diorama.terrainMesh, 0);
     setGroundAssetReveal(diorama.waterGroup, 0);
     setGroundAssetReveal(diorama.roadGroup, 0);
@@ -1324,90 +1361,84 @@ function animateEmergence(diorama, bounds) {
     setStaticGroupReveal(diorama.bridgeGroup, 0);
     setBuildingReveal(diorama, 0, 0);
     setOverlayVisibility(diorama, false);
+  } else if (progress < GEOLOGY_END) {
+    dioramaGroup.position.y = liftTarget;
+    const t = (progress - FOUNDATION_END) / (GEOLOGY_END - FOUNDATION_END);
+    const eased = easeOutBack(Math.min(t, 1));
+    setTerrainReveal(diorama.terrainMesh, eased);
+    setGroundAssetReveal(diorama.waterGroup, eased);
+    setGroundAssetReveal(diorama.roadGroup, eased);
+    setGroundAssetReveal(diorama.routeGroup, eased);
+    setStaticGroupReveal(diorama.bridgeGroup, eased);
+    setBuildingReveal(diorama, 0, 0);
+    setOverlayVisibility(diorama, false);
+  } else if (progress < BUILDING_MASSING_END) {
+    const t = (progress - GEOLOGY_END) / (BUILDING_MASSING_END - GEOLOGY_END);
+    const eased = easeInOutCubic(Math.min(t, 1));
+    dioramaGroup.position.y = liftTarget;
+    setTerrainReveal(diorama.terrainMesh, 1);
+    setGroundAssetReveal(diorama.waterGroup, 1);
+    setGroundAssetReveal(diorama.roadGroup, 1);
+    setGroundAssetReveal(diorama.routeGroup, 1);
+    setStaticGroupReveal(diorama.bridgeGroup, 1);
+    setBuildingReveal(diorama, eased, 0);
+    setOverlayVisibility(diorama, false);
+  } else if (progress < 1) {
+    const t = (progress - BUILDING_MASSING_END) / (1 - BUILDING_MASSING_END);
+    const eased = easeInOutCubic(Math.min(t, 1));
+    dioramaGroup.position.y = liftTarget;
+    const targetY = liftTarget + span * 0.9;
+    const targetX = cx + span * 0.55;
+    const targetZ = cz + span * 0.72;
+    camera.position.lerp(new THREE.Vector3(targetX, targetY, targetZ), eased * 0.6);
+    controls.target.lerp(new THREE.Vector3(cx, liftTarget / 2, cz), eased);
+    controls.update();
+    setTerrainReveal(diorama.terrainMesh, 1);
+    setGroundAssetReveal(diorama.waterGroup, 1);
+    setGroundAssetReveal(diorama.roadGroup, 1);
+    setGroundAssetReveal(diorama.routeGroup, 1);
+    setStaticGroupReveal(diorama.bridgeGroup, 1);
+    setBuildingReveal(diorama, 1, eased);
+    setOverlayVisibility(diorama, eased > 0.72);
+  } else {
+    dioramaGroup.position.y = liftTarget;
+    setTerrainReveal(diorama.terrainMesh, 1);
+    setGroundAssetReveal(diorama.waterGroup, 1);
+    setGroundAssetReveal(diorama.roadGroup, 1);
+    setGroundAssetReveal(diorama.routeGroup, 1);
+    setStaticGroupReveal(diorama.bridgeGroup, 1);
+    setBuildingReveal(diorama, 1, 1);
+    setOverlayVisibility(diorama, true);
+  }
 
-    function step(now) {
-      const elapsed = now - startTime;
-      const progress = Math.min(elapsed / EMERGE_DURATION, 1);
-      updateGenerationTimeline(diorama, progress);
+  updateBuildingLod(diorama);
+  updateThreeDebug(diorama);
+  diorama.renderer.render(diorama.scene, diorama.camera);
+}
 
-      if (progress < FOUNDATION_END) {
-        const eased = easeInOutCubic(progress / FOUNDATION_END);
-        dioramaGroup.position.y = eased * liftTarget;
-        const targetY = liftTarget + span * 0.9;
-        const targetX = cx + span * 0.55;
-        const targetZ = cz + span * 0.72;
-        camera.position.lerp(new THREE.Vector3(targetX, targetY, targetZ), eased * 0.6);
-        controls.target.lerp(new THREE.Vector3(cx, liftTarget / 2, cz), eased);
-        controls.update();
-        // Phase 1: freeze the 2D context while the foundation rises.
-      } else if (progress < GEOLOGY_END) {
-        // Phase 2: reveal terrain, water, roads, bridges, and route.
-        dioramaGroup.position.y = liftTarget;
-        const t = (progress - FOUNDATION_END) / (GEOLOGY_END - FOUNDATION_END);
-        const eased = easeOutBack(Math.min(t, 1));
-        setTerrainReveal(diorama.terrainMesh, eased);
-        setGroundAssetReveal(diorama.waterGroup, eased);
-        setGroundAssetReveal(diorama.roadGroup, eased);
-        setGroundAssetReveal(diorama.routeGroup, eased);
-        setStaticGroupReveal(diorama.bridgeGroup, eased);
-      } else if (progress < BUILDING_MASSING_END) {
-        // Phase 3: reveal building massing.
-        const t = (progress - GEOLOGY_END) / (BUILDING_MASSING_END - GEOLOGY_END);
-        const eased = easeInOutCubic(Math.min(t, 1));
-        dioramaGroup.position.y = liftTarget;
-        setTerrainReveal(diorama.terrainMesh, 1);
-        setGroundAssetReveal(diorama.waterGroup, 1);
-        setGroundAssetReveal(diorama.roadGroup, 1);
-        setGroundAssetReveal(diorama.routeGroup, 1);
-        setStaticGroupReveal(diorama.bridgeGroup, 1);
-        setBuildingReveal(diorama, eased, 0);
-      } else if (progress < 1) {
-        // Phase 4: dissolve building massing into detailed outlines and labels.
-        const t = (progress - BUILDING_MASSING_END) / (1 - BUILDING_MASSING_END);
-        const eased = easeInOutCubic(Math.min(t, 1));
-        dioramaGroup.position.y = liftTarget;
-        const targetY = liftTarget + span * 0.9;
-        const targetX = cx + span * 0.55;
-        const targetZ = cz + span * 0.72;
-        camera.position.lerp(new THREE.Vector3(targetX, targetY, targetZ), eased * 0.6);
-        controls.target.lerp(new THREE.Vector3(cx, liftTarget / 2, cz), eased);
-        controls.update();
-        setTerrainReveal(diorama.terrainMesh, 1);
-        setGroundAssetReveal(diorama.waterGroup, 1);
-        setGroundAssetReveal(diorama.roadGroup, 1);
-        setGroundAssetReveal(diorama.routeGroup, 1);
-        setStaticGroupReveal(diorama.bridgeGroup, 1);
-        setBuildingReveal(diorama, 1, eased);
-        setOverlayVisibility(diorama, eased > 0.72);
-      } else {
-        // Phase 4: final steady state.
-        dioramaGroup.position.y = liftTarget;
-        setTerrainReveal(diorama.terrainMesh, 1);
-        setGroundAssetReveal(diorama.waterGroup, 1);
-        setGroundAssetReveal(diorama.roadGroup, 1);
-        setGroundAssetReveal(diorama.routeGroup, 1);
-        setStaticGroupReveal(diorama.bridgeGroup, 1);
-        setBuildingReveal(diorama, 1, 1);
-        setOverlayVisibility(diorama, true);
-      }
+function shouldFreezeEmergenceForVisualQa() {
+  return Boolean(globalThis.window?.__visualFreezeEmergence);
+}
 
-      if (progress < 1) {
-        requestAnimationFrame(step);
-      } else {
-        dioramaGroup.position.y = liftTarget;
-        setTerrainReveal(diorama.terrainMesh, 1);
-        setGroundAssetReveal(diorama.waterGroup, 1);
-        setGroundAssetReveal(diorama.roadGroup, 1);
-        setGroundAssetReveal(diorama.routeGroup, 1);
-        setStaticGroupReveal(diorama.bridgeGroup, 1);
-        setBuildingReveal(diorama, 1, 1);
-        setOverlayVisibility(diorama, true);
-        updateGenerationTimeline(diorama, 1, true);
-        resolve();
-      }
+function installEmergenceDebugControls(diorama, bounds) {
+  if (typeof window === 'undefined') return;
+  window.__threeDebugControls = {
+    setEmergenceProgress(progress) {
+      applyEmergenceProgress(diorama, bounds, progress);
+      return window.__threeDebug;
+    },
+    finishEmergence() {
+      applyEmergenceProgress(diorama, bounds, 1);
+      updateGenerationTimeline(diorama, 1, true);
+      updateThreeDebug(diorama);
+      return window.__threeDebug;
+    },
+    async focusRoute(segmentId) {
+      const focused = await focus3DRoute(diorama, segmentId);
+      updateThreeDebug(diorama);
+      return { focused, debug: window.__threeDebug };
     }
-    requestAnimationFrame(step);
-  });
+  };
 }
 
 function updateGenerationTimeline(diorama, progress, steady = false) {

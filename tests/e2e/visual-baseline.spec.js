@@ -3,9 +3,12 @@ import { expect, test } from '@playwright/test';
 import {
   attachVisualEvidence,
   exportVisualQa,
+  finishFrozenEmergence,
+  focusFrozenRoute,
   loadSceneFixture,
   measureRouteVisualMetrics,
   openVisualFixture,
+  setEmergenceProgress,
   visualRoiFor
 } from './helpers/visual-fixtures.js';
 
@@ -118,6 +121,145 @@ test.describe('@visual-roi desktop 3D visual baseline harness', () => {
       }
     });
   }
+
+  test('river-bridge captures timeline visual stages from foundation to route focus', async ({
+    page
+  }, testInfo) => {
+    test.setTimeout(120_000);
+    const fixture = await loadSceneFixture('river-bridge');
+    await openVisualFixture(page, fixture, { freezeEmergence: true });
+    await page.addStyleTag({ path: 'tests/visual/styles/screenshot-normalize.css' });
+
+    const timelineCaptures = [
+      {
+        point: 'foundation-rise',
+        progress: 0.14,
+        phase: 'slab-rise',
+        assert(qa) {
+          expect(qa.foundationProgress).toBeGreaterThan(0);
+          expect(qa.foundationProgress).toBeLessThan(1);
+          expect(qa.routeDrawProgress).toBe(0);
+          expect(qa.buildingMassingProgress).toBe(0);
+        }
+      },
+      {
+        point: 'carved-geography',
+        progress: 0.38,
+        phase: 'water-carve',
+        assert(qa) {
+          expect(qa.carvingProgress).toBeGreaterThan(0);
+          expect(qa.roadBridgeProgress).toBeGreaterThan(0);
+          expect(qa.counts.waterMeshes).toBeGreaterThan(0);
+          expect(qa.qa.layers.roads.count).toBeGreaterThan(0);
+          expect(qa.qa.geometry.terrainCarvingDepthP50).toBeGreaterThanOrEqual(
+            qa.expectations.water.minChannelDepthMeters
+          );
+          expect(qa.buildingMassingProgress).toBe(0);
+        }
+      },
+      {
+        point: 'route-highlight',
+        progress: 0.499,
+        phase: 'route-highlight',
+        assert(qa) {
+          expect(qa.routeDrawProgress).toBeGreaterThanOrEqual(0.95);
+          expect(qa.qa.layers.route.visible).toBe(true);
+          expect(qa.routeHashes.length).toBeGreaterThan(0);
+          expect(qa.routeEndpointKeys.length).toBeGreaterThan(0);
+        }
+      },
+      {
+        point: 'building-massing',
+        progress: 0.62,
+        phase: 'building-massing',
+        assert(qa) {
+          expect(qa.buildingMassingProgress).toBeGreaterThan(0);
+          expect(qa.buildingMassingProgress).toBeLessThan(1);
+          expect(qa.buildingDissolveProgress).toBe(0);
+          expect(qa.qa.layers.buildings.count).toBeGreaterThan(0);
+        }
+      },
+      {
+        point: 'building-dissolve',
+        progress: 0.88,
+        phase: 'building-dissolve',
+        assert(qa) {
+          expect(qa.buildingMassingProgress).toBe(1);
+          expect(qa.buildingDissolveProgress).toBeGreaterThan(0);
+          expect(qa.qa.layers.buildings.count).toBeGreaterThan(0);
+          expect(qa.qa.layers.route.visible).toBe(true);
+        }
+      }
+    ];
+
+    const phaseEvidence = [];
+    for (const capture of timelineCaptures) {
+      await setEmergenceProgress(page, capture.progress);
+      await expect
+        .poll(async () => page.evaluate(() => window.__threeDebug__?.phase))
+        .toBe(capture.phase);
+      const qa = await exportVisualQa(page, fixture, capture.point);
+      const screenshot = await page.screenshot({
+        animations: 'disabled',
+        caret: 'hide',
+        scale: 'css',
+        clip: visualRoiFor(capture.point)
+      });
+      await attachVisualEvidence(testInfo, {
+        fixture,
+        capturePoint: capture.point,
+        qa,
+        screenshot
+      });
+      phaseEvidence.push({
+        point: capture.point,
+        phase: qa.phase,
+        foundationProgress: qa.foundationProgress,
+        carvingProgress: qa.carvingProgress,
+        routeDrawProgress: qa.routeDrawProgress,
+        buildingMassingProgress: qa.buildingMassingProgress,
+        buildingDissolveProgress: qa.buildingDissolveProgress,
+        routeYellowPixelRatio: qa.visual.routeYellowPixelRatio
+      });
+      expect(qa.phase).toBe(capture.phase);
+      expect(qa.qa.version).toBe(1);
+      expect(qa.qa.geometry.zFightingRisk).toBeLessThanOrEqual(0.01);
+      capture.assert(qa);
+    }
+
+    await finishFrozenEmergence(page);
+    await focusFrozenRoute(page, 'day-river-route-0');
+    const routeFocus = await exportVisualQa(page, fixture, 'route-focus');
+    await attachVisualEvidence(testInfo, {
+      fixture,
+      capturePoint: 'route-focus',
+      qa: routeFocus,
+      screenshot: await page.screenshot({
+        animations: 'disabled',
+        caret: 'hide',
+        scale: 'css',
+        clip: visualRoiFor('route-focus')
+      })
+    });
+    phaseEvidence.push({
+      point: 'route-focus',
+      phase: routeFocus.phase,
+      cameraMode: routeFocus.camera.mode,
+      routeYellowPixelRatio: routeFocus.visual.routeYellowPixelRatio
+    });
+    await testInfo.attach('river-bridge-timeline-stage-summary.json', {
+      body: JSON.stringify(phaseEvidence, null, 2),
+      contentType: 'application/json'
+    });
+
+    expect(routeFocus.phase).toBe('steady');
+    expect(routeFocus.camera.mode).toBe('route-focus');
+    expect(routeFocus.qa.layers.route.visible).toBe(true);
+    expect(routeFocus.visual.readable).toBe(true);
+    expect(routeFocus.visual.routeYellowPixelRatio).toBeGreaterThanOrEqual(
+      ROUTE_YELLOW_PIXEL_RATIO_MIN
+    );
+  });
 
   test('river-bridge route remains readable after short camera interaction', async ({
     page

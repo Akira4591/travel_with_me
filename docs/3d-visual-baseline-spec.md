@@ -160,3 +160,5 @@ The inspect-view gate validates the close-camera state directly: `micro-street` 
 The water-pixel gate validates `river-bridge` as a rendered image, not only as mesh counts. It samples the WebGL ROI for a blue-grey water signal and combines that with the carved-channel depth metric. This blocks regressions where attributable water data exists but the screen falls back to terrain-colored blank space.
 
 The contextual-route gate adds `old-street` and `landmark-pilot` fixtures. `old-street` verifies narrow storefront context does not hide the industrial safety-yellow route. `landmark-pilot` keeps landmark provenance and placeholder metadata in the scene contract while blocking route unreadability before true restoration is allowed.
+
+The timeline-stage gate freezes the emergence animation in test mode and captures `river-bridge` at foundation rise, carved geography, route highlight, building massing, building dissolve, and route focus. Each checkpoint attaches ROI PNG evidence and QA JSON so the accepted 4-second generation sequence can be reviewed without relying on manual timing.

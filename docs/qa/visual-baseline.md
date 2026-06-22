@@ -104,6 +104,7 @@ Default behavior:
   `buildingDetailAlphaAverage` deltas;
 - asserts `micro-street` inspect view readability with close-camera y clamp, route visibility, and building context;
 - asserts `old-street` and `landmark-pilot` route readability above contextual buildings and landmark metadata;
+- captures the `river-bridge` generation timeline at foundation, carved geography, route highlight, building massing, building dissolve, and route-focus checkpoints;
 - runs a 30-second `river-bridge` camera stress subset and samples route readability plus z-fighting risk;
 - runs a 30-second `micro-street` dense-building camera stress subset and samples route readability plus z-fighting risk;
 - runs a 30-second `hiking-terrain` terrain camera stress subset and samples route readability plus z-fighting risk;
@@ -196,3 +197,12 @@ Current blocking `old-street` / `landmark-pilot` contextual route metrics:
 - `landmark-pilot` must retain at least one attributable landmark record;
 - `buildingBaseTerrainErrorP95 <= 0.25`;
 - `zFightingRisk <= 0.01`.
+
+Current blocking `river-bridge` timeline stage metrics:
+
+- `foundation-rise` must remain in `slab-rise` with partial `foundationProgress`, no route draw, and no building massing;
+- `carved-geography` must remain in `water-carve`, expose water and road layers, and keep carved-channel depth above the fixture threshold;
+- `route-highlight` must remain in `route-highlight`, expose route layer diagnostics, and have route draw progress `>= 0.95`;
+- `building-massing` must remain in `building-massing`, expose partial building massing progress, and keep dissolve progress at `0`;
+- `building-dissolve` must remain in `building-dissolve`, expose completed massing plus active dissolve progress;
+- `route-focus` must finish emergence, enter `camera.mode === "route-focus"`, and retain `routeYellowPixelRatio >= 0.00008`.
