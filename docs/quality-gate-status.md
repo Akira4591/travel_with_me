@@ -19,7 +19,7 @@ Commands run on 2026-06-23:
 | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm.cmd run check`                                                  | Passed                                                                                                                                 |
 | `npm.cmd test`                                                       | Passed: 30 files, 146 tests                                                                                                            |
-| `npm.cmd run check:encoding`                                         | Passed: 310 visible source/doc/test files scanned                                                                                      |
+| `npm.cmd run check:encoding`                                         | Passed: 312 visible source/doc/test files scanned                                                                                      |
 | `npm.cmd run check:architecture`                                     | Passed: 37 render files scanned; renderer/provider boundary enforced                                                                   |
 | `npm.cmd run check:provenance`                                       | Passed: 42 scene fixture files scanned                                                                                                 |
 | `npm.cmd run check:landmarks`                                        | Passed: 1 landmark record scanned with allowlist, integrity, LOD, and budget validation                                                |
@@ -30,6 +30,7 @@ Commands run on 2026-06-23:
 | Beta water/bridge fixture expansion                                  | Passed: `river-bridge` and `wide-river-bridges` water/bridge ROI gates                                                                 |
 | targeted 3D/2D gate E2E                                              | Passed: nonblank 3D, geo assets, WASD camera, geometry P95, 2D fallback, 60s no-auto-exit                                              |
 | tracked-source secret scan for known AMap/DeepSeek patterns          | Passed: no matches in tracked source                                                                                                   |
+| `npm.cmd run gate50:review -- --skip-visual --skip-smoke`            | Passed: validates gate 50 review command wiring, static gates, unit tests, and encoding gate                                           |
 | in-app browser 2D/3D visual check                                    | Passed: 2D marker selection enters bounded 3D; QA passed; route gray outline is 0; initial/loading/idle camera uses one overview orbit |
 | manual 3D screenshot review                                          | Pending after VQ0 implementation; previous screenshot scored 1/10 before bounded work-area and route-layer repair                      |
 
@@ -91,7 +92,7 @@ VQ0 target state:
 |  23 | Roads render as muted terrain-following ribbons                                                                     | `geo-asset-renderer.test.js` and water/road E2E                                |
 |  24 | 3D overview can enter and exit without blanking                                                                     | `desktop can enter and exit nonblank 3D map view`                              |
 |  25 | 3D mode never auto-exits after 60 seconds                                                                           | `desktop 3D stays open after 60 seconds idle`                                  |
-|  26 | No visible UI mojibake in maintained source, tests, and docs                                                        | `npm.cmd run check:encoding`: 310 files scanned                                |
+|  26 | No visible UI mojibake in maintained source, tests, and docs                                                        | `npm.cmd run check:encoding`: 312 files scanned                                |
 |  27 | Accepted 4s generation timing replaces the old `<= 3s` detail budget                                                | `generation-timing.js` and `generation-timeline.test.js`                       |
 |  28 | Route clearance P95 is within 0.3m above terrain/road surface                                                       | `route-guidance-renderer.test.js` and WASD 3D E2E geometry metrics             |
 |  29 | Building base terrain error P95 is <= 0.25m in seeded scenes                                                        | `window.__threeDebug__.geometryMetrics` and WASD 3D E2E                        |
@@ -118,9 +119,9 @@ VQ0 target state:
 
 ## Partial Gates
 
-|   # | Gate                                                                 | Evidence                                                                                                                                                                                                               | Required fix                                                                                       |
-| --: | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-|  50 | Live 3D composition reaches product-quality bounded diorama standard | VQ0 code path implemented; in-app browser QA passed with high-angle bounded overview, narrow yellow route, and no gray route outline; final user screenshot review has not yet accepted the new bounded 3D composition | Run user manual visual review on the new VQ0 output, then promote the gate to complete if accepted |
+|   # | Gate                                                                 | Evidence                                                                                                                                                                                                               | Required fix                                                                                                   |
+| --: | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+|  50 | Live 3D composition reaches product-quality bounded diorama standard | VQ0 code path implemented; in-app browser QA passed with high-angle bounded overview, narrow yellow route, and no gray route outline; final user screenshot review has not yet accepted the new bounded 3D composition | Run `npm.cmd run gate50:review`, complete `docs/qa/gate50-manual-review.md`, then promote the gate if accepted |
 
 ## Not Complete Gates
 
@@ -171,7 +172,8 @@ Boundary:
 ## Immediate Fix Order
 
 1. Complete VQ0 manual acceptance: **blocking**
-   - review the new bounded 3D output after route de-gray, red-pin selection, fixed square work area, outside dimming, and VQ0 QA fields;
+   - run `npm.cmd run gate50:review`;
+   - complete `docs/qa/gate50-manual-review.md` against the new bounded 3D output after route de-gray, red-pin selection, fixed square work area, outside dimming, and VQ0 QA fields;
    - if accepted, promote gate 50 to complete;
    - if rejected, use the screenshot as the next visual-defect source of truth.
 2. Add deterministic visual proof infrastructure before more visual fixes: **first Alpha subset implemented**

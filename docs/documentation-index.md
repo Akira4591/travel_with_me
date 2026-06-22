@@ -21,6 +21,7 @@ This is the current maintained documentation set. Do not add a new document when
 | `docs/testing/live-provider.md`           | opt-in live-provider smoke policy and commands                      |
 | `docs/qa/visual-baseline.md`              | deterministic 3D ROI screenshot baseline plan and failure artifacts |
 | `docs/qa/debug-contract.md`               | `window.__threeDebug__.qa` schema, metric ownership and thresholds  |
+| `docs/qa/gate50-manual-review.md`         | gate 50 automated evidence command and manual visual acceptance     |
 | `docs/development-workflow-foundation.md` | local tools, environment preparation and engineering workflow       |
 | `docs/release-playbook.md`                | release checks, smoke validation, rollback and monitoring           |
 | `docs/quality-gate-status.md`             | current quality gate verification ledger and remaining gaps         |

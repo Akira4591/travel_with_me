@@ -18,6 +18,7 @@
     "test:e2e": "node scripts/run-e2e-smoke.mjs",
     "test:e2e:visual": "playwright test tests/e2e/visual-baseline.spec.js --project=chromium",
     "test:e2e:live-provider": "node scripts/run-live-provider-smoke.mjs",
+    "gate50:review": "node scripts/run-gate50-review.mjs",
     "test:guide-import": "node scripts/evaluate-guide-import.mjs",
     "test:watch": "vitest",
     "prepare": "husky"

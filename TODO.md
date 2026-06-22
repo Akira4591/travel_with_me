@@ -25,7 +25,7 @@ Latest verified baseline from 2026-06-23. Detailed gate accounting is maintained
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `npm.cmd run check`               | Passed                                                                                                                               |
 | `npm.cmd test`                    | Passed: 30 files, 146 tests                                                                                                          |
-| `npm.cmd run check:encoding`      | Passed: 310 visible source/doc/test files scanned                                                                                    |
+| `npm.cmd run check:encoding`      | Passed: 312 visible source/doc/test files scanned                                                                                    |
 | Full visual baseline suite        | Passed: 24 local ROI fixture captures/interactions with QA JSON and screenshots in 12.4m                                             |
 | `npm.cmd run check:architecture`  | Passed: 37 render files scanned                                                                                                      |
 | `npm.cmd run check:provenance`    | Passed: 42 scene fixture files scanned                                                                                               |
@@ -58,7 +58,7 @@ VQ0 local visual reset implemented in code:
 
 Remaining VQ0 acceptance item:
 
-- Complete a fresh user manual visual review against the new bounded diorama output and, if accepted, move gate 50 from partial to complete.
+- Run `npm.cmd run gate50:review`, complete `docs/qa/gate50-manual-review.md` against the new bounded diorama output, and if accepted move gate 50 from partial to complete.
 
 Known remaining non-blocking follow-ups after VQ0:
 
@@ -93,8 +93,8 @@ Tasks:
      outside context renderer, visual QA.
    - Acceptance: user selects a 2D point with red pin, 3D builds only the bounded square, outside
      context is dimmed, the first selected-plane lift is uniform-height, gray route outline is gone,
-     yellow route remains readable, full visual baseline QA passes, and manual visual review accepts the
-     new bounded composition.
+     yellow route remains readable, `npm.cmd run gate50:review` passes, and manual visual review
+     accepts the new bounded composition.
    - Rollback: keep 3D disabled with a reason when no work-area center is selected.
 
 1. Build ROI visual baseline harness for `river-bridge`, `micro-street`, and `hiking-terrain`. **Implemented.**
