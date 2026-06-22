@@ -25,13 +25,14 @@ Latest verified baseline from 2026-06-23. Detailed gate accounting is maintained
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `npm.cmd run check`               | Passed                                                                                                                               |
 | `npm.cmd test`                    | Passed: 34 files, 170 tests                                                                                                          |
-| `npm.cmd run check:encoding`      | Passed: 327 visible source/doc/test files scanned                                                                                    |
+| `npm.cmd run check:encoding`      | Passed: 329 visible source/doc/test files scanned                                                                                    |
 | Full visual baseline suite        | Passed: 24 local ROI fixture captures/interactions with QA JSON and screenshots in 13.0m                                             |
 | `npm.cmd run check:architecture`  | Passed: 37 render files scanned                                                                                                      |
 | `npm.cmd run check:provenance`    | Passed: 42 scene fixture files scanned                                                                                               |
 | `npm.cmd run check:landmarks`     | Passed: 1 landmark record scanned                                                                                                    |
 | `npm.cmd run check:ledger`        | Passed: active backlog and quality-gate ledger counts are internally consistent                                                      |
 | Targeted desktop 3D smoke         | Passed: 15 Chromium desktop tests, 13 mobile/desktop-scope skips                                                                     |
+| `npm.cmd run gate50:review`       | Passed: full automated Gate 50 package with static gates, unit tests, encoding, desktop smoke, and 24 Chromium 3D visual baselines   |
 | Tracked-source secret scan        | Passed: no known real AMap/DeepSeek key patterns found                                                                               |
 | In-app browser 2D/3D visual check | Passed: 2D marker selection enters bounded 3D; QA passed; route gray outline is 0; initial/loading/idle view uses one overview orbit |
 | Manual 3D visual review           | Pending after VQ0 implementation; previous screenshot scored 1/10 before bounded work-area and route-layer repair                    |
@@ -68,8 +69,9 @@ VQ0 local visual reset implemented in code:
 Remaining VQ0 acceptance item:
 
 - Run `npm.cmd run gate50:review`, complete `docs/qa/gate50-manual-review.md` against the new bounded diorama output, and if accepted move gate 50 from partial to complete.
-  The latest live browser check confirms blank off-route selections now anchor to a location and preserve
-  `qaPassed=true`, but final product-quality acceptance is still manual.
+  The latest full automated Gate 50 package passed and produced validated local evidence at
+  `output/gate50/full-review.json` plus `output/gate50/full-manual-review.md`, but final
+  product-quality acceptance is still manual.
   For a stronger pre-review evidence packet, run
   `npm.cmd run gate50:review -- --include-stability --stability-runs=5`.
   Use `--evidence-json=output/gate50/evidence.json` when a machine-readable local evidence record is
