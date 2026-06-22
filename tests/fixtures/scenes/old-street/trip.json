@@ -1,0 +1,76 @@
+{
+  "id": "fixture-old-street",
+  "title": "Old Street Fixture",
+  "activeDayId": "day-old-street",
+  "locations": {
+    "gate": {
+      "id": "gate",
+      "name": "Old Gate",
+      "lnglat": [116.387, 39.914],
+      "resolved": true
+    },
+    "noodle": {
+      "id": "noodle",
+      "name": "Noodle Stall",
+      "lnglat": [116.3884, 39.9147],
+      "resolved": true
+    },
+    "bookshop": {
+      "id": "bookshop",
+      "name": "Bookshop Corner",
+      "lnglat": [116.3898, 39.9154],
+      "resolved": true
+    }
+  },
+  "days": [
+    {
+      "id": "day-old-street",
+      "title": "Old street storefront walk",
+      "events": [
+        {
+          "id": "event-gate",
+          "title": "Enter old street",
+          "locationId": "gate",
+          "routeToNext": {
+            "mode": "walking",
+            "geometry": [
+              [116.387, 39.914],
+              [116.3877, 39.91435],
+              [116.3884, 39.9147]
+            ],
+            "distanceMeters": 180,
+            "durationSeconds": 210,
+            "source": "fixture",
+            "fetchedAt": "2026-06-22T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "event-noodle",
+          "title": "Stop by noodle stall",
+          "locationId": "noodle",
+          "routeToNext": {
+            "mode": "walking",
+            "geometry": [
+              [116.3884, 39.9147],
+              [116.3891, 39.91505],
+              [116.3898, 39.9154]
+            ],
+            "distanceMeters": 190,
+            "durationSeconds": 240,
+            "source": "fixture",
+            "fetchedAt": "2026-06-22T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "event-bookshop",
+          "title": "Browse bookshop corner",
+          "locationId": "bookshop"
+        }
+      ]
+    }
+  ],
+  "geoAssetStatus": {
+    "status": "ok",
+    "updatedAt": "2026-06-22T00:00:00.000Z"
+  }
+}

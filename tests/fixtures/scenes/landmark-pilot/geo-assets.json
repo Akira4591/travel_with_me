@@ -1,0 +1,78 @@
+{
+  "buildings": [
+    {
+      "id": "gallery-wing",
+      "locationId": "gallery",
+      "heightMeters": 18,
+      "footprint": [
+        [116.40665, 39.91872],
+        [116.40725, 39.91872],
+        [116.40725, 39.91922],
+        [116.40665, 39.91922]
+      ],
+      "realityClaim": true,
+      "provenance": {
+        "source": "fixture-open-data",
+        "licence": "ODbL-compatible-test",
+        "attribution": "Travel With Me fixture data",
+        "updatedAt": "2026-06-22T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "terrace-service-block",
+      "locationId": "terrace",
+      "heightMeters": 12,
+      "footprint": [
+        [116.40875, 39.91955],
+        [116.40925, 39.91955],
+        [116.40925, 39.91998],
+        [116.40875, 39.91998]
+      ],
+      "realityClaim": true,
+      "provenance": {
+        "source": "fixture-open-data",
+        "licence": "ODbL-compatible-test",
+        "attribution": "Travel With Me fixture data",
+        "updatedAt": "2026-06-22T00:00:00.000Z"
+      }
+    }
+  ],
+  "roads": [
+    {
+      "id": "landmark-perimeter-walk",
+      "kind": "local",
+      "centerline": [
+        [116.405, 39.918],
+        [116.406, 39.91855],
+        [116.407, 39.919],
+        [116.408, 39.91945],
+        [116.409, 39.9198]
+      ],
+      "widthMeters": 5,
+      "realityClaim": true,
+      "provenance": {
+        "source": "fixture-open-data",
+        "licence": "ODbL-compatible-test",
+        "attribution": "Travel With Me fixture data",
+        "updatedAt": "2026-06-22T00:00:00.000Z"
+      }
+    }
+  ],
+  "waterways": [],
+  "bridges": [],
+  "landcover": [],
+  "landmarks": [
+    {
+      "id": "pilot-landmark-placeholder",
+      "lnglat": [116.4079, 39.91925],
+      "modelUrl": "fixture://allowlisted-landmark-placeholder.glb",
+      "realityClaim": true,
+      "provenance": {
+        "source": "fixture-owner-provided",
+        "licence": "fixture-allowlisted-test",
+        "attribution": "Travel With Me fixture landmark placeholder",
+        "updatedAt": "2026-06-22T00:00:00.000Z"
+      }
+    }
+  ]
+}

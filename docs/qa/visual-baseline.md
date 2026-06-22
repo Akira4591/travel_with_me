@@ -26,6 +26,8 @@ The first blocking visual baseline covers:
 | `river-bridge`   | Water carve, bridge deck, route clearance     | `foundation-rise`, `water-road-bridge`, `route-highlight` |
 | `micro-street`   | Dense street readability and building massing | `route-highlight`, `building-massing`, `inspect`          |
 | `hiking-terrain` | Terrain relief and route height cue           | `foundation-rise`, `route-highlight`, `inspect`           |
+| `old-street`     | Narrow storefront street occlusion            | `route-highlight`, `inspect`                              |
+| `landmark-pilot` | Landmark workflow preflight and route clarity | `route-highlight`, `inspect`                              |
 
 Candidate fixture layout:
 
@@ -101,6 +103,7 @@ Default behavior:
 - asserts `micro-street` stepped building dissolve smoothness through bounded
   `buildingDetailAlphaAverage` deltas;
 - asserts `micro-street` inspect view readability with close-camera y clamp, route visibility, and building context;
+- asserts `old-street` and `landmark-pilot` route readability above contextual buildings and landmark metadata;
 - runs a 30-second `river-bridge` camera stress subset and samples route readability plus z-fighting risk;
 - runs a 30-second `micro-street` dense-building camera stress subset and samples route readability plus z-fighting risk;
 - runs a 30-second `hiking-terrain` terrain camera stress subset and samples route readability plus z-fighting risk;
@@ -183,4 +186,13 @@ Current blocking `micro-street` inspect metrics:
 - route and building layers are visible together;
 - `qa.lod.buildingDetailAlphaAverage > 0`;
 - `routeYellowPixelRatio >= 0.00008`;
+- `zFightingRisk <= 0.01`.
+
+Current blocking `old-street` / `landmark-pilot` contextual route metrics:
+
+- route layer must remain visible in structured QA;
+- inspect ROI must retain `routeYellowPixelRatio >= 0.00008`;
+- `old-street` must render at least four contextual building entries;
+- `landmark-pilot` must retain at least one attributable landmark record;
+- `buildingBaseTerrainErrorP95 <= 0.25`;
 - `zFightingRisk <= 0.01`.

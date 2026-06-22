@@ -5,7 +5,7 @@ import path from 'node:path';
 import { normalizeGeoAssets } from '../render/geo-assets.js';
 
 const FIXTURE_ROOT = path.resolve('tests/fixtures/scenes');
-const SCENES = ['river-bridge', 'micro-street', 'hiking-terrain'];
+const SCENES = ['river-bridge', 'micro-street', 'hiking-terrain', 'old-street', 'landmark-pilot'];
 const REQUIRED_FILES = [
   'trip.json',
   'route.json',
@@ -17,7 +17,13 @@ const REQUIRED_FILES = [
 
 describe('3D visual scene fixtures', () => {
   it('provides the first commercial visual baseline scene catalog', () => {
-    expect(SCENES).toEqual(['river-bridge', 'micro-street', 'hiking-terrain']);
+    expect(SCENES).toEqual([
+      'river-bridge',
+      'micro-street',
+      'hiking-terrain',
+      'old-street',
+      'landmark-pilot'
+    ]);
 
     SCENES.forEach(scene => {
       REQUIRED_FILES.forEach(file => {
@@ -39,6 +45,15 @@ describe('3D visual scene fixtures', () => {
     const hikingAssets = normalizeGeoAssets(readFixture('hiking-terrain', 'geo-assets.json'));
     expect(hikingAssets.landcover).toHaveLength(1);
     expect(hikingAssets.roads).toHaveLength(1);
+
+    const oldStreetAssets = normalizeGeoAssets(readFixture('old-street', 'geo-assets.json'));
+    expect(oldStreetAssets.buildings).toHaveLength(4);
+    expect(oldStreetAssets.roads).toHaveLength(1);
+
+    const landmarkAssets = normalizeGeoAssets(readFixture('landmark-pilot', 'geo-assets.json'));
+    expect(landmarkAssets.buildings).toHaveLength(2);
+    expect(landmarkAssets.roads).toHaveLength(1);
+    expect(landmarkAssets.landmarks).toHaveLength(1);
   });
 
   it('defines scenario-specific visual and geometry expectations', () => {
@@ -54,6 +69,12 @@ describe('3D visual scene fixtures', () => {
     const hiking = readFixture('hiking-terrain', 'dem-grid.json');
     const range = flatten(hiking.heights);
     expect(Math.max(...range) - Math.min(...range)).toBeGreaterThanOrEqual(120);
+
+    const oldStreet = readFixture('old-street', 'expectations.json');
+    expect(oldStreet.building.minContextBuildings).toBeGreaterThanOrEqual(4);
+
+    const landmark = readFixture('landmark-pilot', 'expectations.json');
+    expect(landmark.landmark.requiresAllowlistedPlaceholder).toBe(true);
   });
 });
 

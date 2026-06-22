@@ -35,6 +35,7 @@ Maintain five deterministic scene fixtures:
 | `citywalk`       | Flat urban route with roads and context mass | 2D/3D route identity, muted road ribbons, building base consistency |
 | `river-bridge`   | Water and bridge correctness                 | water carve, no terrain blank gap, bridge deck continuity           |
 | `hiking-terrain` | Mountain or hiking relief                    | terrain variance, slope honesty, route height cue                   |
+| `old-street`     | Narrow storefront route readability          | route clarity above dense low-rise storefront context               |
 | `landmark-pilot` | Allowlisted real landmark workflow           | provenance, attribution, fallback when model is unavailable         |
 
 Fixtures must be local and deterministic. Live provider calls are not allowed in baseline tests.
@@ -45,6 +46,8 @@ The first fixture catalog is now stored under:
 tests/fixtures/scenes/river-bridge/
 tests/fixtures/scenes/micro-street/
 tests/fixtures/scenes/hiking-terrain/
+tests/fixtures/scenes/old-street/
+tests/fixtures/scenes/landmark-pilot/
 ```
 
 Each fixture uses the same file contract:
@@ -155,3 +158,5 @@ The vegetation budget gate records per-landcover-area template counts and fails 
 The inspect-view gate validates the close-camera state directly: `micro-street` must enter `camera.mode === "inspect"`, keep terrain-relative camera clearance inside profile bounds, keep route and building context visible together, and retain the industrial safety-yellow route signal. This closes the first deterministic inspect-state visual review without requiring committed golden screenshots.
 
 The water-pixel gate validates `river-bridge` as a rendered image, not only as mesh counts. It samples the WebGL ROI for a blue-grey water signal and combines that with the carved-channel depth metric. This blocks regressions where attributable water data exists but the screen falls back to terrain-colored blank space.
+
+The contextual-route gate adds `old-street` and `landmark-pilot` fixtures. `old-street` verifies narrow storefront context does not hide the industrial safety-yellow route. `landmark-pilot` keeps landmark provenance and placeholder metadata in the scene contract while blocking route unreadability before true restoration is allowed.

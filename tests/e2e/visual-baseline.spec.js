@@ -66,6 +66,19 @@ const CAPTURES = [
   }
 ];
 
+const ROUTE_READABILITY_SCENES = [
+  {
+    scene: 'old-street',
+    minBuildings: 4,
+    minLandmarks: 0
+  },
+  {
+    scene: 'landmark-pilot',
+    minBuildings: 2,
+    minLandmarks: 1
+  }
+];
+
 test.describe('@visual-roi desktop 3D visual baseline harness', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
@@ -457,6 +470,44 @@ test.describe('@visual-roi desktop 3D visual baseline harness', () => {
       ROUTE_YELLOW_PIXEL_RATIO_MIN
     );
   });
+
+  for (const routeScene of ROUTE_READABILITY_SCENES) {
+    test(`${routeScene.scene} route remains readable above contextual layers`, async ({
+      page
+    }, testInfo) => {
+      test.setTimeout(75_000);
+      const fixture = await loadSceneFixture(routeScene.scene);
+      await openVisualFixture(page, fixture);
+      await page.addStyleTag({ path: 'tests/visual/styles/screenshot-normalize.css' });
+      const canvas = page.locator('#map-3d canvas');
+      await canvas.hover();
+
+      await page.mouse.wheel(0, -3200);
+      await page.waitForTimeout(900);
+      const qa = await exportVisualQa(page, fixture, 'route-readability-context');
+
+      await attachVisualEvidence(testInfo, {
+        fixture,
+        capturePoint: 'route-readability-context',
+        qa,
+        screenshot: await page.screenshot({
+          animations: 'disabled',
+          caret: 'hide',
+          scale: 'css',
+          clip: visualRoiFor('inspect')
+        })
+      });
+
+      expect(qa.phase).toBe('steady');
+      expect(qa.qa.layers.route.visible).toBe(true);
+      expect(qa.qa.layers.buildings.count).toBeGreaterThanOrEqual(routeScene.minBuildings);
+      expect(qa.geoAssetCounts.landmarks).toBeGreaterThanOrEqual(routeScene.minLandmarks);
+      expect(qa.visual.readable).toBe(true);
+      expect(qa.visual.routeYellowPixelRatio).toBeGreaterThanOrEqual(ROUTE_YELLOW_PIXEL_RATIO_MIN);
+      expect(qa.qa.geometry.zFightingRisk).toBeLessThanOrEqual(0.01);
+      expect(qa.qa.geometry.buildingBaseTerrainErrorP95).toBeLessThanOrEqual(0.25);
+    });
+  }
 });
 
 async function runCameraStress(page, fixture, { minSamples = 4 } = {}) {

@@ -1,0 +1,99 @@
+{
+  "buildings": [
+    {
+      "id": "gate-row-west",
+      "heightMeters": 9,
+      "footprint": [
+        [116.3868, 39.91385],
+        [116.3872, 39.91385],
+        [116.3872, 39.91416],
+        [116.3868, 39.91416]
+      ],
+      "realityClaim": true,
+      "provenance": {
+        "source": "fixture-open-data",
+        "licence": "ODbL-compatible-test",
+        "attribution": "Travel With Me fixture data",
+        "updatedAt": "2026-06-22T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "gate-row-east",
+      "heightMeters": 8,
+      "footprint": [
+        [116.38725, 39.91413],
+        [116.38762, 39.91413],
+        [116.38762, 39.91443],
+        [116.38725, 39.91443]
+      ],
+      "realityClaim": true,
+      "provenance": {
+        "source": "fixture-open-data",
+        "licence": "ODbL-compatible-test",
+        "attribution": "Travel With Me fixture data",
+        "updatedAt": "2026-06-22T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "noodle-stall-block",
+      "locationId": "noodle",
+      "heightMeters": 6,
+      "footprint": [
+        [116.38818, 39.9145],
+        [116.38855, 39.9145],
+        [116.38855, 39.91486],
+        [116.38818, 39.91486]
+      ],
+      "realityClaim": true,
+      "provenance": {
+        "source": "fixture-open-data",
+        "licence": "ODbL-compatible-test",
+        "attribution": "Travel With Me fixture data",
+        "updatedAt": "2026-06-22T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "bookshop-row",
+      "locationId": "bookshop",
+      "heightMeters": 11,
+      "footprint": [
+        [116.38955, 39.9152],
+        [116.38995, 39.9152],
+        [116.38995, 39.91558],
+        [116.38955, 39.91558]
+      ],
+      "realityClaim": true,
+      "provenance": {
+        "source": "fixture-open-data",
+        "licence": "ODbL-compatible-test",
+        "attribution": "Travel With Me fixture data",
+        "updatedAt": "2026-06-22T00:00:00.000Z"
+      }
+    }
+  ],
+  "roads": [
+    {
+      "id": "old-street-lane",
+      "kind": "path",
+      "centerline": [
+        [116.387, 39.914],
+        [116.3877, 39.91435],
+        [116.3884, 39.9147],
+        [116.3891, 39.91505],
+        [116.3898, 39.9154]
+      ],
+      "widthMeters": 2.4,
+      "realityClaim": true,
+      "provenance": {
+        "source": "fixture-open-data",
+        "licence": "ODbL-compatible-test",
+        "attribution": "Travel With Me fixture data",
+        "updatedAt": "2026-06-22T00:00:00.000Z"
+      }
+    }
+  ],
+  "waterways": [],
+  "bridges": [],
+  "landcover": [],
+  "landmarks": []
+}
