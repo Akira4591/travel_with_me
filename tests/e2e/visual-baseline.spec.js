@@ -12,6 +12,8 @@ import {
 const ASSERT_SCREENSHOTS = process.env.VISUAL_BASELINE_ASSERT === '1';
 const ROUTE_YELLOW_PIXEL_RATIO_MIN = 0.00008;
 const WATER_BLUE_PIXEL_RATIO_MIN = 0.00008;
+const BUILDING_DISSOLVE_ALPHA_STEP_MAX = 0.42;
+const BUILDING_DISSOLVE_ALPHA_DROP_TOLERANCE = 0.03;
 const STRESS_DURATION_MS = 30_000;
 const STRESS_SAMPLE_INTERVAL_MS = 5_000;
 const STRESS_TEST_TIMEOUT_MS = 150_000;
@@ -380,6 +382,79 @@ test.describe('@visual-roi desktop 3D visual baseline harness', () => {
     );
     expect(returned.qa.lod.buildingDetailAlphaAverage).toBeLessThan(
       inspect.qa.lod.buildingDetailAlphaAverage
+    );
+  });
+
+  test('micro-street building dissolve changes smoothly during stepped zoom-in', async ({
+    page
+  }, testInfo) => {
+    test.setTimeout(90_000);
+    const fixture = await loadSceneFixture('micro-street');
+    await openVisualFixture(page, fixture);
+    await page.addStyleTag({ path: 'tests/visual/styles/screenshot-normalize.css' });
+    const canvas = page.locator('#map-3d canvas');
+    await canvas.hover();
+
+    await page.mouse.wheel(0, 2800);
+    await page.waitForTimeout(900);
+    const samples = [await exportVisualQa(page, fixture, 'building-dissolve-step-0')];
+
+    for (let step = 1; step <= 6; step += 1) {
+      await page.mouse.wheel(0, -760);
+      await page.waitForTimeout(520);
+      samples.push(await exportVisualQa(page, fixture, `building-dissolve-step-${step}`));
+    }
+
+    const alphaValues = samples.map(sample => sample.qa.lod.buildingDetailAlphaAverage);
+    const alphaDeltas = alphaValues
+      .slice(1)
+      .map((value, index) => Number((value - alphaValues[index]).toFixed(5)));
+    const maxPositiveDelta = Math.max(...alphaDeltas);
+    const maxDrop = Math.max(0, ...alphaDeltas.map(delta => -delta));
+    const finalQa = samples.at(-1);
+
+    await testInfo.attach('micro-street-building-dissolve-samples.json', {
+      body: JSON.stringify(
+        {
+          alphaValues,
+          alphaDeltas,
+          maxPositiveDelta,
+          maxDrop,
+          cameraModes: samples.map(sample => sample.camera.mode),
+          routeYellowPixelRatios: samples.map(sample => sample.visual.routeYellowPixelRatio),
+          zFightingRisks: samples.map(sample => sample.qa.geometry.zFightingRisk)
+        },
+        null,
+        2
+      ),
+      contentType: 'application/json'
+    });
+    await attachVisualEvidence(testInfo, {
+      fixture,
+      capturePoint: 'building-dissolve',
+      qa: finalQa,
+      screenshot: await page.screenshot({
+        animations: 'disabled',
+        caret: 'hide',
+        scale: 'css',
+        clip: visualRoiFor('inspect')
+      })
+    });
+
+    expect(samples.every(sample => sample.phase === 'steady')).toBe(true);
+    expect(samples.every(sample => sample.qa.layers.route.visible)).toBe(true);
+    expect(samples.every(sample => sample.qa.layers.buildings.count > 0)).toBe(true);
+    expect(samples.every(sample => sample.qa.geometry.zFightingRisk <= 0.01)).toBe(true);
+    expect(maxDrop).toBeLessThanOrEqual(BUILDING_DISSOLVE_ALPHA_DROP_TOLERANCE);
+    expect(maxPositiveDelta).toBeLessThanOrEqual(BUILDING_DISSOLVE_ALPHA_STEP_MAX);
+    expect(finalQa.qa.lod.buildingEntryCount).toBeGreaterThan(0);
+    expect(finalQa.qa.lod.buildingDetailAlphaAverage).toBeGreaterThan(alphaValues[0] + 0.2);
+    expect(finalQa.qa.lod.buildingDetailRatio).toBeGreaterThanOrEqual(
+      samples[0].qa.lod.buildingDetailRatio
+    );
+    expect(finalQa.visual.readable).toBe(true);
+    expect(finalQa.visual.routeYellowPixelRatio).toBeGreaterThanOrEqual(
+      ROUTE_YELLOW_PIXEL_RATIO_MIN
     );
   });
 });

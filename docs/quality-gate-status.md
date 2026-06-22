@@ -18,13 +18,13 @@ Commands run on 2026-06-22:
 | Check                                                                | Result                                                                                    |
 | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | `npm.cmd run check`                                                  | Passed                                                                                    |
-| `npm.cmd test`                                                       | Passed: 27 files, 131 tests                                                               |
+| `npm.cmd test`                                                       | Passed: 27 files, 133 tests                                                               |
 | `npm.cmd run check:encoding`                                         | Passed: 279 visible source/doc/test files scanned                                         |
 | `npm.cmd run check:architecture`                                     | Passed: 34 render files scanned; renderer/provider boundary enforced                      |
 | `npm.cmd run check:provenance`                                       | Passed: 18 scene fixture files scanned                                                    |
 | `npx.cmd playwright test tests/e2e/smoke.spec.js --project=chromium` | Passed: 12 desktop tests, 1 mobile-only test skipped in Chromium                          |
 | `npx.cmd playwright test tests/e2e/live-provider.spec.js`            | Passed by skip: live provider smoke is explicit opt-in only                               |
-| `npm.cmd run test:e2e:visual`                                        | Passed: 9 local ROI fixture captures/interactions with QA JSON and screenshots            |
+| `npm.cmd run test:e2e:visual`                                        | Passed: 10 local ROI fixture captures/interactions with QA JSON and screenshots           |
 | targeted 3D/2D gate E2E                                              | Passed: nonblank 3D, geo assets, WASD camera, geometry P95, 2D fallback, 60s no-auto-exit |
 | tracked-source secret scan for known AMap/DeepSeek patterns          | Passed: no matches in tracked source                                                      |
 | in-app browser 2D/3D visual check                                    | Passed: 2D AMap provider loaded, 3D enters, canvas visible, 3D DOM metrics populated      |
@@ -33,10 +33,10 @@ Commands run on 2026-06-22:
 
 | Status       | Count | Meaning                                                                                               |
 | ------------ | ----: | ----------------------------------------------------------------------------------------------------- |
-| Complete     |    40 | Implemented and covered by automated evidence or current browser verification                         |
+| Complete     |    41 | Implemented and covered by automated evidence or current browser verification                         |
 | Partial      |     1 | Implemented or directionally present, but missing a dedicated gate, full scenario, or visual baseline |
 | Not complete |     4 | Not implemented, not verified, or contradicted by current evidence                                    |
-| Total        |    45 | Current tracked quality gates                                                                         |
+| Total        |    46 | Current tracked quality gates                                                                         |
 
 ## Completed Gates
 
@@ -82,22 +82,22 @@ Commands run on 2026-06-22:
 |  38 | Micro-street inspect close view is readable with terrain-relative y clamp        | `micro-street inspect view remains readable...` visual E2E          |
 |  39 | Waterways visibly carve downward or sit in a depressed channel                   | `terrainCarvingDepthP50` visual E2E gate                            |
 |  40 | Attributable water renders blue-grey water pixels instead of blank terrain       | `waterBluePixelRatio` visual E2E gate                               |
+|  41 | Close view building dissolve has no popping                                      | `micro-street building dissolve changes smoothly...` visual E2E     |
 
 ## Partial Gates
 
 |   # | Gate                                                                     | Current status                                       | Missing work                                                        |
 | --: | ------------------------------------------------------------------------ | ---------------------------------------------------- | ------------------------------------------------------------------- |
-|  35 | Close view building dissolve has no popping                              | LOD response gate exists                             | Add close-view screenshot/video no-pop gate                         |
-|  36 | Route guidance remains readable above all geographic and building layers | Dense building stress gate exists for `micro-street` | Extend occlusion/readability gates to old-street and landmark cases |
+|  42 | Route guidance remains readable above all geographic and building layers | Dense building stress gate exists for `micro-street` | Extend occlusion/readability gates to old-street and landmark cases |
 
 ## Not Complete Gates
 
 |   # | Gate                                                                                                                | Reason                                                                                                     |
 | --: | ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-|  39 | Timeline screenshot gates capture foundation, carved geography, route highlight, massing, dissolve, and route focus | E2E checks behavior, but no maintained screenshot baseline set exists.                                     |
-|  40 | City/scenic/hiking scenes each pass scenario-specific terrain precision review                                      | Terrain modes exist; scenario visual baselines are not complete.                                           |
-|  41 | Mountain, old-street storefront, and landmark route screenshots pass overview and inspect review                    | No maintained screenshot set for these three scenes.                                                       |
-|  42 | Landmark true-restoration pipeline is release-gated                                                                 | Landmark records are retained, but remote model allowlist/content validation/optimization is not complete. |
+|  43 | Timeline screenshot gates capture foundation, carved geography, route highlight, massing, dissolve, and route focus | E2E checks behavior, but no maintained screenshot baseline set exists.                                     |
+|  44 | City/scenic/hiking scenes each pass scenario-specific terrain precision review                                      | Terrain modes exist; scenario visual baselines are not complete.                                           |
+|  45 | Mountain, old-street storefront, and landmark route screenshots pass overview and inspect review                    | No maintained screenshot set for these three scenes.                                                       |
+|  46 | Landmark true-restoration pipeline is release-gated                                                                 | Landmark records are retained, but remote model allowlist/content validation/optimization is not complete. |
 
 ## Immediate Fix Order
 
@@ -116,10 +116,11 @@ Commands run on 2026-06-22:
    - `routeGroundClearanceP95`;
    - `zFightingRisk`;
    - `bridgePierCount === 0` when no pier/support provenance exists.
-4. Add P3-adjacent building LOD response gate. **implemented for micro-street near/far distance**
+4. Add P3-adjacent building LOD response and no-pop gates. **implemented for micro-street**
    - `qa.lod.buildingDetailAlphaAverage`;
    - `qa.lod.buildingDetailRatio`;
    - `qa.lod.buildingDistanceP50`;
-   - near/far zoom interaction evidence.
+   - near/far zoom interaction evidence;
+   - stepped zoom-in evidence with bounded alpha deltas.
 5. Continue P3 building massing/dissolve modularization and inspect-camera visual review after more P2 fixture shapes are calibrated.
 6. Add 30-second P2 camera stress gate for route readability and z-fighting. **implemented for river-bridge and micro-street**

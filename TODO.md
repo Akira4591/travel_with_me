@@ -23,9 +23,9 @@ Latest verified baseline from 2026-06-22. Detailed gate accounting is maintained
 | Gate                                                                 | Result                                                                          |
 | -------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | `npm.cmd run check`                                                  | Passed                                                                          |
-| `npm.cmd test`                                                       | Passed: 27 files, 131 tests                                                     |
+| `npm.cmd test`                                                       | Passed: 27 files, 133 tests                                                     |
 | `npm.cmd run check:encoding`                                         | Passed: 279 visible source/doc/test files scanned                               |
-| `npm.cmd run test:e2e:visual`                                        | Passed: 9 local ROI fixture captures/interactions with QA JSON and screenshots  |
+| `npm.cmd run test:e2e:visual`                                        | Passed: 10 local ROI fixture captures/interactions with QA JSON and screenshots |
 | `npm.cmd run check:architecture`                                     | Passed: 34 render files scanned                                                 |
 | `npm.cmd run check:provenance`                                       | Passed: 18 scene fixture files scanned                                          |
 | `npx.cmd playwright test tests/e2e/smoke.spec.js --project=chromium` | Passed: 12 desktop tests, 1 mobile-only test skipped in Chromium                |
@@ -36,16 +36,16 @@ Quality gate count from `docs/quality-gate-status.md`:
 
 | Status       | Count |
 | ------------ | ----: |
-| Complete     |    40 |
+| Complete     |    41 |
 | Partial      |     1 |
 | Not complete |     4 |
-| Total        |    45 |
+| Total        |    46 |
 
 Known remaining gaps:
 
 - Add maintained screenshot baselines for foundation, carved water, route highlight, building massing, building dissolve, route focus, and inspect.
 - Add city/scenic/hiking/old-street/landmark scenario visual baselines.
-- Add ROI screenshot gates and structured QA snapshots for the first three scene fixtures.
+- Extend ROI screenshot gates from the first three scene fixtures to old-street and landmark cases.
 
 Next-stage deep-research decision:
 
@@ -95,7 +95,7 @@ Next Beta work:
 
 - Calibrate water coverage and bridge continuity against additional river/bridge fixture shapes.
 - Calibrate the new `routeYellowPixelRatio` ROI metric beyond the initial `>= 0.00008` gate.
-- Extend the new `qa.lod` building near/far gate from `micro-street` to old-street and landmark-pilot fixtures after those fixtures exist.
+- Extend the new `qa.lod` building near/far and stepped no-pop gates from `micro-street` to old-street and landmark-pilot fixtures after those fixtures exist.
 - Extend vegetation budget work from per-area density caps to chunking/frustum-culling performance telemetry.
 
 ## P0: 3D Correctness Floor
@@ -204,7 +204,7 @@ Tasks:
 QA:
 
 - building base terrain error P95 <= 0.25m in seeded scenes
-- LOD transition has no visible pop or flicker; current `micro-street` gate already proves near/far detail alpha response, but not full no-pop video review
+- LOD transition has no visible pop or flicker; current `micro-street` gates prove near/far detail response and stepped no-pop alpha continuity
 - fallback buildings are deterministic across reloads
 - route guidance remains readable above building context
 

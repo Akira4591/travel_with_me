@@ -98,6 +98,8 @@ Default behavior:
 - asserts `river-bridge` P2 water/bridge/route metrics;
 - asserts `river-bridge` water ROI blue-pixel signal so attributable water cannot regress to terrain-colored blank space;
 - asserts `micro-street` near/far building LOD response through `qa.lod` metrics;
+- asserts `micro-street` stepped building dissolve smoothness through bounded
+  `buildingDetailAlphaAverage` deltas;
 - asserts `micro-street` inspect view readability with close-camera y clamp, route visibility, and building context;
 - runs a 30-second `river-bridge` camera stress subset and samples route readability plus z-fighting risk;
 - runs a 30-second `micro-street` dense-building camera stress subset and samples route readability plus z-fighting risk;
@@ -163,6 +165,16 @@ Current blocking `micro-street` LOD metrics:
 - inspect-distance `buildingDetailAlphaAverage` must be greater than overview-distance `buildingDetailAlphaAverage`;
 - returning to overview distance must reduce `buildingDetailAlphaAverage`;
 - inspect-distance `buildingDetailRatio` must not regress below overview-distance `buildingDetailRatio`.
+
+Current blocking `micro-street` building dissolve smoothness metrics:
+
+- seven stepped zoom samples must remain in `steady` phase;
+- every sample must keep route and building layers visible in structured QA;
+- sampled `zFightingRisk` must remain `<= 0.01`;
+- `buildingDetailAlphaAverage` may not drop by more than `0.03` between adjacent samples;
+- adjacent positive `buildingDetailAlphaAverage` delta must remain `<= 0.42`;
+- final `buildingDetailAlphaAverage` must increase by at least `0.20` versus the first sample;
+- final inspect ROI must retain `routeYellowPixelRatio >= 0.00008`.
 
 Current blocking `micro-street` inspect metrics:
 
