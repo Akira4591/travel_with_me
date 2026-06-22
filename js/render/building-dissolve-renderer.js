@@ -1,5 +1,8 @@
 const BUILDING_DETAIL_NEAR_DISTANCE = 260;
 const BUILDING_DETAIL_FAR_DISTANCE = 760;
+const BUILDING_DETAIL_HYSTERESIS_DISTANCE = 18;
+const DETAIL_HOLD_ALPHA = 0.5;
+const MASSING_HOLD_ALPHA = 0.35;
 
 export function updateBuildingLod(diorama) {
   if (!diorama?.buildingLodEntries?.length || !diorama.camera) return;
@@ -12,7 +15,8 @@ export function updateBuildingLod(diorama) {
   for (const entry of diorama.buildingLodEntries) {
     const distance = diorama.camera.position.distanceTo(entry.center);
     distances.push(distance);
-    const target = getBuildingDetailAlpha(distance) * buildingDissolve;
+    const target =
+      getBuildingDetailAlphaWithHysteresis(distance, entry.detailAlpha) * buildingDissolve;
     entry.detailAlpha += (target - entry.detailAlpha) * 0.14;
     const detailAlpha = clamp(entry.detailAlpha, 0, 1);
     const lowAlpha = 1 - detailAlpha * 0.72;
@@ -78,6 +82,17 @@ export function getBuildingDetailAlpha(distance) {
     (BUILDING_DETAIL_FAR_DISTANCE - BUILDING_DETAIL_NEAR_DISTANCE);
   const farProgress = smoothstep(clamp(normalized, 0, 1));
   return 1 - farProgress;
+}
+
+export function getBuildingDetailAlphaWithHysteresis(distance, previousAlpha = 0) {
+  const alpha = Number(previousAlpha);
+  const distanceBias =
+    alpha >= DETAIL_HOLD_ALPHA
+      ? -BUILDING_DETAIL_HYSTERESIS_DISTANCE
+      : alpha <= MASSING_HOLD_ALPHA
+        ? BUILDING_DETAIL_HYSTERESIS_DISTANCE
+        : 0;
+  return getBuildingDetailAlpha(Number(distance) + distanceBias);
 }
 
 function smoothstep(t) {

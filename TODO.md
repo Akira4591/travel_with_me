@@ -24,7 +24,7 @@ Latest verified baseline from 2026-06-23. Detailed gate accounting is maintained
 | Gate                              | Result                                                                                                                               |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `npm.cmd run check`               | Passed                                                                                                                               |
-| `npm.cmd test`                    | Passed: 29 files, 142 tests                                                                                                          |
+| `npm.cmd test`                    | Passed: 29 files, 143 tests                                                                                                          |
 | `npm.cmd run check:encoding`      | Passed: 309 visible source/doc/test files scanned                                                                                    |
 | Full visual baseline suite        | Passed: 24 local ROI fixture captures/interactions with QA JSON and screenshots in 12.4m                                             |
 | `npm.cmd run check:architecture`  | Passed: 37 render files scanned                                                                                                      |
@@ -239,7 +239,7 @@ Tasks:
 - Raise deterministic rectangular massing clusters first.
 - Use authoritative footprint extrusion when available.
 - Keep fallback buildings neutral and deterministic.
-- Add continuous massing-to-outline dissolve with distance hysteresis.
+- Add continuous massing-to-outline dissolve with distance hysteresis. **Implemented:** dissolve alpha now uses a tested distance hysteresis band to reduce threshold flicker.
 - Use `InstancedMesh` for repeated fallback massing where practical. **Implemented for fallback low-poly massing.**
 - Align building bases to terrain samples and reject abnormal intersections.
 - Mark fallback buildings as `syntheticMassing=true`; never present them as real exterior models.

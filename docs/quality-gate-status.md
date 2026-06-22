@@ -18,7 +18,7 @@ Commands run on 2026-06-23:
 | Check                                                                | Result                                                                                                                                 |
 | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm.cmd run check`                                                  | Passed                                                                                                                                 |
-| `npm.cmd test`                                                       | Passed: 29 files, 142 tests                                                                                                            |
+| `npm.cmd test`                                                       | Passed: 29 files, 143 tests                                                                                                            |
 | `npm.cmd run check:encoding`                                         | Passed: 309 visible source/doc/test files scanned                                                                                      |
 | `npm.cmd run check:architecture`                                     | Passed: 37 render files scanned; renderer/provider boundary enforced                                                                   |
 | `npm.cmd run check:provenance`                                       | Passed: 42 scene fixture files scanned                                                                                                 |
@@ -67,7 +67,7 @@ VQ0 target state:
 |   # | Gate                                                                                                                | Evidence                                                                       |
 | --: | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
 |   1 | Format, lint, and source style pass                                                                                 | `npm.cmd run check`                                                            |
-|   2 | Unit tests pass                                                                                                     | `npm.cmd test`: 29 files, 142 tests                                            |
+|   2 | Unit tests pass                                                                                                     | `npm.cmd test`: 29 files, 143 tests                                            |
 |   3 | Desktop browser smoke tests pass                                                                                    | Chromium smoke: 12 passed, 1 mobile-only skipped                               |
 |   4 | Tracked source does not contain known real API keys                                                                 | `git grep` secret scan returned no matches                                     |
 |   5 | 2D AMap mode renders real map content after CSP fixes                                                               | Browser and E2E map flow                                                       |
@@ -135,6 +135,7 @@ Self-audit on 2026-06-23 after `codex/next-beta-visual-calibration`:
 - Route-yellow readability thresholds are fixture-owned and missing thresholds fail the visual suite.
 - Water/bridge correctness now covers both the original narrow `river-bridge` fixture and the `wide-river-bridges` polygon-water, multi-span fixture.
 - Building near/far LOD response and stepped no-pop dissolve are gated for `micro-street`, `old-street`, and `landmark-pilot`.
+- Building dissolve now uses a tested distance hysteresis band so threshold-adjacent camera movement preserves the current massing/detail state instead of flickering.
 - Repeated fallback low-poly building massing now uses `InstancedMesh`; old-street rejected footprints degrade to neutral synthetic massing instead of disappearing.
 - Licensed vegetation now reports density, chunk count, visible chunk count, and frustum-culled chunk count through `qa.budgets`.
 - Vegetation frustum telemetry now uses landcover chunk bounds, keeping camera-stress telemetry aligned with actual licensed vegetation areas.
