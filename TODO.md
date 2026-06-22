@@ -25,9 +25,9 @@ Latest verified baseline from 2026-06-23. Detailed gate accounting is maintained
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `npm.cmd run check`               | Passed                                                                                                                               |
 | `npm.cmd test`                    | Passed: 29 files, 142 tests                                                                                                          |
-| `npm.cmd run check:encoding`      | Passed: 307 visible source/doc/test files scanned                                                                                    |
+| `npm.cmd run check:encoding`      | Passed: 309 visible source/doc/test files scanned                                                                                    |
 | Full visual baseline suite        | Passed: 24 local ROI fixture captures/interactions with QA JSON and screenshots in 12.4m                                             |
-| `npm.cmd run check:architecture`  | Passed: 35 render files scanned                                                                                                      |
+| `npm.cmd run check:architecture`  | Passed: 37 render files scanned                                                                                                      |
 | `npm.cmd run check:provenance`    | Passed: 42 scene fixture files scanned                                                                                               |
 | `npm.cmd run check:landmarks`     | Passed: 1 landmark record scanned                                                                                                    |
 | Targeted desktop 3D smoke         | Passed: 12 desktop tests, 1 mobile-only test skipped                                                                                 |
@@ -235,7 +235,7 @@ Goal: buildings provide useful planning context without pretending to be survey-
 
 Tasks:
 
-- Split `building-massing-renderer.js` from `building-dissolve-renderer.js`.
+- Split `building-massing-renderer.js` from `building-dissolve-renderer.js`. **Implemented:** massing geometry and dissolve/LOD state now live in separate renderer modules; `map-3d.js` only orchestrates them.
 - Raise deterministic rectangular massing clusters first.
 - Use authoritative footprint extrusion when available.
 - Keep fallback buildings neutral and deterministic.

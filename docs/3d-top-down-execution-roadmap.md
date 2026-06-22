@@ -357,7 +357,8 @@ Engineering tasks:
 - Add continuous massing-to-outline dissolve based on camera distance with hysteresis and fade.
 - Align building base to terrain samples and reject abnormal intersections.
 - Split the implementation into `building-massing-renderer.js` and
-  `building-dissolve-renderer.js`.
+  `building-dissolve-renderer.js`. Current implementation keeps massing geometry in the former
+  and camera-distance LOD/dissolve state in the latter.
 - Prefer double-layer representation plus reveal/opacity/clip behavior over morph target
   topology conversion.
 

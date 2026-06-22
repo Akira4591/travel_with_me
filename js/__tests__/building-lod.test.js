@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { getBuildingDetailAlpha } from '../render/map-3d.js';
+import { getBuildingDetailAlpha } from '../render/building-dissolve-renderer.js';
 
 describe('getBuildingDetailAlpha', () => {
   it('keeps detailed geometry near the camera and fades it at distance', () => {

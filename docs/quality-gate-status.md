@@ -19,8 +19,8 @@ Commands run on 2026-06-23:
 | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm.cmd run check`                                                  | Passed                                                                                                                                 |
 | `npm.cmd test`                                                       | Passed: 29 files, 142 tests                                                                                                            |
-| `npm.cmd run check:encoding`                                         | Passed: 307 visible source/doc/test files scanned                                                                                      |
-| `npm.cmd run check:architecture`                                     | Passed: 35 render files scanned; renderer/provider boundary enforced                                                                   |
+| `npm.cmd run check:encoding`                                         | Passed: 309 visible source/doc/test files scanned                                                                                      |
+| `npm.cmd run check:architecture`                                     | Passed: 37 render files scanned; renderer/provider boundary enforced                                                                   |
 | `npm.cmd run check:provenance`                                       | Passed: 42 scene fixture files scanned                                                                                                 |
 | `npm.cmd run check:landmarks`                                        | Passed: 1 landmark record scanned with allowlist, integrity, LOD, and budget validation                                                |
 | `npx.cmd playwright test tests/e2e/smoke.spec.js --project=chromium` | Passed: 12 desktop tests, 1 mobile-only test skipped in Chromium                                                                       |
@@ -91,7 +91,7 @@ VQ0 target state:
 |  23 | Roads render as muted terrain-following ribbons                                                                     | `geo-asset-renderer.test.js` and water/road E2E                                |
 |  24 | 3D overview can enter and exit without blanking                                                                     | `desktop can enter and exit nonblank 3D map view`                              |
 |  25 | 3D mode never auto-exits after 60 seconds                                                                           | `desktop 3D stays open after 60 seconds idle`                                  |
-|  26 | No visible UI mojibake in maintained source, tests, and docs                                                        | `npm.cmd run check:encoding`: 300 files scanned                                |
+|  26 | No visible UI mojibake in maintained source, tests, and docs                                                        | `npm.cmd run check:encoding`: 309 files scanned                                |
 |  27 | Accepted 4s generation timing replaces the old `<= 3s` detail budget                                                | `generation-timing.js` and `generation-timeline.test.js`                       |
 |  28 | Route clearance P95 is within 0.3m above terrain/road surface                                                       | `route-guidance-renderer.test.js` and WASD 3D E2E geometry metrics             |
 |  29 | Building base terrain error P95 is <= 0.25m in seeded scenes                                                        | `window.__threeDebug__.geometryMetrics` and WASD 3D E2E                        |
@@ -168,7 +168,7 @@ Self-audit on 2026-06-23 after `codex/next-beta-visual-calibration`:
    - `qa.lod.buildingDistanceP50`;
    - near/far zoom interaction evidence;
    - stepped zoom-in evidence with bounded alpha deltas.
-6. Continue P3 building massing/dissolve modularization after the current visual gates are stable. Inspect-camera visual review and fallback massing instancing are **implemented** for maintained review scenes.
+6. Continue P3 building massing/dissolve modularization after the current visual gates are stable. **Renderer split implemented:** `building-massing-renderer.js` owns geometry and `building-dissolve-renderer.js` owns LOD/dissolve state; inspect-camera visual review and fallback massing instancing are implemented for maintained review scenes.
 7. Add 30-second P2 camera stress gate for route readability and z-fighting. **implemented for river-bridge, micro-street, and hiking-terrain**
 8. Extend route readability above dense contextual layers. **implemented for old-street and landmark-pilot**
 9. Extend vegetation budget work from density caps to chunk/frustum telemetry. **implemented for licensed landcover visual gates**
