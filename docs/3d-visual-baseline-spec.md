@@ -127,6 +127,7 @@ The structured QA payload must expose:
 - `qa.geometry.routeGrayOutlinePixelRatio`
 - `qa.geometry.bridgePierCount`
 - `qa.geometry.workAreaRaisedPixelRatio`
+- `qa.geometry.slabRiseTopHeightVariance`
 - `qa.geometry.outsideDimmedPixelRatio`
 - `qa.budgets.visibleMeshCount`
 - `qa.budgets.triangleCount`
@@ -157,6 +158,7 @@ The local visual reset adds these blocking gates before more terrain/building de
 | `selecting-3d-center`    | 2D click on the 3D button enters selection mode; red pin and square preview are visible. |
 | `work-area-hard-cap`     | `workArea.spanMeters <= 2000` for all 3D builds.                                         |
 | `work-area-raised`       | selected square is visually distinguishable from outside context after foundation rise.  |
+| `uniform-slab-rise`      | selected square top-surface height variance stays within epsilon during `slab-rise`.     |
 | `outside-context-dimmed` | outside-area ROI is lower brightness/detail than the selected square.                    |
 | `route-no-gray-outline`  | `routeGrayOutlinePixelRatio` remains below the calibrated threshold.                     |
 | `route-yellow-primary`   | yellow route pixels remain the dominant route guidance signal.                           |

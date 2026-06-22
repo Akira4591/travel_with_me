@@ -60,9 +60,10 @@ The renderer is replaceable. The data contract is the product asset.
   3. Build terrain foundation
      3.1 local projection
      3.2 bounded square work-area bounds and chunk bbox
-     3.3 absolute-elevation foundation
-     3.4 local relief height grid
-     3.5 sampleHeight as the only vertical authority
+     3.3 uniform selected-plane slab rise
+     3.4 absolute-elevation foundation
+     3.5 local relief height grid
+     3.6 sampleHeight as the only vertical authority
 
   4. Carve and emerge geography
      4.1 water channels depress into the foundation
@@ -183,6 +184,8 @@ Engineering tasks:
 - Add route hash, route length, first point, and last point diagnostics.
 - Unify `sampleHeight(x, z)` as the only vertical authority for route, road, water, bridge, building, marker, and annotation placement.
 - Ensure 3D entry displays a nonblank slab within 1.5s even when DEM or geoAssets fail.
+- Keep `slab-rise` as a uniform-height selected plane. DEM relief, water carve, road flattening,
+  and bridge offsets must wait for later timeline phases.
 - Keep the 3D button visible in the bottom-right map control area.
 - Keep 60s no-auto-exit covered by E2E. User interaction may pause/resume camera orbit, but
   must not switch modes.
@@ -200,6 +203,8 @@ Visual tasks:
 - Remove gray route outline/bed from 3D route guidance.
 - Keep the yellow route stable above terrain, roads, water, and bridges during camera movement.
 - Raise only the selected square work area and dim/simplify outside context.
+- During the first raise, keep the selected square top surface perfectly level; terrain variation
+  appears only in `terrain-refine`.
 - Keep route guidance industrial safety yellow, not gold.
 - Keep the current planning-diorama palette and low-poly terrain style.
 - Use the fixed entry sequence: 2D freeze -> foundation raise -> water carving ->
@@ -210,6 +215,7 @@ QA gates:
 - Work-area span is explicit and `<= 2000m`.
 - Red-pin 2D selection E2E proves center selection and cancellation.
 - The selected square is visibly raised and outside context is dimmed.
+- Slab-rise top-surface height variance stays within epsilon before `terrain-refine`.
 - Route gray-outline pixels remain below the calibrated threshold.
 - Route jitter/z-fighting remains below the calibrated threshold during camera movement.
 - `npm run check`, `npm test`, and the targeted 3D E2E pass.
@@ -506,6 +512,7 @@ VQ reset tasks:
 
 4. Implement outside-context dimming:
    - selected square uses the existing bone-white terrain style;
+   - selected square rises first as a uniform-height plane;
    - outside context is lower brightness and lower detail;
    - edge skirt/fade makes the work-area boundary legible without decorative borders.
 

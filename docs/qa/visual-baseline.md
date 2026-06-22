@@ -32,21 +32,23 @@ Required VQ0 evidence:
 - A 2D map click commits `workArea.center`.
 - The selected 3D square defaults to 800m unless profile rules select 600m, 1000m, or 2000m.
 - `workArea.spanMeters` never exceeds the V1 hard cap of 2000m.
-- The selected square rises with the existing bone-white terrain style.
+- The selected square rises with the existing bone-white terrain style and a uniform top-surface
+  height.
 - Outside context is dimmer or lower detail than the selected square.
 - The 3D route does not render a gray outline or thick gray bed as route guidance.
 - The yellow route remains stable during drag, WASD, and wheel interaction.
 
 Current VQ0 blocking metrics to add:
 
-| Metric                           | Initial target                                                                |
-| -------------------------------- | ----------------------------------------------------------------------------- |
-| `routeGrayOutlinePixelRatio`     | `<= 0.00002` after calibration; start as warning if fixture variance is high. |
-| `routeYellowPixelRatio`          | Remains above the fixture-specific readable threshold.                        |
-| `routePixelVarianceDuringStress` | Does not spike during camera stress sampling.                                 |
-| `workArea.spanMeters`            | `<= 2000`.                                                                    |
-| `workAreaRaisedPixelRatio`       | Above the calibrated selected-square visibility threshold.                    |
-| `outsideDimmedPixelRatio`        | Proves outside context is lower brightness/detail than the selected square.   |
+| Metric                           | Initial target                                                                  |
+| -------------------------------- | ------------------------------------------------------------------------------- |
+| `routeGrayOutlinePixelRatio`     | `<= 0.00002` after calibration; start as warning if fixture variance is high.   |
+| `routeYellowPixelRatio`          | Remains above the fixture-specific readable threshold.                          |
+| `routePixelVarianceDuringStress` | Does not spike during camera stress sampling.                                   |
+| `workArea.spanMeters`            | `<= 2000`.                                                                      |
+| `workAreaRaisedPixelRatio`       | Above the calibrated selected-square visibility threshold.                      |
+| `slabRiseTopHeightVariance`      | `<= 0.01m` during `slab-rise`; terrain variation starts after `terrain-refine`. |
+| `outsideDimmedPixelRatio`        | Proves outside context is lower brightness/detail than the selected square.     |
 
 ## Fixture Scope
 

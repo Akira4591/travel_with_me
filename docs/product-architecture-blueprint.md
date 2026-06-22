@@ -65,7 +65,9 @@ Exit: a desktop user can create/import a trip, resolve locations, inspect real 2
 
 - Require cached 2D route geometry for real-road rendering.
 - Gate terrain claims on elevation confidence.
-- Follow the fixed generation state machine: freeze 2D, derive scene envelope, raise slab, refine terrain, carve water, emerge roads and bridges, highlight route, raise building massing, dissolve building detail.
+- Follow the fixed generation state machine: freeze 2D, derive the selected work-area envelope,
+  raise a uniform-height slab, refine terrain, carve water, emerge roads and bridges, highlight
+  route, raise building massing, dissolve building detail.
 - Add overview/route-focus/inspect camera states, route elevation summaries, and visual gates.
 
 Current D1 execution is evidence-first:

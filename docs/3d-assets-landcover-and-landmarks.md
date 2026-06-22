@@ -45,7 +45,11 @@ The current client uses the selected route's travel mode only to set a visual ro
 
 The terrain never begins as a zero-height sheet. A sampled DEM produces two heights: a compressed absolute-elevation foundation and relative local relief. This gives a flat but elevated district a slight, stable base while keeping a mountain legible without turning the entire scene into a vertical wall. With no DEM, the renderer uses only a low neutral fallback surface and labels the confidence accordingly.
 
-The entry sequence is fixed: first the terrain foundation rises as a clean base; second, local terrain relief, water surfaces, roads, and bridge structures emerge together from that base; last, buildings dissolve in and their close-range detail LOD becomes eligible. Route and water vertices share the terrain reveal progress, which prevents floating route lines and blank river cuts while the terrain is forming. Exit runs the same sequence in reverse.
+The entry sequence is fixed: first the selected terrain foundation rises as a clean, uniform-height
+plane; second, local terrain relief, water surfaces, roads, and bridge structures emerge together
+from that base; last, buildings dissolve in and their close-range detail LOD becomes eligible.
+Route and water vertices share the terrain reveal progress, which prevents floating route lines and
+blank river cuts while the terrain is forming. Exit runs the same sequence in reverse.
 
 Provider-neutral water and bridge input is retained only with provenance:
 
@@ -83,7 +87,9 @@ Candidate data classes to evaluate during provider onboarding: official municipa
 
 - A missing provider must fail closed to neutral templates, not invented detail.
 - Every visible real asset must have `source`, `licence`, `updatedAt`, and `attribution`.
-- Flat-terrain and mountain screenshots must both show a nonzero ground foundation; route and water surfaces may not float during the entry animation.
+- Flat-terrain and mountain screenshots must both show a nonzero ground foundation; the first
+  selected-plane lift must be uniform-height, and route/water surfaces may not float during the
+  entry animation.
 - A waterway/bridge scene must have no terrain-colored gap where an attributable polygon or centerline is present.
 - Vegetation density is capped per terrain chunk and disabled before it harms itinerary/road readability.
 - At least one mountain, an old-street storefront, and a landmark route must pass desktop screenshot review at overview and inspect distances.

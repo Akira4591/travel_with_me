@@ -57,6 +57,7 @@ window.__threeDebug__ = {
       routeGrayOutlinePixelRatio: 0,
       routePixelVarianceDuringStress: 0,
       workAreaRaisedPixelRatio: 0,
+      slabRiseTopHeightVariance: 0,
       outsideDimmedPixelRatio: 0,
       bridgePierCount: 0
     },
@@ -109,6 +110,7 @@ These values are starting points and must be calibrated against local fixture ev
 | `routeGrayOutlinePixelRatio`     | below calibrated threshold; target no visible gray route | VQ0          |
 | `routePixelVarianceDuringStress` | stable during drag/WASD/wheel camera stress              | VQ0          |
 | `workAreaRaisedPixelRatio`       | selected square is visibly raised                        | VQ0          |
+| `slabRiseTopHeightVariance`      | `<= 0.01m` before terrain refine                         | VQ0          |
 | `outsideDimmedPixelRatio`        | outside context is visibly dimmer/lower detail           | VQ0          |
 | `waterCoverageRatio`             | `>= 0.97` for `river-bridge`                             | Sprint Beta  |
 | `bridgeContinuity`               | `>= fixture bridge.minSpanCoverageRatio`                 | Sprint Beta  |
@@ -126,6 +128,8 @@ These values are starting points and must be calibrated against local fixture ev
 - Route readability is the highest rendering priority.
 - The scene envelope source must be explicit. `workArea.source` must be `selected-2d-point` for
   user-entered 3D mode.
+- `slab-rise` exposes a uniform selected-plane lift. Any DEM relief or water/road deformation
+  before `terrain-refine` is a phase-ordering bug.
 - Route guidance must not use gray outline/bed geometry as the primary route visual.
 - Metrics that are not calibrated should start as warnings, not blocking errors.
 - Real-world asset provenance failures block real-world rendering, not synthetic planning context.

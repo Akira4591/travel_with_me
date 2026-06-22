@@ -44,7 +44,7 @@ VQ0 target state:
 - 3D is built from a fixed square work area, not from full route/all-point bounds.
 - Default work area is 800m; profile defaults are urban 600m, scenic 1000m, hiking 2000m.
 - V1 hard cap is 2000m.
-- Selected square raises first; outside context is dimmed or simplified.
+- Selected square raises first as a uniform-height plane; outside context is dimmed or simplified.
 - 3D route guidance has no gray outline/bed and keeps yellow as the only primary route layer.
 - Route pixels remain stable during drag, WASD, and wheel camera stress.
 
@@ -127,6 +127,7 @@ Real landmark model rendering still remains a future P5 feature, but the release
    - keep yellow guidance as the only primary route layer;
    - add 2D red-pin work-area selection;
    - build 3D from a fixed square selected work area;
+   - keep the first selected-plane lift uniform-height;
    - dim/simplify outside context;
    - add no-gray-route, route-stability, work-area-cap, selected-square, and outside-dimming QA.
 2. Add deterministic visual proof infrastructure before more visual fixes: **first Alpha subset implemented**

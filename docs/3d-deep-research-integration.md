@@ -153,10 +153,18 @@ sceneBBox = squareBounds(workArea.center, workArea.spanMeters)
 slabWidth = workArea.spanMeters
 slabDepth = workArea.spanMeters
 slabHeight = clamp(max(localRelief * 0.18, 8m), 8m, 120m)
+slabTopY = uniformFoundationHeight
 ```
 
 Route/POI/geoAsset bounds are now used for filtering, clipping, labels, and warnings. They no
 longer decide the 3D scene size.
+
+The `slab-rise` phase must raise the selected square as a uniform plane. Every top-surface vertex
+uses the same `slabTopY`; DEM relief, street-level micro variation, water depression, road
+flattening, and bridge deck offsets are forbidden during this phase. Elevation only becomes visible
+after `terrain-refine`, then water, roads, bridges, route, and buildings resolve in their own named
+phases. This keeps the first user-visible action readable: the local 3D work area rises as one
+coherent piece before it melts into terrain and semantic layers.
 
 Flat terrain is still derived from elevation facts when available. It must not become random decorative noise. For flat cities, preserve weak real variation:
 

@@ -50,7 +50,7 @@ Current blocking visual-quality reset:
 - Add 2D red-pin selection before 3D generation.
 - Build 3D from a fixed square work area centered on the selected 2D point.
 - Default work area to 800m, use 600m/1000m/2000m for urban/scenic/hiking profiles, and hard-cap at 2000m.
-- Raise only the selected square and dim/simplify outside context.
+- Raise only the selected square as a uniform-height plane, then dim/simplify outside context.
 - Add visual QA for no gray route outline, route stability, bounded span, selected-square visibility, and outside dimming.
 
 Known remaining non-blocking follow-ups after VQ0:
@@ -85,7 +85,8 @@ Tasks:
    - Modules: 2D/3D entry controller, route guidance renderer, scene envelope/work-area builder,
      outside context renderer, visual QA.
    - Acceptance: user selects a 2D point with red pin, 3D builds only the bounded square, outside
-     context is dimmed, gray route outline is gone, yellow route no longer jitters, VQ0 QA passes.
+     context is dimmed, the first selected-plane lift is uniform-height, gray route outline is gone,
+     yellow route no longer jitters, VQ0 QA passes.
    - Rollback: keep 3D disabled with a reason when no work-area center is selected.
 
 1. Build ROI visual baseline harness for `river-bridge`, `micro-street`, and `hiking-terrain`. **Implemented.**
@@ -138,6 +139,8 @@ Tasks:
 - Render real routes as continuous industrial safety-yellow guidance.
 - Render estimated fallback routes as dashed and clearly labelled.
 - Ensure a nonblank foundation slab appears within 1.5 seconds.
+- Keep first foundation lift as a uniform selected plane; terrain relief starts only after
+  `terrain-refine`.
 - Add structured `geoAssets` degraded-state results and BFF timeout/error classification.
 - Keep 2D mode normal while 3D work is in progress.
 

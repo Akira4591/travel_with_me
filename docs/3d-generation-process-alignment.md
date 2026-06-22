@@ -76,13 +76,18 @@ hardCapMeters = 2000m
 The full route and all trip points are no longer allowed to expand the scene. They can only
 contribute clipped geometry, boundary direction cues, and warnings.
 
-### Step 2: Raise the Terrain Foundation
+### Step 2: Raise the Selected Foundation Plane
 
-The first visible 3D object is the ground foundation. It starts as a flat or slightly relieved base derived from the 2D map extent and elevation budget.
+The first visible 3D object is the selected work-area foundation. It must rise as one flat square
+plane with consistent height across the entire selected area.
 
 Rules:
 
 - A visible nonblank slab must appear within 1.5 seconds.
+- The slab top surface has one uniform `slabTopY` during `slab-rise`; all selected-area top vertices
+  have the same height.
+- DEM elevation, mountain relief, street micro-relief, water depression, road flattening, and bridge
+  deck offsets are not applied during `slab-rise`.
 - The slab has a stable foundation height even in flat cities.
 - DEM failure produces a neutral low-relief fallback, but the scene must label the confidence honestly.
 - The foundation should not look like a floating island with hard decorative borders.
@@ -90,11 +95,15 @@ Rules:
 Implementation direction:
 
 ```text
-foundationHeight = compressed absolute elevation baseline
-surfaceHeight = foundationHeight + local relief
-initial vertices = foundationHeight
-animated vertices = lerp(foundationHeight, surfaceHeight, progress)
+slabTopY = uniform compressed absolute elevation baseline
+surfaceHeight = slabTopY + local relief
+initial top vertices = 0
+slab-rise top vertices = lerp(0, slabTopY, slabProgress)
+terrain-refine top vertices = lerp(slabTopY, surfaceHeight, terrainProgress)
 ```
+
+`slab-rise` proves the selected area. `terrain-refine` proves elevation. These stages must not be
+merged.
 
 ### Step 3: Carve and Emerge the Geographic Skeleton
 
@@ -286,7 +295,8 @@ P0 visual acceptance:
   route-wide scene.
 - The user-selected work area is a visible square centered on the clicked 2D map point.
 - `spanMeters` defaults to the scene profile and never exceeds the V1 hard cap of 2000m.
-- The selected square is raised first; outside context is dimmed or simplified.
+- The selected square is raised first with a uniform top height; outside context is dimmed or
+  simplified.
 - 3D button remains visible at low precision, either enabled for degraded overview or disabled with a reason.
 - 3D mode does not auto-exit after idle time.
 - 2D to 3D transition starts with a raised foundation, not instantly visible final layers.
