@@ -108,6 +108,7 @@ export function createRouteRibbon(points, halfWidth, style = {}) {
   );
   mesh.renderOrder = style.renderOrder ?? 0;
   mesh.userData.guidanceRole = style.guidanceRole || null;
+  mesh.userData.surfaceLift = SURFACE_BASE_LIFT + (style.verticalOffset || 0);
   mesh.userData.restOpacity = style.opacity ?? 0.38;
   return mesh;
 }

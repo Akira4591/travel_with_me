@@ -25,8 +25,9 @@ The manual screenshot review from 2026-06-22 overrides the previous "all green" 
 the rendered 3D view could still look like an unbounded white board with gray route artifacts.
 VQ0 is therefore a blocking visual-quality reset.
 
-Implementation status on 2026-06-23: VQ0 is implemented at code level and the targeted visual
-subset passes. Final promotion still requires manual review of the new bounded output.
+Implementation status on 2026-06-23: VQ0 is implemented at code level, the full visual baseline
+suite passes, and the in-app browser QA passes on the bounded output. Final promotion still
+requires user manual review of the new bounded composition.
 
 Required VQ0 evidence:
 
@@ -39,7 +40,11 @@ Required VQ0 evidence:
   height.
 - Outside context is dimmer or lower detail than the selected square.
 - The 3D route does not render a gray outline or thick gray bed as route guidance.
+- The 3D route uses the same visual intent as the 2D guidance: a narrow industrial-yellow
+  navigation line, not a road-surface band.
 - The yellow route remains stable during drag, WASD, and wheel interaction.
+- The first 3D frame starts on the same high-angle overview orbit used by idle auto-rotate; there
+  is no separate initial camera angle that later snaps into orbit.
 
 Current VQ0 blocking metrics:
 
@@ -150,6 +155,8 @@ Default behavior:
 - runs a 30-second `hiking-terrain` terrain camera stress subset and samples route readability plus z-fighting risk;
 - asserts licensed landcover vegetation stays within the per-area template density budget and
   exposes chunk/frustum telemetry;
+- measures vegetation visibility with landcover chunk bounds so sparse template placement does not
+  incorrectly report licensed vegetation as fully culled during camera stress;
 - does not call live providers;
 - does not require committed golden images.
 
@@ -206,6 +213,8 @@ Current blocking `hiking-terrain` terrain camera stress metrics:
 - sampled `zFightingRisk` must remain `<= 0.01`;
 - final ROI capture must remain route-readable;
 - final capture must include attributable landcover context.
+- vegetation visible/cull telemetry must remain internally consistent after 30 seconds of drag,
+  WASD, and wheel interaction.
 
 Current blocking vegetation budget metrics:
 
@@ -289,6 +298,17 @@ Current blocking scenario precision metrics:
 - `scenic-park` must choose `terrainMode === "scenic-park"`, retain attributable landcover and water, and show medium terrain relief;
 - `hiking-terrain` must choose `terrainMode === "hiking"` and show high mountain elevation range;
 - all three scenario reviews must keep route layer visible, route pixels readable at the scene-specific threshold, and `zFightingRisk <= 0.01`.
+
+Current live-entry browser QA metrics:
+
+- 2D marker selection must commit `workArea.source === "selected-2d-point"`;
+- `workArea.spanMeters` must stay within the selected profile budget and the 2000m hard cap;
+- `qaPassed === "true"`;
+- `qaRouteGrayOutlinePixelRatio === "0"`;
+- `qaRouteClearanceP95 <= 0.3`;
+- the initial screenshot must show the bounded square from the overview orbit instead of a low
+  horizon view;
+- the yellow route must read as a narrow navigation line.
 
 ## Beta Route Yellow Calibration
 

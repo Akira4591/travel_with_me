@@ -64,6 +64,75 @@ describe('route guidance renderer', () => {
     ).toBe(true);
   });
 
+  it('conforms wide route ribbon edges to terrain instead of measuring centerline height', () => {
+    const group = buildRouteGroup(
+      mockProjection(),
+      mockTrip({
+        geometry: {
+          source: 'amap-webservice',
+          mode: 'walking',
+          paths: [
+            [
+              [116, 39],
+              [116.02, 39]
+            ]
+          ]
+        }
+      }),
+      'day-1',
+      {
+        bounds: { minX: -100, maxX: 100, minZ: -100, maxZ: 100 },
+        heightAt: (x, z) => 4 + z * 0.85,
+        foundationAt: () => 1,
+        elevationAt: (x, z) => 40 + x * 0.01 + z * 0.01
+      },
+      { routeSamples: 24 }
+    );
+
+    expect(group.userData.routeClearanceP95Meters).toBeLessThanOrEqual(0.3);
+    expect(group.children[0].userData.clearanceMetrics.maxMeters).toBeLessThanOrEqual(0.3);
+  });
+
+  it('clips rendered route geometry to the terrain work area bounds', () => {
+    const group = buildRouteGroup(
+      mockProjection(),
+      mockTrip({
+        geometry: {
+          source: 'amap-webservice',
+          mode: 'walking',
+          paths: [
+            [
+              [115.99, 39],
+              [116.02, 39]
+            ]
+          ]
+        }
+      }),
+      'day-1',
+      {
+        bounds: { minX: 0, maxX: 10, minZ: -10, maxZ: 10 },
+        heightAt: () => 4,
+        foundationAt: () => 1,
+        elevationAt: () => 40
+      },
+      { routeSamples: 24 }
+    );
+
+    expect(group.userData.realGeometryCount).toBe(1);
+    expect(group.children).toHaveLength(1);
+    const lineMesh = group.children[0].userData.guidanceMeshes.find(
+      mesh => mesh.userData.guidanceRole === 'line'
+    );
+    const positions = lineMesh.geometry.attributes.position;
+    for (let index = 0; index < positions.count; index += 1) {
+      expect(positions.getX(index)).toBeGreaterThanOrEqual(0);
+      expect(positions.getX(index)).toBeLessThanOrEqual(10);
+      expect(positions.getZ(index)).toBeGreaterThanOrEqual(-10);
+      expect(positions.getZ(index)).toBeLessThanOrEqual(10);
+    }
+    expect(group.userData.routeClearanceP95Meters).toBeLessThanOrEqual(0.3);
+  });
+
   it('updates highlight state without rebuilding the route group', () => {
     const routeGroup = buildRouteGroup(
       mockProjection(),

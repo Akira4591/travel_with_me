@@ -21,19 +21,19 @@ Desktop Web is the only active product surface. Mobile Web remains a compatibili
 
 Latest verified baseline from 2026-06-23. Detailed gate accounting is maintained in `docs/quality-gate-status.md`.
 
-| Gate                              | Result                                                                                                            |
-| --------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `npm.cmd run check`               | Passed                                                                                                            |
-| `npm.cmd test`                    | Passed: 29 files, 139 tests                                                                                       |
-| `npm.cmd run check:encoding`      | Passed: 307 visible source/doc/test files scanned                                                                 |
-| Full visual baseline suite        | Passed: 22 local ROI fixture captures/interactions with QA JSON and screenshots in 10.7m                          |
-| `npm.cmd run check:architecture`  | Passed: 35 render files scanned                                                                                   |
-| `npm.cmd run check:provenance`    | Passed: 42 scene fixture files scanned                                                                            |
-| `npm.cmd run check:landmarks`     | Passed: 1 landmark record scanned                                                                                 |
-| Targeted desktop 3D smoke         | Passed: 3D enter/exit, water/roads/bridges, WASD camera, 60s no-auto-exit                                         |
-| Tracked-source secret scan        | Passed: no known real AMap/DeepSeek key patterns found                                                            |
-| In-app browser 2D/3D visual check | Partial: exposed empty-workspace 3D rollback bug; code now throws/recover instead of entering stale 3D state      |
-| Manual 3D visual review           | Pending after VQ0 implementation; previous screenshot scored 1/10 before bounded work-area and route-layer repair |
+| Gate                              | Result                                                                                                              |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `npm.cmd run check`               | Passed                                                                                                              |
+| `npm.cmd test`                    | Passed: 29 files, 141 tests                                                                                         |
+| `npm.cmd run check:encoding`      | Passed: 307 visible source/doc/test files scanned                                                                   |
+| Full visual baseline suite        | Passed: 22 local ROI fixture captures/interactions with QA JSON and screenshots in 9.8m                             |
+| `npm.cmd run check:architecture`  | Passed: 35 render files scanned                                                                                     |
+| `npm.cmd run check:provenance`    | Passed: 42 scene fixture files scanned                                                                              |
+| `npm.cmd run check:landmarks`     | Passed: 1 landmark record scanned                                                                                   |
+| Targeted desktop 3D smoke         | Passed: 12 desktop tests, 1 mobile-only test skipped                                                                |
+| Tracked-source secret scan        | Passed: no known real AMap/DeepSeek key patterns found                                                              |
+| In-app browser 2D/3D visual check | Passed: 2D marker selection enters bounded 3D; QA passed; route gray outline is 0; initial view uses overview orbit |
+| Manual 3D visual review           | Pending after VQ0 implementation; previous screenshot scored 1/10 before bounded work-area and route-layer repair   |
 
 Quality gate count from `docs/quality-gate-status.md`:
 
@@ -52,10 +52,13 @@ VQ0 local visual reset implemented in code:
 - The selected square is raised as the primary bone-white work slab and outside context is dimmed.
 - Route guidance no longer creates gray `bed`/`edge` route meshes; yellow guidance is the only primary route layer.
 - QA now exposes `routeGrayOutlinePixelRatio`, `workAreaRaisedPixelRatio`, `outsideDimmedPixelRatio`, and work-area dataset fields.
+- Overview camera starts on the same high-angle orbit used by idle auto-rotate; x/z remain unlocked for drag and WASD movement.
+- 3D route guidance is narrowed back to a 2D-style yellow navigation line instead of a thick road-surface band.
+- Vegetation frustum telemetry now uses landcover chunk bounds so licensed vegetation areas remain measurable during camera stress.
 
 Remaining VQ0 acceptance item:
 
-- Complete a fresh manual visual review against the new bounded diorama output and, if accepted, move gate 50 from partial to complete.
+- Complete a fresh user manual visual review against the new bounded diorama output and, if accepted, move gate 50 from partial to complete.
 
 Known remaining non-blocking follow-ups after VQ0:
 

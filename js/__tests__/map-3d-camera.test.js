@@ -11,14 +11,15 @@ describe('3D map overview camera pose', () => {
     );
 
     expect(pose.target.toArray()).toEqual([0, 212, 0]);
-    expect(pose.position.x).toBeCloseTo(110);
-    expect(pose.position.z).toBeCloseTo(144);
-    expect(pose.position.y).toBe(312);
+    expect(pose.position.x).toBeCloseTo(56.85);
+    expect(pose.position.z).toBeCloseTo(72.77);
+    expect(pose.position.y).toBeCloseTo(465.72);
+    expect(pose.position.distanceTo(pose.target)).toBeGreaterThan(180 * 1.4);
     const [targetX, targetZ] = terrainModel.heightAt.mock.calls[0];
     expect(targetX).toBe(0);
     expect(targetZ).toBe(0);
     const [sampleX, sampleZ] = terrainModel.heightAt.mock.calls[1];
-    expect(sampleX).toBeCloseTo(110);
-    expect(sampleZ).toBeCloseTo(144);
+    expect(sampleX).toBeCloseTo(56.85);
+    expect(sampleZ).toBeCloseTo(72.77);
   });
 });

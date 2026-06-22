@@ -69,10 +69,11 @@ const PARTICLE_COUNT = 0;
 // Auto orbit resumes after user drag only in overview-like modes.
 const IDLE_RESUME_DELAY = 25000;
 const AUTO_ROTATE_SPEED = 0.5;
-const OVERVIEW_CAMERA_OFFSET = {
-  x: 0.55,
-  y: 0.9,
-  z: 0.72
+const OVERVIEW_CAMERA_ORBIT = {
+  headingDeg: 38,
+  pitchDeg: 70,
+  distanceScale: 1.35,
+  minInspectDistanceScale: 1.45
 };
 
 // Emergence animation constants.
@@ -1020,6 +1021,7 @@ function buildVegetationGroup(proj, terrainModel, vegetationAreas) {
     areaGroup.userData.cover = area.cover || '';
     areaGroup.userData.densityCap = densityCap;
     areaGroup.userData.instances = points.length;
+    areaGroup.userData.sceneBounds = createVegetationAreaBounds(area, proj, terrainModel);
     areaBudgets.push({
       id: area.id || '',
       cover: area.cover || '',
@@ -1081,6 +1083,26 @@ function createVegetationPoints(area, proj) {
     if (pointInPolygon(point, polygon)) points.push(point);
   }
   return points;
+}
+
+function createVegetationAreaBounds(area, proj, terrainModel) {
+  const polygon = Array.isArray(area?.polygon)
+    ? area.polygon.map(lnglat => proj.toScene(lnglat))
+    : [];
+  if (polygon.length < 3) return null;
+  const xs = polygon.map(point => point.x);
+  const zs = polygon.map(point => point.z);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minZ = Math.min(...zs);
+  const maxZ = Math.max(...zs);
+  const centerX = (minX + maxX) / 2;
+  const centerZ = (minZ + maxZ) / 2;
+  const baseY = Number(terrainModel.heightAt(centerX, centerZ)) || 0;
+  return {
+    min: { x: minX, y: baseY - 2, z: minZ },
+    max: { x: maxX, y: baseY + 18, z: maxZ }
+  };
 }
 
 function vegetationDensityForCover(cover) {
@@ -1806,10 +1828,22 @@ export function getOverviewCameraPose(bounds, { terrainModel = null, terrainMode
   const centerTerrainY = Number(terrainModel?.heightAt?.(cx, cz));
   const targetY = liftTarget + (Number.isFinite(centerTerrainY) ? centerTerrainY : 0);
   const target = new THREE.Vector3(cx, targetY, cz);
-  const positionX = cx + span * OVERVIEW_CAMERA_OFFSET.x;
-  const positionZ = cz + span * OVERVIEW_CAMERA_OFFSET.z;
-  const desiredY = targetY + span * OVERVIEW_CAMERA_OFFSET.y;
   const profile = getCameraProfile(terrainMode);
+  const inspectDistance = Number(profile.inspectDistance) || 180;
+  const distance = Math.max(
+    span * OVERVIEW_CAMERA_ORBIT.distanceScale,
+    inspectDistance * OVERVIEW_CAMERA_ORBIT.minInspectDistanceScale
+  );
+  const modePitch = Number(terrainMode?.cameraPitchDeg);
+  const pitchDeg = Number.isFinite(modePitch)
+    ? Math.max(modePitch, OVERVIEW_CAMERA_ORBIT.pitchDeg)
+    : OVERVIEW_CAMERA_ORBIT.pitchDeg;
+  const pitch = THREE.MathUtils.degToRad(THREE.MathUtils.clamp(pitchDeg, 58, 74));
+  const heading = THREE.MathUtils.degToRad(OVERVIEW_CAMERA_ORBIT.headingDeg);
+  const horizontalDistance = distance * Math.cos(pitch);
+  const positionX = cx + Math.sin(heading) * horizontalDistance;
+  const positionZ = cz + Math.cos(heading) * horizontalDistance;
+  const desiredY = targetY + distance * Math.sin(pitch);
   const terrainY = Number(terrainModel?.heightAt?.(positionX, positionZ));
   const groundY = (Number.isFinite(terrainY) ? terrainY : 0) + liftTarget;
   const positionY = clamp(desiredY, groundY + profile.minClearance, groundY + profile.maxClearance);

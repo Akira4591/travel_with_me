@@ -65,14 +65,18 @@ export function buildRouteGroup(
       }
       const overviewScale = getOverviewFeatureScale(terrainModel.bounds);
       const roadWidth =
-        (isWalking ? 1.1 : routeToNext?.mode === 'riding' ? 1.8 : 3.2) * overviewScale;
+        (isWalking ? 0.45 : routeToNext?.mode === 'riding' ? 0.65 : 0.95) * overviewScale;
       const rawPoints =
         realRoutePath.length >= 2
           ? buildTerrainRoutePointsFromLngLat(realRoutePath, proj, terrainModel)
           : buildFallbackTerrainRoutePoints(from, to, terrainModel, terrainMode.routeSamples);
-      const points = normalizeTerrainRoutePoints(rawPoints, Math.max(0.4, roadWidth * 0.65));
+      const points = normalizeTerrainRoutePoints(
+        clipRoutePointsToBounds(rawPoints, terrainModel.bounds, terrainModel),
+        Math.max(0.4, roadWidth * 0.65)
+      );
       if (points.length < 2) continue;
       const guidanceMeshes = createRouteGuidance(points, roadWidth, { isActive, isEstimated });
+      conformGuidanceMeshesToTerrain(guidanceMeshes, terrainModel);
       const clearanceMetrics = measureRouteClearance(guidanceMeshes, terrainModel, proj);
       group.userData.routeClearancesMeters.push(...clearanceMetrics.samples);
       const segmentGroup = new THREE.Group();
@@ -153,7 +157,7 @@ function createRouteGuidance(points, halfWidth, { isActive = false, isEstimated 
   if (isEstimated) {
     return createEstimatedRouteDashes(points, Math.max(halfWidth * 0.23, 0.22), lineColor);
   }
-  const stripeWidth = Math.max(halfWidth * 0.82, 1.08);
+  const stripeWidth = Math.max(halfWidth * 0.75, 0.36);
   const meshes = [
     createRouteRibbon(points, stripeWidth, {
       color: lineColor,
@@ -212,6 +216,59 @@ function createEstimatedRouteDashes(points, halfWidth, color) {
     );
   }
   return dashes;
+}
+
+function clipRoutePointsToBounds(points, bounds, terrainModel) {
+  if (!Array.isArray(points) || points.length < 2 || !bounds) return points || [];
+  const clipped = [];
+  for (let index = 1; index < points.length; index += 1) {
+    const segment = clipSegmentToBounds(points[index - 1], points[index], bounds, terrainModel);
+    if (!segment) continue;
+    appendClippedPoint(clipped, segment[0]);
+    appendClippedPoint(clipped, segment[1]);
+  }
+  return clipped;
+}
+
+function clipSegmentToBounds(a, b, bounds, terrainModel) {
+  let t0 = 0;
+  let t1 = 1;
+  const dx = b.x - a.x;
+  const dz = b.z - a.z;
+  const checks = [
+    [-dx, a.x - bounds.minX],
+    [dx, bounds.maxX - a.x],
+    [-dz, a.z - bounds.minZ],
+    [dz, bounds.maxZ - a.z]
+  ];
+
+  for (const [p, q] of checks) {
+    if (Math.abs(p) < 1e-9) {
+      if (q < 0) return null;
+      continue;
+    }
+    const t = q / p;
+    if (p < 0) t0 = Math.max(t0, t);
+    else t1 = Math.min(t1, t);
+    if (t0 > t1) return null;
+  }
+
+  return [
+    interpolateRoutePoint(a, b, t0, terrainModel),
+    interpolateRoutePoint(a, b, t1, terrainModel)
+  ];
+}
+
+function interpolateRoutePoint(a, b, t, terrainModel) {
+  const x = THREE.MathUtils.lerp(a.x, b.x, t);
+  const z = THREE.MathUtils.lerp(a.z, b.z, t);
+  return new THREE.Vector3(x, terrainModel.heightAt(x, z), z);
+}
+
+function appendClippedPoint(points, point) {
+  const previous = points[points.length - 1];
+  if (previous && previous.distanceToSquared(point) < 0.000001) return;
+  points.push(point);
 }
 
 function createRouteDirectionMarkers(points, halfWidth, { active = false } = {}) {
@@ -295,6 +352,23 @@ function measureRouteClearance(meshes, terrainModel, proj) {
     maxMeters: maxMetric(samples),
     samples
   };
+}
+
+function conformGuidanceMeshesToTerrain(meshes, terrainModel) {
+  for (const mesh of meshes) {
+    const positions = mesh.geometry?.attributes?.position;
+    if (!positions) continue;
+    const lift = Number(mesh.userData?.surfaceLift || 0.08);
+    for (let index = 0; index < positions.count; index += 1) {
+      const x = positions.getX(index);
+      const z = positions.getZ(index);
+      positions.setY(index, terrainModel.heightAt(x, z) + lift);
+    }
+    positions.needsUpdate = true;
+    mesh.geometry.computeVertexNormals();
+    mesh.geometry.computeBoundingBox();
+    mesh.geometry.computeBoundingSphere();
+  }
 }
 
 function percentile(values, ratio) {

@@ -485,15 +485,56 @@ async function openSeededDesktop(page, isMobile, options = {}) {
   );
 }
 
-async function enter3DFrom2DSelection(page) {
+async function enter3DFrom2DSelection(page, lnglat = getSeededRouteCenter()) {
   await page.locator('#map-3d-toggle').click();
   await expect(page.locator('.map-3d-selection-pin')).toBeVisible({ timeout: 5_000 });
   await expect(page.locator('#map-3d-toggle')).toHaveAttribute('data-state', 'selecting-3d-center');
+  if (lnglat) {
+    await page.evaluate(center => {
+      const toLngLat = () => ({
+        lng: center[0],
+        lat: center[1],
+        getLng: () => center[0],
+        getLat: () => center[1]
+      });
+      const patchMap = map => {
+        if (!map) return;
+        map.setCenter?.(center);
+        map.containerToLngLat = toLngLat;
+        map.unproject = () => center;
+      };
+      const map = document.querySelector('#map')?.__mapInstance;
+      patchMap(map);
+      patchMap(window.__mockAMapLastMap);
+      (window.__mockAMapMaps || []).forEach(patchMap);
+    }, lnglat);
+  }
   const map = page.locator('#map');
   const box = await map.boundingBox();
   const x = Math.round((box?.x || 0) + (box?.width || 800) / 2);
   const y = Math.round((box?.y || 0) + (box?.height || 600) / 2);
   await page.mouse.click(x, y);
+}
+
+function getSeededRouteCenter(workspace = SEEDED_WORKSPACE) {
+  const trip =
+    workspace.trips?.find(item => item.id === workspace.activeTripId) || workspace.trips?.[0];
+  const firstDay = trip?.days?.[0];
+  const events = firstDay?.events || [];
+  for (let index = 0; index < events.length - 1; index += 1) {
+    const from = trip.locations?.[events[index].locationId]?.lnglat;
+    const to = trip.locations?.[events[index + 1].locationId]?.lnglat;
+    if (isLngLat(from) && isLngLat(to)) {
+      return [(Number(from[0]) + Number(to[0])) / 2, (Number(from[1]) + Number(to[1])) / 2];
+    }
+  }
+  return null;
+}
+
+function isLngLat(value) {
+  return (
+    Array.isArray(value) && Number.isFinite(Number(value[0])) && Number.isFinite(Number(value[1]))
+  );
 }
 
 async function openTripMenu(page) {

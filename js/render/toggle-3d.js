@@ -126,12 +126,18 @@ export function init3DToggle({ map, onEnter3D, onExit3D, getWorkAreaOptions = nu
     };
     const commitFromDomClick = event => {
       if (!isSelecting || event.target?.closest?.('#map-3d-toggle')) return;
+      if (event.target?.closest?.('.amap-marker, .custom-marker')) return;
       const lnglat = lngLatFromPointerEvent(event, mapContainer, map);
       if (lnglat) commitSelection(lnglat);
     };
     const commitFromMapClick = event => {
       if (!isSelecting) return;
       const lnglat = toLngLatArray(event?.lnglat) || toLngLatArray(event?.lngLat);
+      if (lnglat) commitSelection(lnglat);
+    };
+    const commitFromMarkerSelect = event => {
+      if (!isSelecting) return;
+      const lnglat = toLngLatArray(event?.detail?.lnglat);
       if (lnglat) commitSelection(lnglat);
     };
     const cancelOnEscape = event => {
@@ -144,6 +150,7 @@ export function init3DToggle({ map, onEnter3D, onExit3D, getWorkAreaOptions = nu
 
     mapContainer.addEventListener('pointermove', updatePointer);
     mapContainer.addEventListener('click', commitFromDomClick, true);
+    mapContainer.addEventListener('travel:marker-3d-select', commitFromMarkerSelect);
     mapContainer.addEventListener('contextmenu', cancelOnContext);
     document.addEventListener('keydown', cancelOnEscape);
     map.on?.('click', commitFromMapClick);
@@ -151,6 +158,7 @@ export function init3DToggle({ map, onEnter3D, onExit3D, getWorkAreaOptions = nu
     selectionCleanup = () => {
       mapContainer.removeEventListener('pointermove', updatePointer);
       mapContainer.removeEventListener('click', commitFromDomClick, true);
+      mapContainer.removeEventListener('travel:marker-3d-select', commitFromMarkerSelect);
       mapContainer.removeEventListener('contextmenu', cancelOnContext);
       document.removeEventListener('keydown', cancelOnEscape);
       map.off?.('click', commitFromMapClick);
@@ -280,6 +288,10 @@ function normalizeWorkAreaOptions(options = {}) {
 }
 
 function lngLatFromPointerEvent(event, mapEl, map) {
+  const marker = event.target?.closest?.('[data-lng][data-lat]');
+  const markerLngLat = toLngLatArray(marker ? [marker.dataset.lng, marker.dataset.lat] : null);
+  if (markerLngLat) return markerLngLat;
+
   const rect = mapEl.getBoundingClientRect();
   const pixel = [event.clientX - rect.left, event.clientY - rect.top];
   const amapPixel =

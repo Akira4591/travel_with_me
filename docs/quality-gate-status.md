@@ -15,23 +15,23 @@ This document is the current status ledger for engineering, 2D map, 3D generatio
 
 Commands run on 2026-06-23:
 
-| Check                                                                | Result                                                                                                            |
-| -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `npm.cmd run check`                                                  | Passed                                                                                                            |
-| `npm.cmd test`                                                       | Passed: 29 files, 139 tests                                                                                       |
-| `npm.cmd run check:encoding`                                         | Passed: 307 visible source/doc/test files scanned                                                                 |
-| `npm.cmd run check:architecture`                                     | Passed: 35 render files scanned; renderer/provider boundary enforced                                              |
-| `npm.cmd run check:provenance`                                       | Passed: 42 scene fixture files scanned                                                                            |
-| `npm.cmd run check:landmarks`                                        | Passed: 1 landmark record scanned with allowlist, integrity, LOD, and budget validation                           |
-| `npx.cmd playwright test tests/e2e/smoke.spec.js --project=chromium` | Passed: 12 desktop tests, 1 mobile-only test skipped in Chromium                                                  |
-| `npx.cmd playwright test tests/e2e/live-provider.spec.js`            | Passed by skip: live provider smoke is explicit opt-in only                                                       |
-| Full visual baseline suite                                           | Passed: 22 local ROI fixture captures/interactions with QA JSON and screenshots in 10.7m                          |
-| Beta route-yellow fixture calibration                                | Passed: all maintained visual fixtures declare `route.minYellowPixelRatio`; visual suite rejects missing values   |
-| Beta water/bridge fixture expansion                                  | Passed: `river-bridge` and `wide-river-bridges` water/bridge ROI gates                                            |
-| targeted 3D/2D gate E2E                                              | Passed: nonblank 3D, geo assets, WASD camera, geometry P95, 2D fallback, 60s no-auto-exit                         |
-| tracked-source secret scan for known AMap/DeepSeek patterns          | Passed: no matches in tracked source                                                                              |
-| in-app browser 2D/3D visual check                                    | Partial: exposed an empty-workspace stale 3D state; VQ0 now throws/recover instead of silently entering stale 3D  |
-| manual 3D screenshot review                                          | Pending after VQ0 implementation; previous screenshot scored 1/10 before bounded work-area and route-layer repair |
+| Check                                                                | Result                                                                                                                |
+| -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `npm.cmd run check`                                                  | Passed                                                                                                                |
+| `npm.cmd test`                                                       | Passed: 29 files, 141 tests                                                                                           |
+| `npm.cmd run check:encoding`                                         | Passed: 307 visible source/doc/test files scanned                                                                     |
+| `npm.cmd run check:architecture`                                     | Passed: 35 render files scanned; renderer/provider boundary enforced                                                  |
+| `npm.cmd run check:provenance`                                       | Passed: 42 scene fixture files scanned                                                                                |
+| `npm.cmd run check:landmarks`                                        | Passed: 1 landmark record scanned with allowlist, integrity, LOD, and budget validation                               |
+| `npx.cmd playwright test tests/e2e/smoke.spec.js --project=chromium` | Passed: 12 desktop tests, 1 mobile-only test skipped in Chromium                                                      |
+| `npx.cmd playwright test tests/e2e/live-provider.spec.js`            | Passed by skip: live provider smoke is explicit opt-in only                                                           |
+| Full visual baseline suite                                           | Passed: 22 local ROI fixture captures/interactions with QA JSON and screenshots in 9.8m                               |
+| Beta route-yellow fixture calibration                                | Passed: all maintained visual fixtures declare `route.minYellowPixelRatio`; visual suite rejects missing values       |
+| Beta water/bridge fixture expansion                                  | Passed: `river-bridge` and `wide-river-bridges` water/bridge ROI gates                                                |
+| targeted 3D/2D gate E2E                                              | Passed: nonblank 3D, geo assets, WASD camera, geometry P95, 2D fallback, 60s no-auto-exit                             |
+| tracked-source secret scan for known AMap/DeepSeek patterns          | Passed: no matches in tracked source                                                                                  |
+| in-app browser 2D/3D visual check                                    | Passed: 2D marker selection enters bounded 3D; QA passed; route gray outline is 0; initial camera uses overview orbit |
+| manual 3D screenshot review                                          | Pending after VQ0 implementation; previous screenshot scored 1/10 before bounded work-area and route-layer repair     |
 
 ## Manual Visual Override
 
@@ -49,6 +49,8 @@ VQ0 target state:
 - V1 hard cap is 2000m.
 - Selected square raises first as a uniform-height plane; outside context is dimmed or simplified.
 - 3D route guidance has no gray outline/bed and keeps yellow as the only primary route layer.
+- 3D yellow guidance is a narrow 2D-style navigation line, not a thick road-surface band.
+- Initial camera pose is the same high-angle overview orbit used by idle auto-rotate.
 - Route pixels remain stable during drag, WASD, and wheel camera stress.
 
 ## Summary
@@ -65,7 +67,7 @@ VQ0 target state:
 |   # | Gate                                                                                                                | Evidence                                                            |
 | --: | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
 |   1 | Format, lint, and source style pass                                                                                 | `npm.cmd run check`                                                 |
-|   2 | Unit tests pass                                                                                                     | `npm.cmd test`: 28 files, 138 tests                                 |
+|   2 | Unit tests pass                                                                                                     | `npm.cmd test`: 29 files, 141 tests                                 |
 |   3 | Desktop browser smoke tests pass                                                                                    | Chromium smoke: 12 passed, 1 mobile-only skipped                    |
 |   4 | Tracked source does not contain known real API keys                                                                 | `git grep` secret scan returned no matches                          |
 |   5 | 2D AMap mode renders real map content after CSP fixes                                                               | Browser and E2E map flow                                            |
@@ -112,13 +114,13 @@ VQ0 target state:
 |  46 | Landmark true-restoration pipeline is release-gated                                                                 | `check:landmarks`, `landmark-assets.test.js`, QA allowlist metrics  |
 |  47 | Water and bridge correctness covers both narrow centerline river and wide polygon/multi-bridge shapes               | `river-bridge` and `wide-river-bridges` visual ROI gates            |
 |  48 | Building LOD near/far response covers old-street storefront and landmark scenes                                     | `old-street` and `landmark-pilot` building LOD visual E2E           |
-|  49 | Licensed vegetation exposes chunk/frustum telemetry and keeps it internally consistent                              | `hiking-terrain` visual E2E and `scene-quality-gates` unit tests    |
+|  49 | Licensed vegetation exposes chunk/frustum telemetry and keeps it internally consistent                              | Landcover chunk bounds, `hiking-terrain` visual E2E, and QA tests   |
 
 ## Partial Gates
 
-|   # | Gate                                                                 | Evidence                                                                                                                                            | Required fix                                                                                  |
-| --: | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-|  50 | Live 3D composition reaches product-quality bounded diorama standard | VQ0 code path implemented and full visual baseline suite passed; final manual screenshot review has not yet accepted the new bounded 3D composition | Run manual visual review on the new VQ0 output, then promote the gate to complete if accepted |
+|   # | Gate                                                                 | Evidence                                                                                                                                                                                                               | Required fix                                                                                       |
+| --: | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+|  50 | Live 3D composition reaches product-quality bounded diorama standard | VQ0 code path implemented; in-app browser QA passed with high-angle bounded overview, narrow yellow route, and no gray route outline; final user screenshot review has not yet accepted the new bounded 3D composition | Run user manual visual review on the new VQ0 output, then promote the gate to complete if accepted |
 
 ## Not Complete Gates
 
@@ -134,6 +136,8 @@ Self-audit on 2026-06-23 after `codex/next-beta-visual-calibration`:
 - Water/bridge correctness now covers both the original narrow `river-bridge` fixture and the `wide-river-bridges` polygon-water, multi-span fixture.
 - Building near/far LOD response is gated for `micro-street`, `old-street`, and `landmark-pilot`; stepped no-pop remains gated on `micro-street`.
 - Licensed vegetation now reports density, chunk count, visible chunk count, and frustum-culled chunk count through `qa.budgets`.
+- Vegetation frustum telemetry now uses landcover chunk bounds, keeping camera-stress telemetry aligned with actual licensed vegetation areas.
+- The live 3D entry now starts on the same high-angle overview orbit used by idle auto-rotate and renders the 3D route as a narrow yellow guidance line.
 - Remaining partial item is not an automated gap: the live bounded 3D composition still needs manual product-quality acceptance before gate 50 can close.
 
 ## Immediate Fix Order

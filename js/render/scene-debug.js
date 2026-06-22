@@ -208,7 +208,7 @@ function computeVegetationCullingMetrics(diorama) {
 
   let visibleChunkCount = 0;
   for (const chunk of chunks) {
-    const bounds = new THREE.Box3().setFromObject(chunk);
+    const bounds = getVegetationChunkWorldBounds(chunk);
     const visible = bounds.isEmpty() || frustum.intersectsBox(bounds);
     chunk.userData.frustumVisible = visible;
     if (visible) visibleChunkCount += 1;
@@ -222,6 +222,19 @@ function computeVegetationCullingMetrics(diorama) {
   group.userData.visibleChunkCount = result.visibleChunkCount;
   group.userData.culledChunkCount = result.culledChunkCount;
   return result;
+}
+
+function getVegetationChunkWorldBounds(chunk) {
+  const rawBounds = chunk?.userData?.sceneBounds;
+  if (rawBounds?.min && rawBounds?.max) {
+    const bounds = new THREE.Box3(
+      new THREE.Vector3(rawBounds.min.x, rawBounds.min.y, rawBounds.min.z),
+      new THREE.Vector3(rawBounds.max.x, rawBounds.max.y, rawBounds.max.z)
+    );
+    chunk.updateWorldMatrix(true, false);
+    return bounds.applyMatrix4(chunk.matrixWorld);
+  }
+  return new THREE.Box3().setFromObject(chunk);
 }
 
 function syncDebugDataset(container, debug) {

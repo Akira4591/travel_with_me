@@ -73,7 +73,7 @@ import {
   clearRouteOverlays,
   highlightSegment,
   clearSegmentHighlight
-} from './render/map.js';
+} from './render/map.js?v=20260623-gate50-marker-select';
 import {
   renderHeader,
   renderTabs,
@@ -93,7 +93,7 @@ import { openTripModal } from './render/trip-modal.js';
 import { bindShareButton } from './render/share-flow.js';
 import { openAnnotationModal } from './render/annotation-modal.js';
 import { renderWorkspaceTabs, closeWorkspaceMenu } from './render/workspace-tabs.js';
-import { init3DToggle } from './render/toggle-3d.js';
+import { init3DToggle } from './render/toggle-3d.js?v=20260623-gate50-marker-select';
 import { scheduleRoutePlanning, clearAllRoutes } from './route-planner.js?v=20260622-map-base-v2';
 import { readSharedTripFromURL } from './share.js';
 import {
@@ -241,7 +241,7 @@ function getItineraryHandlers() {
     },
     onRouteClick: segment => {
       if (threeDToggle?.is3DMode() && dioramaInstance) {
-        import('./render/map-3d.js?v=20260623-vq0-work-area').then(({ focus3DRoute }) => {
+        import('./render/map-3d.js?v=20260623-gate50-orbit-pose-v3').then(({ focus3DRoute }) => {
           focus3DRoute(dioramaInstance, segment.id);
         });
         return;
@@ -302,7 +302,8 @@ async function enter3DView(workArea = null) {
 
   await hydrateGeoAssetsFor3D();
 
-  const { initDiorama, enter3DMode } = await import('./render/map-3d.js?v=20260623-vq0-work-area');
+  const { initDiorama, enter3DMode } =
+    await import('./render/map-3d.js?v=20260623-gate50-orbit-pose-v3');
   dioramaInstance = await initDiorama({ container });
   await enter3DMode(dioramaInstance, {
     trip: getTrip(),
@@ -316,11 +317,10 @@ async function enter3DView(workArea = null) {
 function get3DWorkAreaOptions() {
   const trip = getTrip();
   const locations = get3DActiveLocations(trip, getAppState().activeDayId);
-  const routeLength = computeLocationRouteLengthMeters(locations);
   const text = locations
     .map(location => `${location.name || ''} ${location.address || ''} ${location.note || ''}`)
     .join(' ');
-  if (/徒步|登山|山地|mountain|hiking|trail/i.test(text) || routeLength > 5000) {
+  if (/徒步|登山|山地|mountain|hiking|trail/i.test(text)) {
     return { spanMeters: 2000, hardCapMeters: 2000, profile: 'hiking' };
   }
   if (/景区|公园|湖|河|园区|park|scenic|lake|river/i.test(text)) {
@@ -330,20 +330,6 @@ function get3DWorkAreaOptions() {
     return { spanMeters: 600, hardCapMeters: 2000, profile: 'micro-street' };
   }
   return { spanMeters: 800, hardCapMeters: 2000, profile: 'default' };
-}
-
-function computeLocationRouteLengthMeters(locations = []) {
-  let total = 0;
-  for (let index = 1; index < locations.length; index += 1) {
-    const from = locations[index - 1]?.lnglat;
-    const to = locations[index]?.lnglat;
-    if (!Array.isArray(from) || !Array.isArray(to)) continue;
-    const midLat = (((from[1] + to[1]) / 2) * Math.PI) / 180;
-    const dx = (to[0] - from[0]) * 111320 * Math.cos(midLat);
-    const dy = (to[1] - from[1]) * 111320;
-    total += Math.hypot(dx, dy);
-  }
-  return total;
 }
 
 async function hydrateGeoAssetsFor3D() {
@@ -397,7 +383,7 @@ function hasGeoAssetGeometry(geoAssets = {}) {
 
 async function exit3DView() {
   if (!dioramaInstance) return;
-  const { exit3DMode } = await import('./render/map-3d.js?v=20260623-vq0-work-area');
+  const { exit3DMode } = await import('./render/map-3d.js?v=20260623-gate50-orbit-pose-v3');
   await exit3DMode(dioramaInstance);
 }
 
@@ -419,7 +405,7 @@ function open3DAnnotationFlow(draft) {
         renderAnnotationMarkers();
         if (dioramaInstance) {
           const { refresh3DAnnotations } =
-            await import('./render/map-3d.js?v=20260623-vq0-work-area');
+            await import('./render/map-3d.js?v=20260623-gate50-orbit-pose-v3');
           refresh3DAnnotations(dioramaInstance, { trip: getTrip() });
         }
         setStatus('3D 标记已保存。');

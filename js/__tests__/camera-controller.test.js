@@ -117,7 +117,7 @@ describe('camera controller', () => {
 
   it('clamps camera y by terrain-relative min and max clearance', () => {
     const controls = mockControls();
-    const camera = mockCamera({ x: 0, y: 500, z: 0 });
+    const camera = mockCamera({ x: 0, y: 700, z: 0 });
     const controller = createCameraController({
       camera,
       controls,
@@ -129,11 +129,11 @@ describe('camera controller', () => {
     });
 
     controller.update(0.016);
-    expect(camera.position.y).toBe(90);
+    expect(camera.position.y).toBe(670);
     expect(controller.getDebugSnapshot()).toMatchObject({
-      clearance: 40,
+      clearance: 620,
       minClearance: 6,
-      maxClearance: 40
+      maxClearance: 620
     });
 
     camera.position.y = 40;
