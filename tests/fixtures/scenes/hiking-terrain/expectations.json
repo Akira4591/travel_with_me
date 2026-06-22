@@ -1,0 +1,22 @@
+{
+  "scene": "hiking-terrain",
+  "route": {
+    "hash": "fixture-hiking-terrain-route-v1",
+    "maxOccludedRatio": 0.3
+  },
+  "terrain": {
+    "minHeightRangeMeters": 120,
+    "requiresSlopeCue": true
+  },
+  "water": {
+    "requiresCoverage": false,
+    "maxBlankPixelRatio": 0
+  },
+  "bridge": {
+    "requiresDeckContinuity": false,
+    "minSpanCoverageRatio": 1
+  },
+  "building": {
+    "maxPopDeltaPixels": 0
+  }
+}

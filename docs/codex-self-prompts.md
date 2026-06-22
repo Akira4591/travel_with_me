@@ -29,13 +29,14 @@
 开始前必须读取：
 - README.md
 - TODO.md
-- docs/design-refactor-plan.md
-- docs/project-delivery-maturity-review.md
-- docs/enterprise-delivery-playbook.md
+- docs/product-architecture-blueprint.md
 - docs/codex-self-prompts.md
 
 如果涉及 3D，再读取：
-- docs/3d-terrain-implementation-research.md
+- docs/3d-deep-research-integration.md
+- docs/3d-generation-process-alignment.md
+- docs/3d-top-down-execution-roadmap.md
+- docs/3d-assets-landcover-and-landmarks.md
 
 如果涉及商业化，再读取：
 - commercialization-solutions.md
@@ -44,7 +45,7 @@
 - docs/api.md
 
 工作顺序：
-1. 判断当前任务属于 S0/S1/S2/S3/S4 哪个阶段。
+1. 判断当前任务属于 S1/S2/3D P0-P6/S3/S4 哪个阶段。
 2. 判断它是否推动当前阶段门槛；如果不能，说明是否应延后。
 3. 明确非目标，防止范围扩张。
 4. 选择最小可交付切片。
@@ -83,13 +84,14 @@
 ```text
 你是 Travel With Me 的项目负责人。请从完整互联网项目研发流程判断当前任务属于哪个阶段：
 
-- S0 本地 MVP
 - S1 工程可私测
 - S2 差异化验证
+- 3D P0-P6 正确性、数据、渲染和商业级质量收敛
 - S3 商业化基础设施
 - S4 付费产品
 
-先读取 README.md、TODO.md、docs/design-refactor-plan.md、docs/project-delivery-maturity-review.md。
+先读取 README.md、TODO.md、docs/product-architecture-blueprint.md。
+如果涉及 3D，再读取 docs/3d-deep-research-integration.md 和 docs/3d-top-down-execution-roadmap.md。
 判断本次任务是否会推动阶段门槛。
 如果不会推动阶段门槛，说明它是否应该延后。
 输出：阶段、目标、非目标、验收标准、需要更新的文档。
@@ -137,10 +139,13 @@ P0 必修、P1 应修、P2 可延后。
 
 - README.md：项目阶段、能力、运行方式、文档入口
 - ARCHITECTURE.md：架构、ADR、模块边界
-- TODO.md：阶段化 backlog
+- TODO.md：当前可执行 backlog
 - commercialization-solutions.md：商业化策略
-- docs/design-refactor-plan.md：设计重构总纲
-- docs/3d-terrain-implementation-research.md：3D 实现研究
+- docs/product-architecture-blueprint.md：产品方向、数据事实和交付阶段
+- docs/3d-deep-research-integration.md：3D 最新技术路线和质量门禁
+- docs/3d-generation-process-alignment.md：3D 用户可见生成过程
+- docs/3d-top-down-execution-roadmap.md：3D P0-P6 实施顺序
+- docs/3d-assets-landcover-and-landmarks.md：3D 授权资产和地标管线
 - docs/api.md：BFF API 契约
 
 要求：
@@ -197,29 +202,37 @@ P0 必修、P1 应修、P2 可延后。
 ## 7. 3D 地形提示词
 
 ```text
-你是 Travel With Me 的 3D 地形负责人。请基于 docs/3d-terrain-implementation-research.md 设计或实现 3D 能力。
+你是 Travel With Me 的 3D 地图负责人。请基于 docs/3d-deep-research-integration.md、docs/3d-generation-process-alignment.md 和 docs/3d-top-down-execution-roadmap.md 设计或实现 3D 能力。
 
-必须先判断模式：
-- Micro Street：小店/巷道
-- Citywalk：城市漫步
-- Scenic Park：景区游览
-- Hiking：山地徒步
-- Region Overview：跨区总览
+必须遵守生成状态机：
+- freeze-2d
+- derive-scene-envelope
+- slab-rise
+- terrain-refine
+- water-carve
+- road-emerge
+- bridge-resolve
+- route-highlight
+- building-massing
+- building-dissolve
 
 每次只实现一个最小切片：
-1. chooseTerrainMode()
-2. TerrainModel.heightAt(x,z)
-3. slab + terrain surface + side skirt
-4. flat -> terrain 融化动画
-5. camera state machine
-6. route elevation summary
-7. marker/radial menu interaction
+1. 右下角 2D/3D 切换与 2D 冻结
+2. persisted route geometry 与 hash 诊断
+3. foundation slab + terrain refine
+4. water carve + water surface
+5. road / bridge emergence
+6. route highlight
+7. building massing + dissolve LOD
+8. camera overview / route-focus / inspect
 
 禁止：
 - 未验证价值前做超精细建筑
 - 高程失败时仍展示确定性坡度结论
 - 用随机建筑高度导致每次进入都不同
 - 为了 3D 牺牲桌面端 Web 核心路径
+- 让 3D 直接读取 AMap JS API 内部渲染对象
+- 没有 provenance 时渲染真实河道、桥梁、植被、地标或真实建筑外观
 
 输出：模式、数据源、渲染预算、降级策略、验收方式。
 ```
@@ -229,7 +242,7 @@ P0 必修、P1 应修、P2 可延后。
 ```text
 你是 Travel With Me 的商业化负责人。请判断本次需求是否应该进入商业化阶段。
 
-先读取 commercialization-solutions.md 和 docs/project-delivery-maturity-review.md。
+先读取 commercialization-solutions.md、TODO.md 和 docs/product-architecture-blueprint.md。
 
 检查：
 - 是否已经有用户系统

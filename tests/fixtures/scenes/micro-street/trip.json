@@ -1,0 +1,74 @@
+{
+  "id": "fixture-micro-street",
+  "title": "Micro Street Fixture",
+  "activeDayId": "day-street",
+  "locations": {
+    "hotel": {
+      "id": "hotel",
+      "name": "Lane Hotel",
+      "lnglat": [116.397, 39.908],
+      "resolved": true
+    },
+    "shop": {
+      "id": "shop",
+      "name": "Corner Shop",
+      "lnglat": [116.399, 39.909],
+      "resolved": true
+    },
+    "cafe": {
+      "id": "cafe",
+      "name": "Pocket Cafe",
+      "lnglat": [116.401, 39.91],
+      "resolved": true
+    }
+  },
+  "days": [
+    {
+      "id": "day-street",
+      "title": "Dense street walk",
+      "events": [
+        {
+          "id": "event-hotel",
+          "title": "Leave hotel",
+          "locationId": "hotel",
+          "routeToNext": {
+            "mode": "walking",
+            "geometry": [
+              [116.397, 39.908],
+              [116.399, 39.909]
+            ],
+            "distanceMeters": 260,
+            "durationSeconds": 240,
+            "source": "fixture",
+            "fetchedAt": "2026-06-22T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "event-shop",
+          "title": "Visit corner shop",
+          "locationId": "shop",
+          "routeToNext": {
+            "mode": "walking",
+            "geometry": [
+              [116.399, 39.909],
+              [116.401, 39.91]
+            ],
+            "distanceMeters": 230,
+            "durationSeconds": 210,
+            "source": "fixture",
+            "fetchedAt": "2026-06-22T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "event-cafe",
+          "title": "Stop at cafe",
+          "locationId": "cafe"
+        }
+      ]
+    }
+  ],
+  "geoAssetStatus": {
+    "status": "ok",
+    "updatedAt": "2026-06-22T00:00:00.000Z"
+  }
+}

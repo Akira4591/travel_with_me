@@ -1,0 +1,10 @@
+{
+  "hash": "fixture-micro-street-route-v1",
+  "source": "fixture",
+  "updatedAt": "2026-06-22T00:00:00.000Z",
+  "points": [
+    [116.397, 39.908],
+    [116.399, 39.909],
+    [116.401, 39.91]
+  ]
+}

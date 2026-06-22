@@ -14,18 +14,18 @@ import { createLogger } from '../logger.js';
 import { escapeHTML } from '../utils.js';
 import { bindIconPicker, inferIconId, renderIconPickerHTML, renderIconSVG } from './icons.js';
 import { TIME_SLOT_OPTIONS, normalizeTimeSlot } from '../time-slots.js';
-import { modalSingleton, setupModalCloseEvents } from './modal-base.js';
+import { modalSingleton } from './modal-base.js';
 
-export function openSearchModal(handlers) {
-  openSearchModal.close();
-  handlers = handlers;
-  modalEl = createModal(handlers);
-  document.body.appendChild(modalEl);
+const log = createLogger('search-modal');
+
+export const openSearchModal = modalSingleton(handlers => {
+  const root = createModal(handlers);
+  document.body.appendChild(root);
   // 推迟到下一帧 focus，避免 focus 时 DOM 还没接到事件循环
   requestAnimationFrame(() => {
-    modalEl?.querySelector('.modal-search-input')?.focus();
+    root.querySelector('.modal-search-input')?.focus();
   });
-}
+});
 
 // ─── 内部 ──────────────────────────────────────────────
 
@@ -93,11 +93,11 @@ function createModal(handlers) {
     if (anchorEl) anchorEl.textContent = anchorName;
   }
 
-  bindEvents(root);
+  bindEvents(root, handlers);
   return root;
 }
 
-function bindEvents(root) {
+function bindEvents(root, handlers) {
   const input = root.querySelector('.modal-search-input');
   const searchBtn = root.querySelector('.modal-search-btn');
   const resultsEl = root.querySelector('.modal-results');

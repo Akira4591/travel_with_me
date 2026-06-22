@@ -1,0 +1,5 @@
+{
+  "overview": { "heading": 42, "pitch": 52, "distanceMeters": 360 },
+  "routeFocus": { "heading": 35, "pitch": 42, "distanceMeters": 190 },
+  "inspect": { "heading": 24, "pitch": 34, "distanceMeters": 85 }
+}

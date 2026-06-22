@@ -16,6 +16,41 @@ BFF 会返回基础安全响应头，包括 `X-Content-Type-Options`、`X-Frame-
 
 ---
 
+## `GET /healthz`
+
+服务存活检查。
+
+**成功响应 (200)**
+
+```json
+{
+  "status": "ok",
+  "service": "travel-with-me",
+  "timestamp": "2026-06-21T00:00:00.000Z"
+}
+```
+
+---
+
+## `GET /readyz`
+
+依赖就绪检查。缺少高德密钥时返回 `503` 和 `degraded`。
+
+**响应**
+
+```json
+{
+  "status": "ready",
+  "dependencies": {
+    "amapJsSecurity": true,
+    "amapWebService": true,
+    "aiGuideImport": true
+  }
+}
+```
+
+---
+
 ## `GET /_ai/status`
 
 检查 AI 攻略导入功能是否可用。
@@ -98,7 +133,7 @@ BFF 会返回基础安全响应头，包括 `X-Content-Type-Options`、`X-Frame-
 高德 Web 服务透明代理。前端设置 `_AMapSecurityConfig.serviceHost` 后，所有高德 SDK 发起的 Web 服务请求都会通过此代理。
 
 - **上游**: `https://restapi.amap.com`
-- **注入**: 服务端自动附加 `jscode=$AMAP_JSCODE`
+- **注入**: 服务端自动附加 `key=$AMAP_WEB_SERVICE_KEY`，并移除浏览器传入的 `key` 与 `jscode`
 - **透传**: Referer / Origin / User-Agent 头
 - **重试**: 最多 2 次
 - **防护**: 显式非允许来源返回 `403`，超出限流返回 `429`
@@ -125,19 +160,89 @@ BFF 会返回基础安全响应头，包括 `X-Content-Type-Options`、`X-Frame-
 
 ---
 
+## `GET /_elevation`
+
+高程代理。当前用于 3D terrain fallback / sampling，不作为商业级 DEM tile 管线。单次最多 100 个坐标点。
+
+**参数**
+
+| 参数      | 类型   | 必填 | 说明                                 |
+| --------- | ------ | ---- | ------------------------------------ |
+| latitude  | string | 是   | 逗号分隔纬度列表                     |
+| longitude | string | 是   | 逗号分隔经度列表，数量必须与纬度一致 |
+
+**成功响应**
+
+透传上游 Open-Meteo Elevation API JSON。缓存头为 `public, max-age=86400`。
+
+**错误响应**
+
+| HTTP | error                           | 说明                           |
+| ---- | ------------------------------- | ------------------------------ |
+| 400  | `INVALID_ELEVATION_COORDINATES` | 坐标为空、数量不匹配或超过 100 |
+| 403  | `FORBIDDEN_SOURCE`              | Origin / Referer 不在允许范围  |
+| 429  | `RATE_LIMITED`                  | 请求过于频繁                   |
+| 502  | `ELEVATION_UPSTREAM_FAILED`     | 高程上游不可用                 |
+
+---
+
+## `GET /_geo-assets`
+
+获取行程附近的小范围地理上下文资产。当前实现是 bounded Overpass/OSM prototype context layer，用于建筑、道路、水域、桥梁和植被上下文验证；它不是长期商业生产依赖。
+
+**参数**
+
+| 参数   | 类型   | 必填 | 说明                                                      |
+| ------ | ------ | ---- | --------------------------------------------------------- |
+| points | string | 是   | 分号分隔的 `lng,lat` 坐标列表，必须包含 1 至 8 个有效地点 |
+
+**成功响应**
+
+```json
+{
+  "geoAssets": {
+    "buildings": [],
+    "roads": [],
+    "waterways": [],
+    "bridges": [],
+    "landcover": [],
+    "landmarks": []
+  },
+  "attribution": "© OpenStreetMap contributors",
+  "licence": "ODbL 1.0"
+}
+```
+
+**错误响应**
+
+| HTTP | error                        | 说明                             |
+| ---- | ---------------------------- | -------------------------------- |
+| 400  | `INVALID_GEO_ASSET_POINTS`   | 坐标为空、无效或超过 8 个 anchor |
+| 403  | `FORBIDDEN_SOURCE`           | Origin / Referer 不在允许范围    |
+| 429  | `RATE_LIMITED`               | 请求过于频繁或上游限流           |
+| 502  | `GEO_ASSETS_UPSTREAM_FAILED` | 上游地理要素服务不可用           |
+
+---
+
 ## 环境变量
 
-| 变量                  | 必填 | 默认值    | 说明                                   |
-| --------------------- | ---- | --------- | -------------------------------------- |
-| `AMAP_JSCODE`         | 是   | —         | 高德安全密钥，BFF 注入                 |
-| `DEEPSEEK_API_KEY`    | 否   | —         | DeepSeek API Key，留空则 AI 导入不可用 |
-| `DEEPSEEK_TIMEOUT_MS` | 否   | `90000`   | AI 请求超时（毫秒）                    |
-| `ALLOWED_ORIGINS`     | 否   | 空        | 额外允许来源，默认只允许同源显式来源   |
-| `MAX_AI_BODY_BYTES`   | 否   | `24000`   | AI 导入请求体最大字节数                |
-| `AI_RATE_LIMIT`       | 否   | `10`      | 单 IP 每个 AI 窗口最大请求数           |
-| `AI_RATE_WINDOW_MS`   | 否   | `3600000` | AI 限流窗口（毫秒）                    |
-| `AMAP_RATE_LIMIT`     | 否   | `600`     | 单 IP 每个高德代理窗口最大请求数       |
-| `AMAP_RATE_WINDOW_MS` | 否   | `60000`   | 高德代理限流窗口（毫秒）               |
-| `TILE_RATE_LIMIT`     | 否   | `1200`    | 单 IP 每个瓦片窗口最大请求数           |
-| `TILE_RATE_WINDOW_MS` | 否   | `60000`   | 瓦片限流窗口（毫秒）                   |
-| `PORT`                | 否   | `8080`    | 服务监听端口                           |
+| 变量                        | 必填 | 默认值     | 说明                                   |
+| --------------------------- | ---- | ---------- | -------------------------------------- |
+| `AMAP_JSCODE`               | 是   | —          | 高德 JS API 安全密钥，仅服务端使用     |
+| `AMAP_WEB_SERVICE_KEY`      | 是   | —          | 高德 Web Service Key，BFF 注入         |
+| `DEEPSEEK_API_KEY`          | 否   | —          | DeepSeek API Key，留空则 AI 导入不可用 |
+| `DEEPSEEK_TIMEOUT_MS`       | 否   | `90000`    | AI 请求超时（毫秒）                    |
+| `ALLOWED_ORIGINS`           | 否   | 空         | 额外允许来源，默认只允许同源显式来源   |
+| `MAX_AI_BODY_BYTES`         | 否   | `24000`    | AI 导入请求体最大字节数                |
+| `AI_RATE_LIMIT`             | 否   | `10`       | 单 IP 每个 AI 窗口最大请求数           |
+| `AI_RATE_WINDOW_MS`         | 否   | `3600000`  | AI 限流窗口（毫秒）                    |
+| `AMAP_RATE_LIMIT`           | 否   | `600`      | 单 IP 每个高德代理窗口最大请求数       |
+| `AMAP_RATE_WINDOW_MS`       | 否   | `60000`    | 高德代理限流窗口（毫秒）               |
+| `TILE_RATE_LIMIT`           | 否   | `1200`     | 单 IP 每个瓦片窗口最大请求数           |
+| `TILE_RATE_WINDOW_MS`       | 否   | `60000`    | 瓦片限流窗口（毫秒）                   |
+| `ELEVATION_RATE_LIMIT`      | 否   | `120`      | 单 IP 每个高程窗口最大请求数           |
+| `ELEVATION_RATE_WINDOW_MS`  | 否   | `60000`    | 高程限流窗口（毫秒）                   |
+| `GEO_ASSETS_RATE_LIMIT`     | 否   | `24`       | 单 IP 每个 geoAssets 窗口最大请求数    |
+| `GEO_ASSETS_RATE_WINDOW_MS` | 否   | `3600000`  | geoAssets 限流窗口（毫秒）             |
+| `GEO_ASSETS_CACHE_TTL_MS`   | 否   | `86400000` | geoAssets 内存缓存时间（毫秒）         |
+| `PORT`                      | 否   | `8080`     | 服务监听端口                           |

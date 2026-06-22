@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest';
 import { buildEstimatedResult } from '../api/routing.js';
 
 describe('buildEstimatedResult', () => {
-  const baseSegment = (mode) => ({
+  const baseSegment = mode => ({
     fromLngLat: [116.4, 39.9],
     toLngLat: [116.5, 40.0],
     mode,
@@ -60,5 +60,15 @@ describe('buildEstimatedResult', () => {
       routeToNext: { mode: 'driving' }
     });
     expect(result.detail.distance).toBe(0);
+  });
+
+  it('does not estimate a route when coordinates are missing', () => {
+    const result = buildEstimatedResult({
+      fromLngLat: undefined,
+      toLngLat: [116.01, 39.01],
+      mode: 'driving'
+    });
+
+    expect(result).toEqual({ ok: false, estimated: false, status: 'missing-coordinates' });
   });
 });

@@ -29,7 +29,7 @@ export const TERRAIN_MODES = {
   hiking: {
     id: 'hiking',
     label: 'Hiking',
-    terrainGrid: 64,
+    terrainGrid: 48,
     routeSamples: 48,
     labelBudget: 8,
     dataSource: 'dem-required-for-strong-claims',
@@ -38,7 +38,8 @@ export const TERRAIN_MODES = {
   regionOverview: {
     id: 'region-overview',
     label: 'Region Overview',
-    terrainGrid: 28,
+    // 远景只服务于片区关系和路线可读性；14×14 保持首屏可用，细节留给 inspect 局部 DEM。
+    terrainGrid: 14,
     routeSamples: 20,
     labelBudget: 8,
     dataSource: 'open-meteo-low-detail',
@@ -95,7 +96,8 @@ export function chooseTerrainMode(input = {}) {
     poiCount,
     routeLength,
     elevationRange,
-    terrainGrid: clamp(mode.terrainGrid, 8, input.maxTerrainGrid || 64)
+    // 桌面端首版限制为 48x48：近景细节依赖局部重采样，而不是整幅地图无限加密。
+    terrainGrid: clamp(mode.terrainGrid, 8, input.maxTerrainGrid || 48)
   };
 }
 

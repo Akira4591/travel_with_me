@@ -1,0 +1,18 @@
+{
+  "scene": "micro-street",
+  "route": {
+    "hash": "fixture-micro-street-route-v1",
+    "maxOccludedRatio": 0.25
+  },
+  "water": {
+    "requiresCoverage": false,
+    "maxBlankPixelRatio": 0
+  },
+  "bridge": {
+    "requiresDeckContinuity": false,
+    "minSpanCoverageRatio": 1
+  },
+  "building": {
+    "maxPopDeltaPixels": 18
+  }
+}

@@ -44,7 +44,7 @@ npm run check    # 格式 + lint 一并检查
 ### 测试
 
 ```bash
-npm test            # 单元测试（10 suites, 64 tests）
+npm test            # 单元测试（当前基线 21 files, 103 tests）
 npm run test:watch  # 持续监听
 npm run test:e2e    # 浏览器级 E2E 测试（Playwright）
 ```
@@ -130,10 +130,15 @@ trip-app/
 │   ├── time-slots.js       # 时间段定义
 │   ├── share.js            # #trip= 链接兼容
 │   ├── share-image.js      # Canvas 分享长图
+│   ├── annotations.js      # 2D/3D 功能标记
+│   ├── route-geometry.js   # 路线几何与诊断
+│   ├── route-guidance.js   # 2D/3D 路线导引身份
 │   ├── data/
 │   │   └── trip.js         # 演示数据 + 数据模型 typedef
 │   ├── api/
 │   │   ├── amap-loader.js  # 高德 SDK 加载
+│   │   ├── amap-web-service.js # 高德 Web Service 封装
+│   │   ├── geo-assets.js   # 3D geoAssets 获取/规范化
 │   │   ├── geocode.js      # POI 搜索/附近/逆地理
 │   │   ├── guide-import.js # AI 导入请求
 │   │   ├── routing.js      # 路线规划
@@ -143,9 +148,14 @@ trip-app/
 │   │   ├── shared-widgets.js # 共享 UI 组件
 │   │   ├── icons.js        # 图标体系
 │   │   ├── geo-project.js  # 地理坐标投影
+│   │   ├── scene-build-context.js # 3D 场景构建上下文
+│   │   ├── scene-debug.js  # 3D debug surface
 │   │   ├── sidebar.js      # 侧边栏渲染
 │   │   ├── map.js          # 2D 地图渲染
 │   │   ├── map-3d.js       # 3D diorama 渲染
+│   │   ├── terrain-surface.js # 3D 地形表面/贴地 ribbon
+│   │   ├── geo-asset-renderer.js # 3D 水/路/桥渲染
+│   │   ├── route-guidance-renderer.js # 3D 路线导引渲染
 │   │   ├── toggle-3d.js    # 2D/3D 切换
 │   │   ├── workspace-tabs.js
 │   │   └── *-modal.js      # 各类弹窗
@@ -159,7 +169,11 @@ trip-app/
 │   └── e2e/
 │       └── smoke.spec.js
 └── docs/
-    ├── api.md              # API 文档
-    ├── design-refactor-plan.md
-    └── ...                 # 其他设计文档
+    ├── product-architecture-blueprint.md
+    ├── 3d-deep-research-integration.md
+    ├── 3d-generation-process-alignment.md
+    ├── 3d-top-down-execution-roadmap.md
+    ├── 3d-assets-landcover-and-landmarks.md
+    ├── api.md
+    └── ...                 # 其他当前维护文档
 ```

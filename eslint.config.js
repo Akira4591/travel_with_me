@@ -31,6 +31,7 @@ export default [
         Image: 'readonly',
         Blob: 'readonly',
         FileReader: 'readonly',
+        CustomEvent: 'readonly',
         TextEncoder: 'readonly',
         TextDecoder: 'readonly',
         Uint8Array: 'readonly',
@@ -66,7 +67,19 @@ export default [
       'no-console': 'off',
       'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
       'prefer-const': 'warn',
-      'no-var': 'error'
+      'no-var': 'error',
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['../api/*', '../api/**', '../../server/*', '../../server/**'],
+              message:
+                'Renderer modules must consume prepared scene context or injected loaders instead of provider/server modules.'
+            }
+          ]
+        }
+      ]
     }
   }
 ];

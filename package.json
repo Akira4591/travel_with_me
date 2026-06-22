@@ -9,9 +9,13 @@
     "lint": "eslint js/ server/",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "npm run format:check && npm run lint",
+    "check": "npm run format:check && npm run lint && npm run check:architecture && npm run check:provenance",
+    "check:architecture": "node scripts/audit-render-imports.mjs",
+    "check:provenance": "node scripts/check-provenance.mjs",
+    "check:encoding": "node scripts/check-visible-text-encoding.mjs",
     "test": "vitest run",
-    "test:e2e": "playwright test",
+    "test:e2e": "playwright test --grep-invert @live-provider",
+    "test:e2e:live-provider": "node scripts/run-live-provider-smoke.mjs",
     "test:guide-import": "node scripts/evaluate-guide-import.mjs",
     "test:watch": "vitest",
     "prepare": "husky"
@@ -19,7 +23,8 @@
   "dependencies": {
     "@hono/node-server": "^2.0.5",
     "console-log-json": "^6.4.1",
-    "hono": "^4.12.26"
+    "hono": "^4.12.26",
+    "three": "0.162.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

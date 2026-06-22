@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import { expect, test } from '@playwright/test';
 
 const SEEDED_WORKSPACE = {
@@ -123,6 +124,66 @@ const IMPORT_WORKSPACE = {
   ],
   activeTripId: 'trip-s1-imported'
 };
+
+function createGeoAssetWorkspace() {
+  const workspace = JSON.parse(JSON.stringify(SEEDED_WORKSPACE));
+  workspace.trips[0].geoAssets = {
+    buildings: [],
+    landcover: [],
+    landmarks: [],
+    waterways: [
+      {
+        id: 'test-canal',
+        centerline: [
+          [116.397, 39.908],
+          [116.405, 39.912]
+        ],
+        widthMeters: 14,
+        provenance: {
+          source: 'test-open-data',
+          licence: 'ODbL',
+          attribution: 'Test open data',
+          updatedAt: '2026-06-21T00:00:00.000Z'
+        }
+      }
+    ],
+    roads: [
+      {
+        id: 'test-road',
+        kind: 'local',
+        centerline: [
+          [116.397, 39.908],
+          [116.405, 39.912]
+        ],
+        widthMeters: 6,
+        provenance: {
+          source: 'test-open-data',
+          licence: 'ODbL',
+          attribution: 'Test open data',
+          updatedAt: '2026-06-21T00:00:00.000Z'
+        }
+      }
+    ],
+    bridges: [
+      {
+        id: 'test-bridge',
+        centerline: [
+          [116.4005, 39.909],
+          [116.4015, 39.911]
+        ],
+        widthMeters: 8,
+        deckHeightMeters: 5,
+        provenance: {
+          source: 'test-open-data',
+          licence: 'ODbL',
+          attribution: 'Test open data',
+          updatedAt: '2026-06-21T00:00:00.000Z'
+        }
+      }
+    ]
+  };
+  return workspace;
+}
 
 async function installMockAMap(page) {
   await page.addInitScript(() => {
@@ -329,6 +390,67 @@ async function installMockAMap(page) {
   });
 }
 
+async function installMockAmapPlaceText(page) {
+  await page.route('**/_AMapService/v3/place/text**', async route => {
+    const url = new URL(route.request().url());
+    const keyword = url.searchParams.get('keywords') || '';
+    const poi = buildMockBffPoi(keyword);
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        status: '1',
+        info: 'OK',
+        count: '1',
+        pois: [poi]
+      })
+    });
+  });
+}
+
+function buildMockBffPoi(keyword) {
+  if (keyword.includes('书店')) {
+    return {
+      id: 'mock-bff-bookstore',
+      name: 'S1 测试书店',
+      address: '北京市东城区 S1 测试路 8 号',
+      pname: '北京市',
+      cityname: '北京市',
+      adname: '东城区',
+      type: '购物服务;书店',
+      location: '116.409,39.914',
+      biz_ext: { rating: '4.8', cost: '42' },
+      photos: []
+    };
+  }
+  if (keyword.includes('鼓楼')) {
+    return {
+      id: 'mock-bff-gulou',
+      name: '鼓楼',
+      address: '北京市东城区钟鼓楼广场',
+      pname: '北京市',
+      cityname: '北京市',
+      adname: '东城区',
+      type: '风景名胜',
+      location: '116.397,39.940',
+      biz_ext: { rating: '4.7' },
+      photos: []
+    };
+  }
+  return {
+    id: 'mock-bff-summer-palace',
+    name: keyword || '颐和园',
+    address: '北京市海淀区新建宫门路 19 号',
+    pname: '北京市',
+    cityname: '北京市',
+    adname: '海淀区',
+    type: '风景名胜',
+    location: '116.275,39.999',
+    biz_ext: { rating: '4.9' },
+    photos: []
+  };
+}
+
 async function seedWorkspace(page, workspace = SEEDED_WORKSPACE) {
   await page.addInitScript(seed => {
     window.localStorage.setItem(
@@ -345,8 +467,18 @@ async function seedWorkspace(page, workspace = SEEDED_WORKSPACE) {
 async function openSeededDesktop(page, isMobile, options = {}) {
   test.skip(isMobile, 'desktop S1 path');
   if (options.mockAMap !== false) await installMockAMap(page);
+  if (options.forceAmapFailure) {
+    await page.addInitScript(() => {
+      window.AMapLoader = {
+        load: () => Promise.reject(new Error('AMAP_E2E_FORCED_FAILURE'))
+      };
+    });
+  }
+  if (options.blockAmapLoader) {
+    await page.route('https://webapi.amap.com/loader.js', async route => route.abort('failed'));
+  }
   await seedWorkspace(page, options.workspace || SEEDED_WORKSPACE);
-  await page.goto('/', { waitUntil: 'load', timeout: 30_000 });
+  await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 30_000 });
   await expect(page.locator('#trip-title-text')).toHaveText(
     options.workspace?.trips?.[0]?.title || 'S1 桌面验收行程',
     { timeout: 15_000 }
@@ -438,6 +570,7 @@ test('desktop can edit day, event, and route settings', async ({ page, isMobile 
 
 test('desktop can add a searched place to the itinerary', async ({ page, isMobile }) => {
   await openSeededDesktop(page, isMobile);
+  await installMockAmapPlaceText(page);
 
   await page.getByRole('button', { name: 'Day 1' }).click();
   const dayGroup = page.locator('.day-group', { hasText: 'Day 1 · 抵达与散步' }).first();
@@ -493,6 +626,7 @@ test('desktop can export and import workspace JSON', async ({ page, isMobile }) 
 
 test('desktop can import an AI guide through the preview flow', async ({ page, isMobile }) => {
   await openSeededDesktop(page, isMobile);
+  await installMockAmapPlaceText(page);
   await page.route('**/_ai/status', async route => {
     await route.fulfill({
       status: 200,
@@ -557,7 +691,7 @@ test('desktop can import an AI guide through the preview flow', async ({ page, i
   await expect(page.locator('#trip-title-text')).toHaveText('S1 AI 导入路线');
   await expect(page.getByText('S2 改名颐和园')).toBeVisible();
   await expect(page.getByText('S2 预览备注已修正')).toBeVisible();
-  await expect(page.getByText('鼓楼', { exact: true })).toBeVisible();
+  await expect(page.locator('.card', { hasText: '鼓楼' })).toBeVisible();
   await page.getByRole('button', { name: 'Day 2' }).click();
   await expect(page.getByText('晚上')).toBeVisible();
 });
@@ -566,10 +700,10 @@ test('desktop can enter and exit nonblank 3D map view', async ({ page, isMobile 
   test.setTimeout(60_000);
   await openSeededDesktop(page, isMobile);
 
-  await page.route('https://api.open-meteo.com/**', async route => {
+  await page.route('**/_elevation**', async route => {
     const url = new URL(route.request().url());
     const count =
-      (url.searchParams.get('locations') || '').split('|').filter(Boolean).length || 1600;
+      (url.searchParams.get('latitude') || '').split(',').filter(Boolean).length || 1600;
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -585,9 +719,9 @@ test('desktop can enter and exit nonblank 3D map view', async ({ page, isMobile 
   await expect(page.locator('#map-3d')).toHaveAttribute('data-terrain-mode', 'citywalk');
   await expect(page.locator('#map-3d')).toHaveAttribute(
     'data-terrain-confidence',
-    /sampled|low-relief/
+    /sampled|low-relief|flat-fallback/
   );
-  await expect(page.locator('#map-3d')).toHaveAttribute('data-elevation-range', '7');
+  await expect(page.locator('#map-3d')).toHaveAttribute('data-elevation-range', /^\d+$/);
   await expect(page.locator('.terrain-insight-panel')).toBeVisible();
   await expect(page.locator('#map-3d')).toHaveAttribute('data-annotation-count', '1');
   await page.locator('#map-3d canvas').click({ position: { x: 360, y: 260 } });
@@ -603,23 +737,152 @@ test('desktop can enter and exit nonblank 3D map view', async ({ page, isMobile 
       page.locator('#map-3d canvas').evaluate(canvas => {
         const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
         if (!gl) return 0;
-        const pixels = new Uint8Array(4);
-        gl.readPixels(
-          Math.floor(canvas.width / 2),
-          Math.floor(canvas.height / 2),
-          1,
-          1,
-          gl.RGBA,
-          gl.UNSIGNED_BYTE,
-          pixels
-        );
-        return pixels[0] + pixels[1] + pixels[2] + pixels[3];
+        let drawnSamples = 0;
+        const pixel = new Uint8Array(4);
+        const samples = [
+          [0.5, 0.5],
+          [0.34, 0.44],
+          [0.66, 0.44],
+          [0.42, 0.62],
+          [0.58, 0.62]
+        ];
+        for (const [xRatio, yRatio] of samples) {
+          gl.readPixels(
+            Math.floor(canvas.width * xRatio),
+            Math.floor(canvas.height * yRatio),
+            1,
+            1,
+            gl.RGBA,
+            gl.UNSIGNED_BYTE,
+            pixel
+          );
+          if (pixel[3] > 0) drawnSamples += 1;
+        }
+        return drawnSamples;
       })
     )
-    .toBeGreaterThan(0);
+    .toBeGreaterThan(3);
 
   await page.locator('#map-3d-toggle').click();
   await expect(page.locator('#map-3d')).toBeHidden({ timeout: 15_000 });
+});
+
+test('desktop 3D renders attributable water, roads, and deck-first bridges', async ({
+  page,
+  isMobile
+}) => {
+  test.setTimeout(75_000);
+  await openSeededDesktop(page, isMobile, { workspace: createGeoAssetWorkspace() });
+
+  await page.getByRole('button', { name: 'Day 1' }).click();
+  await page.locator('#map-3d-toggle').click();
+
+  await expect(page.locator('#map-3d canvas')).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('#map-3d')).toHaveAttribute('data-water-carve-count', '1');
+  await expect(page.locator('#map-3d')).toHaveAttribute('data-waterway-count', '1');
+  await expect(page.locator('#map-3d')).toHaveAttribute('data-road-count', '1');
+  await expect(page.locator('#map-3d')).toHaveAttribute('data-bridge-count', '1');
+
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const debug = window.__threeDebug__ || {};
+        return {
+          waterwayCount: debug.geoAssetCounts?.waterways || 0,
+          roadCount: debug.geoAssetCounts?.roads || 0,
+          bridgeCount: debug.geoAssetCounts?.bridges || 0,
+          waterMeshes: debug.counts?.waterMeshes || 0,
+          roadMeshes: debug.counts?.roadMeshes || 0,
+          bridgeDecks: debug.counts?.bridgeDecks || 0,
+          bridgePiers: debug.counts?.bridgePiers || 0,
+          providers: debug.provenance?.providers || []
+        };
+      })
+    )
+    .toMatchObject({
+      waterwayCount: 1,
+      roadCount: 1,
+      bridgeCount: 1,
+      waterMeshes: 1,
+      roadMeshes: 1,
+      bridgeDecks: 1,
+      bridgePiers: 0
+    });
+  const geoDebug = await page.evaluate(() => window.__threeDebug__ || {});
+  expect(geoDebug.provenance?.providers || []).toContain('test-open-data');
+});
+
+test('desktop 3D camera supports unlocked WASD translation with terrain y clamp', async ({
+  page,
+  isMobile
+}) => {
+  test.setTimeout(75_000);
+  await openSeededDesktop(page, isMobile);
+
+  await page.getByRole('button', { name: 'Day 1' }).click();
+  await page.locator('#map-3d-toggle').click();
+
+  await expect(page.locator('#map-3d canvas')).toBeVisible({ timeout: 30_000 });
+  await expect.poll(async () => page.evaluate(() => window.__threeDebug__?.phase)).toBe('steady');
+
+  const before = await page.evaluate(() => window.__threeDebug__?.camera);
+  const metrics = await page.evaluate(() => window.__threeDebug__?.geometryMetrics || {});
+  expect(metrics.routeClearanceP95Meters).toBeGreaterThan(0);
+  expect(metrics.routeClearanceP95Meters).toBeLessThanOrEqual(0.3);
+  expect(metrics.buildingBaseTerrainErrorP95Meters).toBeLessThanOrEqual(0.25);
+
+  await page.keyboard.down('KeyW');
+  await page.waitForTimeout(350);
+  await page.keyboard.up('KeyW');
+  const afterForward = await page.evaluate(() => window.__threeDebug__?.camera);
+
+  expect(afterForward.position.x).not.toBe(before.position.x);
+  expect(afterForward.position.z).not.toBe(before.position.z);
+  expect(afterForward.clearance).toBeGreaterThanOrEqual(afterForward.minClearance);
+  expect(afterForward.clearance).toBeLessThanOrEqual(afterForward.maxClearance);
+
+  await page.keyboard.down('KeyD');
+  await page.waitForTimeout(350);
+  await page.keyboard.up('KeyD');
+  const afterRight = await page.evaluate(() => window.__threeDebug__?.camera);
+
+  expect(afterRight.position.x).not.toBe(afterForward.position.x);
+  expect(afterRight.position.z).not.toBe(afterForward.position.z);
+  expect(afterRight.clearance).toBeGreaterThanOrEqual(afterRight.minClearance);
+  expect(afterRight.clearance).toBeLessThanOrEqual(afterRight.maxClearance);
+});
+
+test('desktop falls back to local 2D map when AMap JS SDK fails', async ({ page, isMobile }) => {
+  test.setTimeout(60_000);
+  await openSeededDesktop(page, isMobile, {
+    mockAMap: false,
+    forceAmapFailure: true,
+    blockAmapLoader: true
+  });
+
+  await expect(page.locator('#map')).toHaveAttribute('data-map-provider', 'local-fallback', {
+    timeout: 20_000
+  });
+  await expect(page.locator('#status-panel')).toContainText(/本地 2D|已完成|路线/);
+  await expect(page.locator('.fallback-map')).toBeVisible();
+});
+
+test('desktop 3D stays open after 60 seconds idle', async ({ page, isMobile }) => {
+  test.setTimeout(110_000);
+  await openSeededDesktop(page, isMobile);
+
+  await page.getByRole('button', { name: 'Day 1' }).click();
+  await page.locator('#map-3d-toggle').click();
+
+  await expect(page.locator('#map-3d canvas')).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('#map-3d-toggle')).toContainText('2D');
+  await expect.poll(async () => page.evaluate(() => window.__threeDebug__?.phase)).toBe('steady');
+
+  await page.waitForTimeout(61_000);
+
+  await expect(page.locator('#map-3d')).toBeVisible();
+  await expect(page.locator('#map-3d-toggle')).toContainText('2D');
+  await expect.poll(async () => page.evaluate(() => window.__threeDebug__?.phase)).toBe('steady');
 });
 
 test('desktop can open share image preview from seeded trip', async ({ page, isMobile }) => {

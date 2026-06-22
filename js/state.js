@@ -16,6 +16,7 @@ import { AppConfig } from './config.js';
 import { getTimeSlotRank, normalizeTimeSlot } from './time-slots.js';
 import { normalizeRouteToNext } from './route-config.js';
 import { normalizeAnnotation } from './annotations.js';
+import { normalizeGeoAssets } from './render/geo-assets.js';
 
 // ─── 内部状态（不直接导出） ─────────────────────────────
 
@@ -201,7 +202,8 @@ export function addLocation(loc) {
     province: loc.province || '',
     city: loc.city || '',
     district: loc.district || '',
-    tag: loc.tag || ''
+    tag: loc.tag || '',
+    source: loc.source || (loc.lnglat ? 'user' : '')
   };
   emit('trip:changed', { kind: 'location:added', locationId: id });
   return id;
@@ -225,6 +227,7 @@ export function updateLocation(locationId, patch) {
   if (patch.city != null) loc.city = patch.city;
   if (patch.district != null) loc.district = patch.district;
   if (patch.tag != null) loc.tag = patch.tag;
+  if (patch.source != null) loc.source = patch.source;
 
   emit('location:updated', { locationId });
   emit('trip:changed', { kind: 'location:updated', locationId });
@@ -245,6 +248,27 @@ export function updateTripMeta(patch) {
   if (patch.subtitle != null) trip.subtitle = patch.subtitle;
   if (patch.city != null) trip.city = patch.city;
   emit('trip:changed', { kind: 'trip:updated' });
+  return true;
+}
+
+export function updateTripGeoAssets(geoAssets) {
+  if (!trip) return false;
+  trip.geoAssets = normalizeGeoAssets(geoAssets);
+  trip.geoAssetStatus = {
+    status: 'ok',
+    reason: '',
+    sourceSummary: '',
+    stale: false,
+    updatedAt: new Date().toISOString()
+  };
+  emit('trip:changed', { kind: 'trip:geo-assets-updated' });
+  return true;
+}
+
+export function updateTripGeoAssetStatus(status = {}) {
+  if (!trip) return false;
+  trip.geoAssetStatus = normalizeGeoAssetStatus(status);
+  emit('trip:changed', { kind: 'trip:geo-assets-status-updated' });
   return true;
 }
 
@@ -374,6 +398,23 @@ export function updateRouteToNext(dayId, eventId, routePatch) {
   day.events[index].routeToNext = normalizeRouteToNext(routePatch);
   normalizeDayRoutes(day);
   emit('trip:changed', { kind: 'route:updated', dayId, eventId });
+  return true;
+}
+
+export function cacheRouteGeometry(dayId, eventId, geometry) {
+  if (!trip) return false;
+  const day = trip.days.find(item => item.id === dayId);
+  const event = day?.events.find(item => item.id === eventId);
+  if (!event?.routeToNext) return false;
+
+  const route = normalizeRouteToNext({
+    ...event.routeToNext,
+    mode: geometry?.mode || event.routeToNext.mode,
+    geometry
+  });
+  if (!route.geometry) return false;
+  event.routeToNext = route;
+  emit('trip:changed', { kind: 'route:geometry-cached', dayId, eventId });
   return true;
 }
 
@@ -807,7 +848,22 @@ function normalizeTrip(input, fallbackTitle = '旅行路线') {
         )
         .filter(Boolean)
     : [];
+  cloned.geoAssets = normalizeGeoAssets(cloned.geoAssets);
+  cloned.geoAssetStatus = normalizeGeoAssetStatus(cloned.geoAssetStatus);
   return cloned;
+}
+
+function normalizeGeoAssetStatus(status = {}) {
+  const hasStatus = Boolean(status && Object.keys(status).length);
+  const normalizedStatus = String(status.status || 'unknown');
+  return {
+    status: normalizedStatus,
+    reason: String(status.reason || ''),
+    sourceSummary: String(status.sourceSummary || ''),
+    stale: Boolean(status.stale),
+    degraded: hasStatus ? Boolean(status.degraded ?? normalizedStatus !== 'ok') : false,
+    updatedAt: String(status.updatedAt || new Date().toISOString())
+  };
 }
 
 // 未排期 event 的字段处理：复用 normalizeEvent 的字段处理逻辑，但**剥掉 routeToNext**

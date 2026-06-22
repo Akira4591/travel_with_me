@@ -1,13 +1,14 @@
 # Architecture
 
-Travel With Me 是一个中文旅行路线规划 Web App。本文档记录当前系统架构、关键架构决策和设计原则。
+Travel With Me 是一个中文旅行路线规划 Web App。本文档记录当前系统架构、关键架构决策和设计原则。产品方向、阶段口径和 2D/3D 同源边界以 [产品与架构总纲](docs/product-architecture-blueprint.md) 为准。
 
 文档边界：
 
-- 项目阶段、文档职责和设计级重构路线见 `docs/design-refactor-plan.md`。
+- 产品方向、交付阶段和文档职责见 `docs/product-architecture-blueprint.md`。
 - 商业化缺口、方案取舍和阶段路线见 `commercialization-solutions.md`。
 - 近期执行 backlog 见 `TODO.md`。
 - BFF 接口契约见 `docs/api.md`。
+- 3D 技术路线、状态机和质量门禁见 `docs/3d-deep-research-integration.md` 与 `docs/3d-top-down-execution-roadmap.md`。
 
 本文档只回答：系统如何组织、为什么这样组织、哪些架构约束必须遵守。
 
@@ -21,6 +22,7 @@ Browser
   ├─ 原生 ES Modules（无构建工具）
   ├─ 高德 JS API 2.0
   ├─ localStorage 持久化
+  ├─ Three.js 3D planning diorama
   └─ Canvas 分享长图生成
 ```
 
@@ -227,34 +229,38 @@ buildTripShareImage(trip, { includeRoutes })
 
 ---
 
-### ADR-6: 3D Diorama 地图 — 场景驱动精度尺与 1:1 浮升过渡
+### ADR-6: 3D Diorama 地图 — 2D 事实层驱动的生成式规划沙盘
 
 **日期**: 2026-06-18
-**状态**: 已采纳（设计规范完成，待实施）
+**状态**: 已采纳（按 P0-P6 分批实施）
 
-**背景**: 当前项目使用 2D 高德地图 + Canvas 分享长图。需要引入 3D 地形沙盘（diorama）模式，让用户更直观地理解多点空间关系、路线形状和地形起伏。
+**背景**: 当前项目使用 2D 高德地图、BFF Web Service、Canvas 分享长图和 Three.js 3D 模块。3D 的目标是帮助用户理解路线、地形、水系、桥梁、建筑体块和局部风险，不是替代 2D 地图，也不是复刻真实城市。
 
-**决策**: 使用 Three.js 自研 2.5D/3D diorama，而非引入 Cesium/Mapbox GL 等重地图引擎。不追求真实城市 3D 建筑复刻，先做地形 + POI 体块 + 路线理解。
+**决策**: 采用 “高德 2D / Web Service + BFF 数据缓存 + `geoAssets` + Three.js” 路线。高德继续承担中国区 2D、POI、地理编码和路线规划；Three.js 只负责 3D planning diorama；BFF 负责 provider-neutral 数据、缓存、归属和后续供应商替换。Cesium、Mapbox、Babylon、OSMBuildings 不作为主引擎。
 
 **理由**:
 
 - Three.js 体积极小（~120KB gzip），按需初始化，2D 模式下零开销
-- 可控的渲染预算（桌面端 16K vertices，小屏/后置移动端 8K）
 - 不与高德 JS API 的内部渲染对象耦合
-- 2D 和 3D 模块互斥，`map.js` 与 `map-3d.js` 不共享渲染上下文
+- 2D 和 3D 共享持久化事实：`locations`、`routeToNext.geometry`、`annotations`、`geoAssets`
+- 路线、道路、水系、桥梁、建筑、植被和地标都能通过 BFF provenance 约束合规来源
+- 生成过程可被 Playwright 截图、debug state 和几何质量门禁验证
 
 **核心架构约束**:
 
-- 2D→3D 过渡：1:1 浮升动画，保持空间连续性（隐喻："平放的图纸站起来变成模型"）
-- 五场景精度模式：Micro Street / Citywalk / Scenic Park / Hiking / Region Overview，由 `chooseTerrainMode()` 自动判定
-- 地形数据分层：Ground（高程）/ Network（路网）/ POI / Presentation，每层独立降级
-- 3D 模块仅在 zoom ≥ 14 时允许激活，闲置 > 60s 自动切回 2D
-- 所有 3D 对象通过 `TerrainModel.heightAt(x,z)` 贴地，建筑高度由 `locationId` hash 生成保持稳定
+- 3D 不读取高德 JS API 内部 renderer 对象，只消费持久化业务数据和 `trip.geoAssets`
+- 2D/3D 切换入口固定在地图右下角控制区，桌面 Web 为当前唯一产品主线
+- 固定生成状态机：`freeze-2d -> derive-scene-envelope -> slab-rise -> terrain-refine -> water-carve -> road-emerge -> bridge-resolve -> route-highlight -> building-massing -> building-dissolve`
+- 先抬升地面基础，再融化出水面/道路/山体/桥梁，最后抬升建筑体块并溶解出近景外轮廓
+- 路线与道路分层：道路是中性地理上下文，行程路线复用 2D 导引线身份并使用工业安全黄
+- 所有真实世界资产必须有 `source`、`licence`、`attribution`、`updatedAt`
+- 缺失数据失败关闭：不凭空生成真实河道、桥梁、植被、地标或真实建筑外观
+- 所有 3D 对象通过统一 `sampleHeight()` / `TerrainModel.heightAt(x,z)` 贴地
 - 3D 功能标记写入 `trip.annotations[]`，当前支持入口、观景、补给、交通、风险、备注 6 类
 
-**权衡**: 放弃真实城市 3D 建筑复刻，放弃 Cesium 级别的全球地形流式加载。高程数据 MVP 阶段用 Open-Meteo（90m 分辨率），景区/徒步场景应升级到 DEM tile。
+**权衡**: 放弃把 3D 变成全量城市/全球地图平台。生产 DEM 目标是自托管 Copernicus GLO-30/GLO-90 或兼容 Terrarium/PMTiles 管线；Mapbox Terrain-DEM/RGB 只作为原型加速选项；Overture、Microsoft building footprints、ESA WorldCover、CityGML/CityJSON 和授权 GLB 都必须经 BFF 资产包进入。
 
-**详细设计规范**: `docs/3d-terrain-implementation-research.md`（色彩系统、动效分镜、相机行为、材质参数、标记交互、六种功能标记点、长按轮盘等完整规格）
+**详细设计规范**: `docs/3d-deep-research-integration.md`、`docs/3d-generation-process-alignment.md`、`docs/3d-top-down-execution-roadmap.md`、`docs/3d-assets-landcover-and-landmarks.md`
 
 ---
 
@@ -304,7 +310,7 @@ buildTripShareImage(trip, { includeRoutes })
                           |     │  radial-menu.js    │ (规划)
                           |     └───────────────────┘
                           └── 互斥切换 ──┘
-                          (zoom ≥ 14 触发)
+                          (右下角显式入口 + 精度门禁)
 ```
 
 - 所有箭头单向，无循环依赖
@@ -312,11 +318,11 @@ buildTripShareImage(trip, { includeRoutes })
 - Render 层从 state 读取但不写入 trip/workspace
 - `map-3d.js` 独立于 `map.js`——两者互斥，不共享渲染上下文
 - `geo-project.js` 是纯数学模块，不依赖 Three.js 或 state
-- `toggle-3d.js` 监听 AMap zoom 事件，协调 2D↔3D 切换
+- `toggle-3d.js` 协调右下角 2D/3D 显式入口、精度门禁和 2D↔3D 切换
 - `map-3d.js` 当前内置 Three.js Raycaster 点击检测；后续长按轮盘成熟后再拆 `map-interact.js`
 - `annotation-modal.js` 是 HTML modal，不依赖 Three.js；后续 radial menu 单独拆分
 - state.js 依赖叶子模块（data/config/time-slots/route-config）
-- 3D 模块仅在用户主动触发 + zoom ≥ 14 时初始化，其余时间零开销
+- 3D 模块仅在用户主动触发且通过当前精度门禁时初始化，其余时间零开销
 - 新增标记（entrance/viewpoint/supply/transfer/risk/note）与现有 13 种 POI icon 互不冲突
 
 ---

@@ -1,15 +1,10 @@
 // js/share.js
-import { createLogger } from '../logger.js';
 // 纯前端分享：把可序列化 trip 写进 URL hash，打开链接时再还原。
 //
 // 这不是最终的后端分享方案，但足够当前阶段做可复制、可打开的路线链接。
 
-const log = createLogger('share');
 import { createLogger } from './logger.js';
 const log = createLogger('share');
-
-import { createLogger } from "./logger.js";
-const log = createLogger("share");
 
 const SHARE_PREFIX = '#trip=';
 

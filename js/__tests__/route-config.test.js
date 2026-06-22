@@ -45,6 +45,56 @@ describe('normalizeRouteToNext', () => {
     expect(result.legs).toHaveLength(1);
     expect(result.legs[0].label).toBe('地铁1号线');
   });
+
+  it('keeps route geometry diagnostics for 2D/3D consistency gates', () => {
+    const result = normalizeRouteToNext({
+      mode: 'driving',
+      geometry: {
+        source: 'amap-web-service',
+        mode: 'driving',
+        paths: [
+          [
+            [116.397, 39.908],
+            [116.405, 39.912]
+          ]
+        ],
+        fetchedAt: 123
+      }
+    });
+
+    expect(result.geometry.diagnostics.hash).toMatch(/^[0-9a-f]{8}$/);
+    expect(result.geometry.diagnostics.pointCount).toBe(2);
+    expect(result.geometry.diagnostics.firstPoint).toEqual([116.397, 39.908]);
+    expect(result.geometry.diagnostics.lastPoint).toEqual([116.405, 39.912]);
+  });
+
+  it('recomputes stale diagnostics from normalized paths', () => {
+    const result = normalizeRouteToNext({
+      mode: 'driving',
+      geometry: {
+        source: 'amap-web-service',
+        mode: 'driving',
+        paths: [
+          [
+            [116.397, 39.908],
+            [116.405, 39.912]
+          ]
+        ],
+        diagnostics: {
+          hash: 'deadbeef',
+          pointCount: 999,
+          lengthMeters: 1,
+          firstPoint: [0, 0],
+          lastPoint: [1, 1]
+        }
+      }
+    });
+
+    expect(result.geometry.diagnostics.hash).not.toBe('deadbeef');
+    expect(result.geometry.diagnostics.pointCount).toBe(2);
+    expect(result.geometry.diagnostics.firstPoint).toEqual([116.397, 39.908]);
+    expect(result.geometry.diagnostics.lastPoint).toEqual([116.405, 39.912]);
+  });
 });
 
 describe('getRouteDisplayLabel', () => {

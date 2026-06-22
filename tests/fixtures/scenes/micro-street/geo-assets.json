@@ -1,0 +1,63 @@
+{
+  "buildings": [
+    {
+      "id": "lane-hotel-footprint",
+      "locationId": "hotel",
+      "heightMeters": 22,
+      "footprint": [
+        [116.3968, 39.9078],
+        [116.3973, 39.9078],
+        [116.3973, 39.9083],
+        [116.3968, 39.9083]
+      ],
+      "realityClaim": true,
+      "provenance": {
+        "source": "fixture-open-data",
+        "licence": "ODbL-compatible-test",
+        "attribution": "Travel With Me fixture data",
+        "updatedAt": "2026-06-22T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "corner-shop-footprint",
+      "locationId": "shop",
+      "heightMeters": 8,
+      "footprint": [
+        [116.3988, 39.9088],
+        [116.3992, 39.9088],
+        [116.3992, 39.9092],
+        [116.3988, 39.9092]
+      ],
+      "realityClaim": true,
+      "provenance": {
+        "source": "fixture-open-data",
+        "licence": "ODbL-compatible-test",
+        "attribution": "Travel With Me fixture data",
+        "updatedAt": "2026-06-22T00:00:00.000Z"
+      }
+    }
+  ],
+  "roads": [
+    {
+      "id": "lane-road",
+      "kind": "path",
+      "centerline": [
+        [116.397, 39.908],
+        [116.399, 39.909],
+        [116.401, 39.91]
+      ],
+      "widthMeters": 3,
+      "realityClaim": true,
+      "provenance": {
+        "source": "fixture-open-data",
+        "licence": "ODbL-compatible-test",
+        "attribution": "Travel With Me fixture data",
+        "updatedAt": "2026-06-22T00:00:00.000Z"
+      }
+    }
+  ],
+  "waterways": [],
+  "bridges": [],
+  "landcover": [],
+  "landmarks": []
+}

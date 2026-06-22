@@ -57,7 +57,9 @@ describe('chooseTerrainMode', () => {
     expect(mode.id).toBe('hiking');
   });
 
-  it('chooses region overview for large spans', () => {
-    expect(chooseTerrainMode({ span: 12000, poiCount: 5 }).id).toBe('region-overview');
+  it('uses a bounded remote DEM budget for large-region overview', () => {
+    const mode = chooseTerrainMode({ span: 12000, poiCount: 5 });
+    expect(mode.id).toBe('region-overview');
+    expect(mode.terrainGrid).toBeLessThanOrEqual(14);
   });
 });

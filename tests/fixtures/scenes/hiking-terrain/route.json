@@ -1,0 +1,10 @@
+{
+  "hash": "fixture-hiking-terrain-route-v1",
+  "source": "fixture",
+  "updatedAt": "2026-06-22T00:00:00.000Z",
+  "points": [
+    [116.25, 40.02],
+    [116.252, 40.022],
+    [116.255, 40.025]
+  ]
+}

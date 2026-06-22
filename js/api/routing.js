@@ -11,6 +11,10 @@
 import { AppConfig } from '../config.js';
 import { toNumber, calculateDistance, cleanText, getTransportIcon, sleep } from '../utils.js';
 import { getRouteDisplayLabel } from '../route-config.js';
+import { createLogger } from '../logger.js';
+import { normalizeLngLat, requestAMapWebService } from './amap-web-service.js';
+
+const log = createLogger('routing');
 
 // ─── 创建路线服务 ──────────────────────────────────────
 
@@ -47,6 +51,9 @@ export function createRouteService(AMap, map, mode) {
 
 // segment: { fromLngLat, toLngLat, mode }
 export async function searchRoute(AMap, service, segment) {
+  const bffResult = await searchRouteWithBff(segment);
+  if (bffResult.ok) return bffResult;
+
   const maxAttempts = 3;
   let lastResult = null;
 
@@ -61,6 +68,9 @@ export async function searchRoute(AMap, service, segment) {
 }
 
 function searchRouteOnce(AMap, service, segment) {
+  if (!AMap || !service) {
+    return Promise.resolve({ ok: false, status: 'sdk-unavailable', raw: null });
+  }
   const origin = new AMap.LngLat(Number(segment.fromLngLat[0]), Number(segment.fromLngLat[1]));
   const destination = new AMap.LngLat(Number(segment.toLngLat[0]), Number(segment.toLngLat[1]));
 
@@ -91,8 +101,137 @@ function searchRouteOnce(AMap, service, segment) {
   });
 }
 
+async function searchRouteWithBff(segment) {
+  const origin = normalizeLngLat(segment.fromLngLat);
+  const destination = normalizeLngLat(segment.toLngLat);
+  if (!origin || !destination) return { ok: false, status: 'invalid-coordinates', raw: null };
+
+  const params = { origin: origin.join(','), destination: destination.join(',') };
+  let path = '/v3/direction/driving';
+  if (segment.mode === 'walking') path = '/v3/direction/walking';
+  if (segment.mode === 'riding') path = '/v4/direction/bicycling';
+  if (segment.mode === 'transit') {
+    path = '/v3/direction/transit/integrated';
+    params.city = AppConfig.cityCode;
+    params.cityd = AppConfig.cityCode;
+    params.strategy = 0;
+  } else if (segment.mode === 'driving') {
+    params.extensions = 'all';
+  }
+
+  const response = await requestAMapWebService(path, params);
+  if (!response.ok) return { ok: false, status: response.code, raw: response.payload };
+  const result = parseBffRoute(segment, response.payload);
+  return result || { ok: false, status: 'BFF_ROUTE_EMPTY', raw: response.payload };
+}
+
+function parseBffRoute(segment, payload) {
+  if (segment.mode === 'riding') {
+    const path = payload?.data?.paths?.[0];
+    if (!path) return null;
+    return createBffRouteResult(segment, path, path.steps || []);
+  }
+  if (segment.mode === 'transit') {
+    const transit = payload?.route?.transits?.[0];
+    if (!transit) return null;
+    const steps = transit.segments || [];
+    const paths = mergeStepPolylines(steps, { deep: true });
+    return {
+      ok: true,
+      detail: {
+        mode: segment.mode,
+        label: getRouteDisplayLabel(segment.routeToNext || segment),
+        icon: getTransportIcon(segment.mode),
+        distance: toNumber(transit.distance),
+        duration: toNumber(transit.duration),
+        steps: extractTransitInstructions(steps),
+        transitBoardings: countTransitBoardings(steps),
+        transitTransfers: Math.max(0, countTransitBoardings(steps) - 1)
+      },
+      paths: paths.length ? paths : [[segment.fromLngLat, segment.toLngLat]]
+    };
+  }
+  const path = payload?.route?.paths?.[0];
+  if (!path) return null;
+  return createBffRouteResult(segment, path, path.steps || []);
+}
+
+function createBffRouteResult(segment, path, steps) {
+  const paths = mergeStepPolylines(steps);
+  return {
+    ok: true,
+    detail: {
+      mode: segment.mode,
+      label: getRouteDisplayLabel(segment.routeToNext || segment),
+      icon: getTransportIcon(segment.mode),
+      distance: toNumber(path.distance),
+      duration: toNumber(path.duration),
+      steps: []
+    },
+    paths: paths.length ? paths : [[segment.fromLngLat, segment.toLngLat]]
+  };
+}
+
+function mergeStepPolylines(steps, { deep = false } = {}) {
+  const points = deep
+    ? collectNestedPolylines(steps)
+    : (Array.isArray(steps) ? steps : [])
+        .map(step => normalizePath(step?.polyline))
+        .filter(path => path.length >= 2);
+  const merged = points.reduce((all, path) => appendPath(all, path), []);
+  return merged.length >= 2 ? [merged] : [];
+}
+
+function collectNestedPolylines(value, paths = []) {
+  if (Array.isArray(value)) {
+    value.forEach(item => collectNestedPolylines(item, paths));
+    return paths;
+  }
+  if (!value || typeof value !== 'object') return paths;
+  const path = normalizePath(value.polyline);
+  if (path.length >= 2) paths.push(path);
+  Object.entries(value).forEach(([key, child]) => {
+    if (key !== 'polyline' && (Array.isArray(child) || (child && typeof child === 'object'))) {
+      collectNestedPolylines(child, paths);
+    }
+  });
+  return paths;
+}
+
+function appendPath(all, path) {
+  path.forEach(point => {
+    const last = all[all.length - 1];
+    if (!last || last[0] !== point[0] || last[1] !== point[1]) all.push(point);
+  });
+  return all;
+}
+
+function extractTransitInstructions(segments) {
+  return (Array.isArray(segments) ? segments : [])
+    .flatMap(segment => {
+      const instruction = String(segment?.walking?.instruction || '').trim();
+      const lines = segment?.bus?.buslines || segment?.bus?.lines || [];
+      const names = (Array.isArray(lines) ? lines : [lines])
+        .map(line => cleanText(line?.name || ''))
+        .filter(Boolean)
+        .map(name => `乘坐 ${name}`);
+      return [instruction, ...names].filter(Boolean);
+    })
+    .slice(0, 8);
+}
+
+function countTransitBoardings(segments) {
+  return (Array.isArray(segments) ? segments : []).reduce((count, segment) => {
+    const lines = segment?.bus?.buslines || segment?.bus?.lines || [];
+    return count + (Array.isArray(lines) ? lines.length : lines ? 1 : 0);
+  }, 0);
+}
+
 // 估算结果：用直线距离 + 速度估时长，画虚线
 export function buildEstimatedResult(segment) {
+  if (!isValidLngLat(segment?.fromLngLat) || !isValidLngLat(segment?.toLngLat)) {
+    return { ok: false, estimated: false, status: 'missing-coordinates' };
+  }
   const distance = calculateDistance(segment.fromLngLat, segment.toLngLat);
   const speedKmh = segment.mode === 'walking' ? 4.5 : segment.mode === 'riding' ? 13 : 22;
   const duration = Math.max(60, Math.round(distance / ((speedKmh * 1000) / 3600)));
@@ -110,6 +249,15 @@ export function buildEstimatedResult(segment) {
     },
     paths: [[segment.fromLngLat, segment.toLngLat]]
   };
+}
+
+function isValidLngLat(value) {
+  return (
+    Array.isArray(value) &&
+    value.length >= 2 &&
+    Number.isFinite(Number(value[0])) &&
+    Number.isFinite(Number(value[1]))
+  );
 }
 
 export function safeClearService(service) {

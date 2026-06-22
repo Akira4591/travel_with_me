@@ -46,6 +46,20 @@ describe('addDay', () => {
 });
 
 describe('addEventToDay', () => {
+  it('persists a resolved location source for the shared 2D and 3D data contract', () => {
+    const locationId = state.addLocation({
+      name: 'Provider place',
+      addr: 'Provider address',
+      lnglat: [116.4, 39.9],
+      source: 'amap-web-service'
+    });
+
+    expect(state.getLocation(locationId)).toMatchObject({
+      lnglat: [116.4, 39.9],
+      source: 'amap-web-service'
+    });
+  });
+
   it('adds an event to a specific day', () => {
     const trip = state.getTrip();
     const day = trip.days[0];

@@ -8,9 +8,14 @@ export function createTerrainModel({
   const safeBounds = normalizeBounds(bounds);
   const metrics = getElevationMetrics(grid);
   const terrainConfidence = getTerrainConfidence(grid, metrics);
+  const foundationHeight = getTerrainFoundationHeight(
+    metrics,
+    heightScale,
+    Boolean(grid?.heights?.length)
+  );
 
-  function heightAt(x, z) {
-    if (!grid?.heights?.length || !metrics.range) return proceduralFallbackHeight(x, z, safeBounds);
+  function elevationAt(x, z) {
+    if (!grid?.heights?.length) return null;
     const u = clamp((x - safeBounds.minX) / Math.max(1, safeBounds.maxX - safeBounds.minX), 0, 1);
     const v = clamp((z - safeBounds.minZ) / Math.max(1, safeBounds.maxZ - safeBounds.minZ), 0, 1);
     const rowFloat = v * (grid.rows - 1);
@@ -28,13 +33,29 @@ export function createTerrainModel({
     const h11 = grid.heights[row1]?.[col1] ?? h01;
     const top = lerp(h00, h10, colT);
     const bottom = lerp(h01, h11, colT);
-    return ((lerp(top, bottom, rowT) - metrics.min) / metrics.range) * heightScale;
+    return lerp(top, bottom, rowT);
+  }
+
+  function heightAt(x, z) {
+    const elevation = elevationAt(x, z);
+    if (elevation === null || !metrics.range) {
+      return foundationHeight + proceduralFallbackHeight(x, z, safeBounds);
+    }
+    return foundationHeight + ((elevation - metrics.min) / metrics.range) * heightScale;
+  }
+
+  function sampleHeight(x, z) {
+    return heightAt(x, z);
   }
 
   return {
     bounds: safeBounds,
     grid,
     heightAt,
+    sampleHeight,
+    elevationAt,
+    foundationAt: () => foundationHeight,
+    foundationHeight,
     mesh: null,
     sideSkirts: null,
     terrainConfidence,
@@ -51,11 +72,15 @@ export function getElevationMetrics(grid) {
   let max = -Infinity;
   let roughnessSum = 0;
   let roughnessCount = 0;
+  let sum = 0;
+  let count = 0;
   for (let row = 0; row < grid.heights.length; row += 1) {
     for (let col = 0; col < grid.heights[row].length; col += 1) {
       const value = Number(grid.heights[row][col]) || 0;
       min = Math.min(min, value);
       max = Math.max(max, value);
+      sum += value;
+      count += 1;
       if (col > 0) {
         roughnessSum += Math.abs(value - (Number(grid.heights[row][col - 1]) || 0));
         roughnessCount += 1;
@@ -71,8 +96,17 @@ export function getElevationMetrics(grid) {
     min,
     max,
     range: Math.max(0, max - min),
-    roughness: roughnessCount ? roughnessSum / roughnessCount : 0
+    roughness: roughnessCount ? roughnessSum / roughnessCount : 0,
+    mean: count ? sum / count : 0
   };
+}
+
+function getTerrainFoundationHeight(metrics, heightScale, hasElevationGrid) {
+  if (!hasElevationGrid) return Math.max(0.7, heightScale * 0.03);
+
+  // Keep absolute elevation legible without turning a 1,000 m plateau into a tall wall.
+  const normalizedAltitude = clamp(Math.log1p(Math.max(metrics.mean, 0)) / Math.log1p(1800), 0, 1);
+  return Math.max(0.8, heightScale * (0.07 + normalizedAltitude * 0.13));
 }
 
 function getTerrainConfidence(grid, metrics) {
