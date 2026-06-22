@@ -15,7 +15,8 @@
   },
   "building": {
     "maxPopDeltaPixels": 18,
-    "minContextBuildings": 2
+    "minContextBuildings": 2,
+    "minLodEntries": 2
   },
   "landmark": {
     "requiresAllowlistedPlaceholder": true

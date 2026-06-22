@@ -126,6 +126,19 @@ const OVERVIEW_INSPECT_REVIEW_SCENES = [
   }
 ];
 
+const BUILDING_LOD_REVIEW_SCENES = [
+  {
+    scene: 'old-street',
+    point: 'old-street-building-lod',
+    minLandmarks: 0
+  },
+  {
+    scene: 'landmark-pilot',
+    point: 'landmark-building-lod',
+    minLandmarks: 1
+  }
+];
+
 test.describe('@visual-roi desktop 3D visual baseline harness', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
@@ -706,6 +719,72 @@ test.describe('@visual-roi desktop 3D visual baseline harness', () => {
     );
   });
 
+  for (const lodScene of BUILDING_LOD_REVIEW_SCENES) {
+    test(`${lodScene.scene} building LOD responds across overview and inspect distance`, async ({
+      page
+    }, testInfo) => {
+      test.setTimeout(85_000);
+      const fixture = await loadSceneFixture(lodScene.scene);
+      await openVisualFixture(page, fixture);
+      await page.addStyleTag({ path: 'tests/visual/styles/screenshot-normalize.css' });
+      const canvas = page.locator('#map-3d canvas');
+      await canvas.hover();
+
+      await page.mouse.wheel(0, 2400);
+      await page.waitForTimeout(900);
+      const overview = await exportVisualQa(page, fixture, `${lodScene.point}-overview`);
+
+      await page.mouse.wheel(0, -5200);
+      await expect
+        .poll(
+          async () =>
+            page.evaluate(() => window.__threeDebug__?.qa?.lod?.buildingDetailAlphaAverage || 0),
+          { timeout: 5_000 }
+        )
+        .toBeGreaterThan(overview.qa.lod.buildingDetailAlphaAverage);
+      const inspect = await exportVisualQa(page, fixture, `${lodScene.point}-inspect`);
+
+      await page.mouse.wheel(0, 5200);
+      await expect
+        .poll(
+          async () =>
+            page.evaluate(() => window.__threeDebug__?.qa?.lod?.buildingDetailAlphaAverage || 0),
+          { timeout: 5_000 }
+        )
+        .toBeLessThan(inspect.qa.lod.buildingDetailAlphaAverage);
+      const returned = await exportVisualQa(page, fixture, `${lodScene.point}-returned-overview`);
+
+      await attachVisualEvidence(testInfo, {
+        fixture,
+        capturePoint: `${lodScene.point}-inspect`,
+        qa: inspect,
+        screenshot: await page.screenshot({
+          animations: 'disabled',
+          caret: 'hide',
+          scale: 'css',
+          clip: visualRoiFor('inspect')
+        })
+      });
+      await testInfo.attach(`${lodScene.scene}-building-lod-samples.json`, {
+        body: JSON.stringify(
+          {
+            overview: overview.qa.lod,
+            inspect: inspect.qa.lod,
+            returned: returned.qa.lod,
+            overviewRouteYellowPixelRatio: overview.visual.routeYellowPixelRatio,
+            inspectRouteYellowPixelRatio: inspect.visual.routeYellowPixelRatio,
+            returnedRouteYellowPixelRatio: returned.visual.routeYellowPixelRatio
+          },
+          null,
+          2
+        ),
+        contentType: 'application/json'
+      });
+
+      assertBuildingLodTransition({ overview, inspect, returned, fixture, lodScene });
+    });
+  }
+
   test('micro-street building dissolve changes smoothly during stepped zoom-in', async ({
     page
   }, testInfo) => {
@@ -886,6 +965,32 @@ function assertOverviewInspectReview(qa, reviewScene, fixture) {
   }
   if (reviewScene.minBuildings > 0) {
     expect(qa.qa.geometry.buildingBaseTerrainErrorP95).toBeLessThanOrEqual(0.25);
+  }
+}
+
+function assertBuildingLodTransition({ overview, inspect, returned, fixture, lodScene }) {
+  const minContextBuildings = fixture.expectations.building?.minContextBuildings || 1;
+  const minLodEntries = fixture.expectations.building?.minLodEntries || minContextBuildings;
+  expect(inspect.qa.lod.buildingEntryCount).toBeGreaterThanOrEqual(minLodEntries);
+  expect(inspect.qa.layers.buildings.count).toBeGreaterThanOrEqual(minContextBuildings);
+  expect(inspect.qa.lod.buildingDetailAlphaAverage).toBeGreaterThan(
+    overview.qa.lod.buildingDetailAlphaAverage
+  );
+  expect(inspect.qa.lod.buildingDetailRatio).toBeGreaterThanOrEqual(
+    overview.qa.lod.buildingDetailRatio
+  );
+  expect(returned.qa.lod.buildingDetailAlphaAverage).toBeLessThan(
+    inspect.qa.lod.buildingDetailAlphaAverage
+  );
+  expect(inspect.qa.layers.route.visible).toBe(true);
+  expect(inspect.visual.readable).toBe(true);
+  expect(inspect.visual.routeYellowPixelRatio).toBeGreaterThanOrEqual(
+    routeYellowPixelRatioMin(fixture)
+  );
+  expect(inspect.qa.geometry.zFightingRisk).toBeLessThanOrEqual(0.01);
+  expect(inspect.geoAssetCounts.landmarks).toBeGreaterThanOrEqual(lodScene.minLandmarks);
+  if (lodScene.minLandmarks > 0) {
+    expect(inspect.qa.provenance.landmarkAllowlisted).toBeGreaterThanOrEqual(lodScene.minLandmarks);
   }
 }
 

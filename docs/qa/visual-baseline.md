@@ -137,7 +137,7 @@ Default behavior:
 - attaches ROI screenshots plus fixture, camera, and QA JSON evidence;
 - asserts `river-bridge` and `wide-river-bridges` P2 water/bridge/route metrics;
 - asserts water ROI blue-pixel signal so attributable water cannot regress to terrain-colored blank space;
-- asserts `micro-street` near/far building LOD response through `qa.lod` metrics;
+- asserts `micro-street`, `old-street`, and `landmark-pilot` near/far building LOD response through `qa.lod` metrics;
 - asserts `micro-street` stepped building dissolve smoothness through bounded
   `buildingDetailAlphaAverage` deltas;
 - asserts `micro-street` inspect view readability with close-camera y clamp, route visibility, and building context;
@@ -212,12 +212,20 @@ Current blocking vegetation budget metrics:
 - `qa.budgets.vegetationMaxInstancesPerArea <= qa.budgets.vegetationDensityCap`;
 - density overflow is a hard `VEGETATION_DENSITY_CAP_EXCEEDED` QA error.
 
-Current blocking `micro-street` LOD metrics:
+Current blocking building LOD metrics for `micro-street`, `old-street`, and `landmark-pilot`:
 
 - `qa.lod.buildingEntryCount > 0`;
+- fixture-specific `qa.lod.buildingEntryCount >= expectations.building.minLodEntries`;
+- fixture-specific building layer count `>= expectations.building.minContextBuildings`;
 - inspect-distance `buildingDetailAlphaAverage` must be greater than overview-distance `buildingDetailAlphaAverage`;
 - returning to overview distance must reduce `buildingDetailAlphaAverage`;
 - inspect-distance `buildingDetailRatio` must not regress below overview-distance `buildingDetailRatio`.
+
+Additional contextual LOD requirements:
+
+- `old-street` inspect LOD must retain at least three LOD-sampled buildings and four contextual building-layer entries;
+- `landmark-pilot` inspect LOD must retain at least two LOD-sampled buildings and two contextual building-layer entries;
+- `landmark-pilot` inspect LOD must keep at least one allowlisted landmark record in provenance QA.
 
 Current blocking `micro-street` building dissolve smoothness metrics:
 
