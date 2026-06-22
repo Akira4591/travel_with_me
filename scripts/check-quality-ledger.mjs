@@ -1,0 +1,71 @@
+import { readFile } from 'node:fs/promises';
+
+const FILES = ['TODO.md', 'docs/quality-gate-status.md'];
+const STALE_PATTERNS = [
+  { name: 'old unit-test count', regex: /30 files,\s*146 tests/u },
+  { name: 'old encoding count', regex: /31[02] visible source\/doc\/test files scanned/u },
+  { name: 'old smoke count', regex: /12 desktop tests,\s*1 mobile-only test skipped/u },
+  { name: 'old chromium smoke count', regex: /12 passed,\s*1 mobile-only skipped/u }
+];
+
+const findings = [];
+const texts = new Map();
+
+for (const file of FILES) {
+  const text = await readFile(file, 'utf8');
+  texts.set(file, text);
+  const lines = text.split(/\r?\n/);
+  for (let index = 0; index < lines.length; index += 1) {
+    for (const pattern of STALE_PATTERNS) {
+      if (pattern.regex.test(lines[index])) {
+        findings.push(`${file}:${index + 1} [${pattern.name}] ${lines[index].trim()}`);
+      }
+    }
+  }
+}
+
+const quality = texts.get('docs/quality-gate-status.md') || '';
+const verificationUnit = matchFirst(
+  quality,
+  /\| `npm\.cmd test`\s+\|\s+Passed:\s+(\d+) files,\s+(\d+) tests\s+\|/u
+);
+const completedUnit = matchFirst(
+  quality,
+  /\|\s+2\s+\| Unit tests pass\s+\|\s+`npm\.cmd test`:\s+(\d+) files,\s+(\d+) tests\s+\|/u
+);
+if (!verificationUnit || !completedUnit) {
+  findings.push('docs/quality-gate-status.md [unit-ledger] could not parse unit-test ledger rows');
+} else if (verificationUnit.join('/') !== completedUnit.join('/')) {
+  findings.push(
+    `docs/quality-gate-status.md [unit-ledger] verification ${verificationUnit.join('/')} != completed ${completedUnit.join('/')}`
+  );
+}
+
+const verificationSmoke = matchFirst(
+  quality,
+  /\| `node scripts\/run-e2e-smoke\.mjs`\s+\|\s+Passed:\s+(\d+) Chromium desktop tests,\s+(\d+) mobile\/desktop-scope skips\s+\|/u
+);
+const completedSmoke = matchFirst(
+  quality,
+  /\|\s+3\s+\| Desktop browser smoke tests pass\s+\|\s+Smoke runner:\s+(\d+) Chromium desktop tests passed,\s+(\d+) scoped skips\s+\|/u
+);
+if (!verificationSmoke || !completedSmoke) {
+  findings.push('docs/quality-gate-status.md [smoke-ledger] could not parse smoke ledger rows');
+} else if (verificationSmoke.join('/') !== completedSmoke.join('/')) {
+  findings.push(
+    `docs/quality-gate-status.md [smoke-ledger] verification ${verificationSmoke.join('/')} != completed ${completedSmoke.join('/')}`
+  );
+}
+
+if (findings.length) {
+  console.error('Quality ledger check failed:');
+  for (const finding of findings) console.error(finding);
+  process.exit(1);
+}
+
+console.log('Quality ledger check passed.');
+
+function matchFirst(text, regex) {
+  const match = regex.exec(text);
+  return match ? match.slice(1) : null;
+}

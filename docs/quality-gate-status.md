@@ -19,10 +19,11 @@ Commands run on 2026-06-23:
 | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm.cmd run check`                                         | Passed                                                                                                                                 |
 | `npm.cmd test`                                              | Passed: 31 files, 151 tests                                                                                                            |
-| `npm.cmd run check:encoding`                                | Passed: 314 visible source/doc/test files scanned                                                                                      |
+| `npm.cmd run check:encoding`                                | Passed: 315 visible source/doc/test files scanned                                                                                      |
 | `npm.cmd run check:architecture`                            | Passed: 37 render files scanned; renderer/provider boundary enforced                                                                   |
 | `npm.cmd run check:provenance`                              | Passed: 42 scene fixture files scanned                                                                                                 |
 | `npm.cmd run check:landmarks`                               | Passed: 1 landmark record scanned with allowlist, integrity, LOD, and budget validation                                                |
+| `npm.cmd run check:ledger`                                  | Passed: TODO and quality-gate ledger counts are internally consistent                                                                  |
 | `node scripts/run-e2e-smoke.mjs`                            | Passed: 15 Chromium desktop tests, 13 mobile/desktop-scope skips                                                                       |
 | `npx.cmd playwright test tests/e2e/live-provider.spec.js`   | Passed by skip: live provider smoke is explicit opt-in only                                                                            |
 | Full visual baseline suite                                  | Passed: 24 local ROI fixture captures/interactions with QA JSON and screenshots in 13.0m                                               |
@@ -73,7 +74,7 @@ VQ0 target state:
 |   # | Gate                                                                                                                | Evidence                                                                       |
 | --: | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
 |   1 | Format, lint, and source style pass                                                                                 | `npm.cmd run check`                                                            |
-|   2 | Unit tests pass                                                                                                     | `npm.cmd test`: 30 files, 146 tests                                            |
+|   2 | Unit tests pass                                                                                                     | `npm.cmd test`: 31 files, 151 tests                                            |
 |   3 | Desktop browser smoke tests pass                                                                                    | Smoke runner: 15 Chromium desktop tests passed, 13 scoped skips                |
 |   4 | Tracked source does not contain known real API keys                                                                 | `git grep` secret scan returned no matches                                     |
 |   5 | 2D AMap mode renders real map content after CSP fixes                                                               | Browser and E2E map flow                                                       |
@@ -97,7 +98,7 @@ VQ0 target state:
 |  23 | Roads render as muted terrain-following ribbons                                                                     | `geo-asset-renderer.test.js` and water/road E2E                                |
 |  24 | 3D overview can enter and exit without blanking                                                                     | `desktop can enter and exit nonblank 3D map view`                              |
 |  25 | 3D mode never auto-exits after 60 seconds                                                                           | `desktop 3D stays open after 60 seconds idle`                                  |
-|  26 | No visible UI mojibake in maintained source, tests, and docs                                                        | `npm.cmd run check:encoding`: 314 files scanned                                |
+|  26 | No visible UI mojibake in maintained source, tests, and docs                                                        | `npm.cmd run check:encoding`: 315 files scanned                                |
 |  27 | Accepted 4s generation timing replaces the old `<= 3s` detail budget                                                | `generation-timing.js` and `generation-timeline.test.js`                       |
 |  28 | Route clearance P95 is within 0.3m above terrain/road surface                                                       | `route-guidance-renderer.test.js` and WASD 3D E2E geometry metrics             |
 |  29 | Building base terrain error P95 is <= 0.25m in seeded scenes                                                        | `window.__threeDebug__.geometryMetrics` and WASD 3D E2E                        |

@@ -33,6 +33,7 @@ The full command runs:
 - `npm.cmd run check`
 - `npm.cmd test`
 - `npm.cmd run check:encoding`
+- `npm.cmd run check:ledger`
 - desktop smoke gates through `scripts/run-e2e-smoke.mjs`
 - full Chromium visual baseline through `tests/e2e/visual-baseline.spec.js`
 

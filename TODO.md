@@ -25,11 +25,12 @@ Latest verified baseline from 2026-06-23. Detailed gate accounting is maintained
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `npm.cmd run check`               | Passed                                                                                                                               |
 | `npm.cmd test`                    | Passed: 31 files, 151 tests                                                                                                          |
-| `npm.cmd run check:encoding`      | Passed: 314 visible source/doc/test files scanned                                                                                    |
+| `npm.cmd run check:encoding`      | Passed: 315 visible source/doc/test files scanned                                                                                    |
 | Full visual baseline suite        | Passed: 24 local ROI fixture captures/interactions with QA JSON and screenshots in 13.0m                                             |
 | `npm.cmd run check:architecture`  | Passed: 37 render files scanned                                                                                                      |
 | `npm.cmd run check:provenance`    | Passed: 42 scene fixture files scanned                                                                                               |
 | `npm.cmd run check:landmarks`     | Passed: 1 landmark record scanned                                                                                                    |
+| `npm.cmd run check:ledger`        | Passed: active backlog and quality-gate ledger counts are internally consistent                                                      |
 | Targeted desktop 3D smoke         | Passed: 15 Chromium desktop tests, 13 mobile/desktop-scope skips                                                                     |
 | Tracked-source secret scan        | Passed: no known real AMap/DeepSeek key patterns found                                                                               |
 | In-app browser 2D/3D visual check | Passed: 2D marker selection enters bounded 3D; QA passed; route gray outline is 0; initial/loading/idle view uses one overview orbit |
