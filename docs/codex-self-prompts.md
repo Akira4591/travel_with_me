@@ -37,6 +37,8 @@
 - docs/3d-generation-process-alignment.md
 - docs/3d-top-down-execution-roadmap.md
 - docs/3d-assets-landcover-and-landmarks.md
+- docs/qa/visual-baseline.md
+- docs/qa/debug-contract.md
 
 如果涉及商业化，再读取：
 - commercialization-solutions.md

@@ -89,15 +89,28 @@ The renderer is replaceable. The data contract is the product asset.
 
 ### Current repair plan from the latest deep research report
 
-The latest code scan and deep research report agree on the same repair order:
+The latest code scan and deep research report agree on the long-term repair order:
 
 ```text
 P0 engineering stability and interaction correctness
   -> P1 generation timeline and observability
   -> P2 water / road / bridge geometry correctness
   -> P3 building massing / dissolve / LOD
-  -> P4 safety, performance, provenance and visual gates
+  -> P4 DEM tile and local precision
+  -> P5 landmark restoration
+  -> P6 commercial provider and compliance
 ```
+
+The immediate next-stage execution order is narrower:
+
+```text
+Alpha visual proof infrastructure
+  -> Beta P2 water / road / bridge visual correctness
+  -> Gamma P3 building massing / dissolve modularization
+  -> Delta inspect camera and scene precision profiles
+```
+
+Alpha is a prerequisite for Beta. Visual correctness work without ROI screenshots, fixed camera presets, and `window.__threeDebug__.qa` evidence is not merge-ready.
 
 This is a refactor of the existing Three.js path, not an engine replacement. Do not switch
 the primary stack to Cesium, Mapbox, OSMBuildings, or another hosted 3D city product to solve
@@ -428,10 +441,10 @@ Do not do:
 
 - Do not bind the product roadmap to one commercial 3D provider before the data contract is proven.
 
-## 5. Immediate next batch
+## 5. Immediate Next Batch
 
-The next executable batch should continue P1 consolidation, not P4/P5 expansion. P0 correctness
-floor was implemented on 2026-06-21:
+The next executable batch is Alpha visual proof infrastructure, not P4/P5 expansion. P0 correctness
+floor and core P1/P2 code paths were implemented before this batch:
 
 - cached route geometry now stores recomputed diagnostics: hash, point count, length, first point,
   and last point;
@@ -454,7 +467,7 @@ P1 started on 2026-06-21 with the context/debug layer:
 - 3D render construction now reads environmental assets from `SceneBuildContext.geoAssets`;
 - Playwright verifies the scene id, geo asset counts, and provenance source count in the browser.
 
-P1-2 continues the renderer isolation:
+P1/P2 renderer isolation is in place:
 
 - `geo-asset-renderer` owns water, bridge, and road mesh construction from `trip.geoAssets`;
 - `route-guidance-renderer` owns persisted route geometry, diagnostics, dashed estimated fallback,
@@ -463,7 +476,7 @@ P1-2 continues the renderer isolation:
 - `map-3d` is reduced toward scene orchestration: terrain, buildings, vegetation, markers,
   annotations, camera, and animation remain to be split in later P1 batches.
 
-Deep research integration added on 2026-06-21:
+Deep research integration established:
 
 - the official implementation route is now AMap 2D/Web Service + BFF data/cache +
   `geoAssets` + Three.js, not Cesium/Mapbox/Babylon/OSMBuildings as primary stack;
@@ -478,51 +491,46 @@ route-highlight -> building-massing -> building-dissolve`;
 - current Overpass/OSM context ingestion remains a bounded prototype context layer and must
   not be presented as the commercial production dependency.
 
-1. Freeze the route contract:
-   - add route hash diagnostics;
-   - verify first/last points;
-   - verify 2D/3D length consistency;
-   - make estimated fallback visibly dashed.
+The immediate task list is:
 
-2. Centralize terrain sampling:
-   - expose one `sampleHeight()` / `TerrainModel.heightAt()` path;
-   - route, roads, water, bridges, buildings, markers, and annotations must all use it;
-   - add tests for route/building/water attachment.
+1. Build ROI visual baseline harness:
+   - Chromium-only first;
+   - deterministic local fixtures only;
+   - no live provider calls;
+   - first fixtures: `river-bridge`, `micro-street`, `hiking-terrain`.
 
-3. Split renderer responsibilities:
-   - terrain renderer;
-   - route guidance renderer;
-   - geo asset renderer for roads/water/bridges;
-   - building renderer;
-   - camera controller;
-   - animation timeline.
+2. Formalize `window.__threeDebug__.qa` v1:
+   - geometry metrics;
+   - budget metrics;
+   - provenance metrics;
+   - layer state metrics;
+   - additive schema evolution only.
 
-4. Add scene debug and QA hooks:
-   - `window.__threeDebug__`;
-   - mesh counts by layer;
-   - route hash/length;
-   - terrain confidence;
-   - first slab time and details ready time.
+3. Add `river-bridge` P2 structured geometry gates:
+   - `waterCoverageRatio`;
+   - `bridgeContinuity`;
+   - `routeGroundClearanceP95`;
+   - `zFightingRisk`;
+   - `bridgePierCount`.
 
-5. Add Playwright geometry gates:
-   - nonblank 3D;
-   - route card focus;
-   - 2D/3D route hash;
-   - water present -> water mesh;
-   - bridge present -> bridge mesh;
-   - building base attachment.
+4. Attach visual failure evidence:
+   - actual screenshot;
+   - diff screenshot;
+   - fixture JSON;
+   - camera preset JSON;
+   - QA JSON;
+   - Playwright trace.
 
-6. Add generation timeline screenshot gates:
-   - foundation rise;
-   - carved water / emerged roads / bridge deck;
-   - route highlight draw;
-   - building massing;
-   - building dissolve close view.
+5. Keep live provider paths separate from default visual gates:
+   - default visual QA must be reproducible offline from fixtures;
+   - live-provider remains explicit opt-in.
 
-7. Update documentation:
+6. Update documentation:
    - `docs/2d-data-foundation.md` remains the truth-source contract;
    - `docs/3d-assets-landcover-and-landmarks.md` remains the asset/provenance contract;
    - `docs/3d-deep-research-integration.md` records the latest external research decision;
+   - `docs/qa/visual-baseline.md` owns visual proof execution;
+   - `docs/qa/debug-contract.md` owns `window.__threeDebug__.qa`.
    - this document drives execution order.
 
 ## 6. Complexity map

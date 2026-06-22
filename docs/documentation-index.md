@@ -15,14 +15,16 @@ This is the current maintained documentation set. Do not add a new document when
 
 ## API, Workflow, and Release
 
-| Document                                  | Owner scope                                                       |
-| ----------------------------------------- | ----------------------------------------------------------------- |
-| `docs/api.md`                             | BFF endpoint contracts, response shapes and environment variables |
-| `docs/testing/live-provider.md`           | opt-in live-provider smoke policy and commands                    |
-| `docs/development-workflow-foundation.md` | local tools, environment preparation and engineering workflow     |
-| `docs/release-playbook.md`                | release checks, smoke validation, rollback and monitoring         |
-| `docs/quality-gate-status.md`             | current quality gate verification ledger and remaining gaps       |
-| `server/prompts/guide-extract.md`         | AI guide extraction prompt contract                               |
+| Document                                  | Owner scope                                                         |
+| ----------------------------------------- | ------------------------------------------------------------------- |
+| `docs/api.md`                             | BFF endpoint contracts, response shapes and environment variables   |
+| `docs/testing/live-provider.md`           | opt-in live-provider smoke policy and commands                      |
+| `docs/qa/visual-baseline.md`              | deterministic 3D ROI screenshot baseline plan and failure artifacts |
+| `docs/qa/debug-contract.md`               | `window.__threeDebug__.qa` schema, metric ownership and thresholds  |
+| `docs/development-workflow-foundation.md` | local tools, environment preparation and engineering workflow       |
+| `docs/release-playbook.md`                | release checks, smoke validation, rollback and monitoring           |
+| `docs/quality-gate-status.md`             | current quality gate verification ledger and remaining gaps         |
+| `server/prompts/guide-extract.md`         | AI guide extraction prompt contract                                 |
 
 ## 3D Documents
 

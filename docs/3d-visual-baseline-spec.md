@@ -14,6 +14,17 @@ Use three layers together:
 
 Do not rely on screenshots alone. A screenshot can show that something changed, but structured metrics must explain whether terrain, water, bridge, route, and building geometry are still correct.
 
+Execution details now live in `docs/qa/visual-baseline.md`. The debug payload contract lives in `docs/qa/debug-contract.md`.
+
+The implementation order is fixed:
+
+```text
+visual proof infrastructure
+  -> P2 water / road / bridge visual correctness
+  -> P3 building massing / dissolve refinement
+  -> inspect camera and scene precision profiles
+```
+
 ## Scenario Catalog
 
 Maintain five deterministic scene fixtures:
@@ -65,6 +76,11 @@ Each scene should eventually support these capture points:
 The structured QA payload must expose:
 
 - `phase`
+- `fixture.id`
+- `fixture.profile`
+- `fixture.routeHash`
+- `camera.mode`
+- `qa.version`
 - `qa.passed`
 - `qa.errors`
 - `qa.warnings`
@@ -72,8 +88,20 @@ The structured QA payload must expose:
 - `qa.geometry.buildingBaseTerrainErrorP95`
 - `qa.geometry.waterCoverageRatio`
 - `qa.geometry.bridgeContinuity`
+- `qa.geometry.zFightingRisk`
+- `qa.geometry.terrainCarvingDepthP50`
+- `qa.geometry.routeVisiblePixelRatio`
+- `qa.geometry.bridgePierCount`
 - `qa.budgets.visibleMeshCount`
+- `qa.budgets.triangleCount`
+- `qa.budgets.frameTimeP95`
+- `qa.budgets.generationTimeMs`
 - `qa.provenance.missingAttributionCount`
+- `qa.layers.water`
+- `qa.layers.roads`
+- `qa.layers.bridges`
+- `qa.layers.route`
+- `qa.layers.buildings`
 
 The DOM clipped contract must expose equivalent `data-qa-*` values on `#map-3d` for browser containers that cannot reliably read `window.__threeDebug__`.
 

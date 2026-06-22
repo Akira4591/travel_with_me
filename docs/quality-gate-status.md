@@ -96,5 +96,16 @@ Commands run on 2026-06-22:
 
 ## Immediate Fix Order
 
-1. Add screenshot baselines for: foundation rise, carved water, route highlight, building massing, building dissolve, route focus, and inspect.
-2. Add scenario review fixtures: city route, scenic/hiking terrain, old-street storefront, landmark route.
+1. Add deterministic visual proof infrastructure before more visual fixes:
+   - ROI screenshots for `river-bridge`, `micro-street`, and `hiking-terrain`;
+   - fixed camera presets;
+   - screenshot normalization stylesheet;
+   - failure attachments with screenshots, diffs, fixture JSON, camera JSON, QA JSON, and trace.
+2. Formalize `window.__threeDebug__.qa` v1 and expose geometry, budget, provenance, and layer metrics.
+3. Close P2 visual correctness:
+   - `waterCoverageRatio`;
+   - `bridgeContinuity`;
+   - `routeGroundClearanceP95`;
+   - `zFightingRisk`;
+   - `bridgePierCount === 0` when no pier/support provenance exists.
+4. Only after P2 visual gates stabilize, continue P3 building massing/dissolve modularization and inspect-camera visual review.

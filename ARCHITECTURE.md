@@ -260,7 +260,9 @@ buildTripShareImage(trip, { includeRoutes })
 
 **权衡**: 放弃把 3D 变成全量城市/全球地图平台。生产 DEM 目标是自托管 Copernicus GLO-30/GLO-90 或兼容 Terrarium/PMTiles 管线；Mapbox Terrain-DEM/RGB 只作为原型加速选项；Overture、Microsoft building footprints、ESA WorldCover、CityGML/CityJSON 和授权 GLB 都必须经 BFF 资产包进入。
 
-**详细设计规范**: `docs/3d-deep-research-integration.md`、`docs/3d-generation-process-alignment.md`、`docs/3d-top-down-execution-roadmap.md`、`docs/3d-assets-landcover-and-landmarks.md`
+**详细设计规范**: `docs/3d-deep-research-integration.md`、`docs/3d-generation-process-alignment.md`、`docs/3d-top-down-execution-roadmap.md`、`docs/3d-assets-landcover-and-landmarks.md`、`docs/qa/visual-baseline.md`、`docs/qa/debug-contract.md`
+
+**当前迭代约束**: 下一阶段先完成 Alpha 视觉证明基础设施，再进入 Beta 的 P2 水/路/桥视觉正确性修复。P3 建筑细化、inspect 摄像机和场景精度 profile 必须建立在 ROI 截图与 `window.__threeDebug__.qa` 指标稳定之后。
 
 ---
 

@@ -68,6 +68,17 @@ Exit: a desktop user can create/import a trip, resolve locations, inspect real 2
 - Follow the fixed generation state machine: freeze 2D, derive scene envelope, raise slab, refine terrain, carve water, emerge roads and bridges, highlight route, raise building massing, dissolve building detail.
 - Add overview/route-focus/inspect camera states, route elevation summaries, and visual gates.
 
+Current D1 execution is evidence-first:
+
+```text
+Alpha visual proof infrastructure
+  -> Beta P2 water / road / bridge visual correctness
+  -> Gamma P3 building massing / dissolve
+  -> Delta inspect camera and scene precision profiles
+```
+
+P4 DEM tiles, P5 landmark restoration, and commercial provider routing are blocked until Alpha/Beta visual gates are stable.
+
 ### D2: Authorized place detail
 
 - Ingest licensed building footprints, roads, water, bridges, land cover, and landmark assets with provenance.
@@ -84,6 +95,7 @@ Mobile Web is compatibility-only. Native Android is a separate Kotlin product de
 - Format, lint, unit tests, and mocked browser tests pass for every merge.
 - Live provider checks are credentialed, opt-in, and excluded from CI.
 - 3D is reviewed at overview, entering, inspect, and exit states.
+- 3D visual changes require deterministic ROI screenshots plus `window.__threeDebug__.qa` metrics once the Alpha gate is active.
 - Every external asset records source, licence, attribution, and update metadata.
 
 ## Document ownership
@@ -98,6 +110,8 @@ Mobile Web is compatibility-only. Native Android is a separate Kotlin product de
 | `docs/3d-deep-research-integration.md`      | latest 3D technical decisions and QA gates       |
 | `docs/3d-generation-process-alignment.md`   | required 2D-to-3D user-visible process           |
 | `docs/3d-top-down-execution-roadmap.md`     | P0-P6 3D implementation order                    |
+| `docs/qa/visual-baseline.md`                | ROI visual baseline execution                    |
+| `docs/qa/debug-contract.md`                 | `window.__threeDebug__.qa` schema                |
 | `docs/3d-assets-landcover-and-landmarks.md` | licensed asset pipeline                          |
 | `TODO.md`                                   | active backlog only                              |
 | `commercialization-solutions.md`            | post-validation market decisions                 |

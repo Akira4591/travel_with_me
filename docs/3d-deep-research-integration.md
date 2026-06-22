@@ -17,16 +17,25 @@ Do not move the project to Cesium, Mapbox, Babylon, or OSMBuildings as the prima
 
 ## 1.1 Map Module Repair Report Integration
 
-The latest map-module repair research narrows the next implementation order to constraint work before new effects:
+The latest next-stage iteration research narrows the immediate implementation order to deterministic proof before new visual complexity:
 
 ```text
-P0: quality gates, renderer/provider boundary, stable QA observation
-P1: scenario fixtures and water/road/bridge geometry gates
-P2: building LOD/template registry and landmark allowlist pipeline
-P3: commercial provenance, live-provider opt-in smoke, and release observability
+Sprint Alpha: deterministic visual proof infrastructure
+  ROI screenshots, fixed camera presets, screenshot normalization, QA schema v1, failure attachments
+
+Sprint Beta: P2 water / road / bridge visual correctness
+  waterCoverageRatio, bridgeContinuity, route clearance, z-fighting risk, deck-first bridge proof
+
+Sprint Gamma: P3 building massing / dissolve modularization
+  split massing and dissolve renderers, synthetic massing metadata, no-pop LOD gates
+
+Sprint Delta: inspect camera and scene precision profiles
+  overview / route-focus / inspect state machine, profile budgets, graceful degradation
 ```
 
-The current codebase now enforces the first P0 boundary: `js/render/**` must not import provider/API or server modules directly. Elevation loading is injected by the application orchestration layer and checked by `npm run check:architecture`.
+P0/P1/P2 code-level correctness is already far enough that the next risk is silent visual regression across scenes. Do not expand into P4 DEM tiles, P5 landmark restoration, or commercial 3D providers before the Alpha/Beta visual gates are stable.
+
+The current codebase now enforces the first architecture boundary: `js/render/**` must not import provider/API or server modules directly. Elevation loading is injected by the application orchestration layer and checked by `npm run check:architecture`.
 
 The current QA observation contract is also split into three channels:
 
@@ -34,7 +43,7 @@ The current QA observation contract is also split into three channels:
 - `#map-3d.dataset.qa*` for clipped browser/container assertions.
 - `three:qa` custom events for phase and gate transitions.
 
-Do not add new 3D effects until the next gate work is done through scenario fixtures and visual baselines. New effect work without a fixture or quality assertion is treated as regression risk.
+Do not add new 3D effects until the next gate work is done through scenario fixtures and visual baselines. New effect work without a fixture, ROI capture, or quality assertion is treated as regression risk.
 
 ## 2. Fixed Product Sequence
 
@@ -294,17 +303,41 @@ P2: terrain and geographic skeleton
 P3: building massing and dissolve
   deterministic massing, footprint extrusion, syntheticMassing labels, continuous dissolve LOD, instancing
 
-P4: safety, performance and visual gates
-  innerHTML audit, screenshot baselines, pixel checks, draw-call budgets, provenance gates
-
-P5: DEM tile precision
+P4: DEM tile precision
   tile decoder, worker, chunk cache, local precision, terrain seams
 
-P6: landmark restoration
+P5: landmark restoration
   licensed model import, validation, LOD outputs, visual QA
 
-P7: commercial provider and compliance layer
+P6: commercial provider and compliance layer
   provider routing, source manifest, attribution gate, operational monitoring
 ```
 
 This order keeps the project commercially defensible: visible behavior becomes correct first, then data provenance becomes enforceable, then precision and landmark restoration can be added without rewiring the renderer.
+
+## 11. Immediate Next-Stage Execution
+
+The immediate execution layer is:
+
+```text
+Alpha visual proof infrastructure
+  -> Beta P2 visual truth
+  -> Gamma P3 building refinement
+  -> Delta inspect camera and scene profiles
+```
+
+Alpha is mandatory before Beta. The first hard evidence set must include:
+
+- ROI screenshots for `river-bridge`, `micro-street`, and `hiking-terrain`;
+- fixed camera presets per capture point;
+- a screenshot normalization stylesheet;
+- `window.__threeDebug__.qa.version === 1`;
+- failure attachments: actual screenshot, diff, fixture JSON, camera JSON, QA JSON, and trace.
+
+Beta then promotes P2 visual metrics from existence checks to correctness checks:
+
+- `waterCoverageRatio`;
+- `bridgeContinuity`;
+- `routeGroundClearanceP95`;
+- `zFightingRisk`;
+- `bridgePierCount === 0` when no pier/support provenance exists.

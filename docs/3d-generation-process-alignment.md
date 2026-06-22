@@ -282,29 +282,32 @@ Engineering acceptance:
 
 ## 7. Immediate Implementation Order
 
-1. Fix UI and route correctness blockers:
-   - bottom-right 3D toggle position;
-   - keep low-precision entry visible with disabled reason or degraded overview;
-   - 2D/3D route hash preservation;
-   - real route continuous line;
-   - structured geoAssets degraded-state handling.
+The next implementation order is now evidence-first:
 
-2. Extract `generation-timeline.js`:
-   - replace ad hoc reveal calls with named phase progress;
-   - expose debug progress for Playwright.
+1. Build deterministic visual proof infrastructure:
+   - ROI screenshots for `river-bridge`, `micro-street`, and `hiking-terrain`;
+   - fixed camera presets;
+   - screenshot normalization stylesheet;
+   - Playwright failure attachments.
 
-3. Split terrain foundation and carving:
-   - foundation slab first;
-   - terrain relief second;
-   - water channel depression before water surface.
+2. Formalize `window.__threeDebug__.qa` v1:
+   - geometry metrics;
+   - budgets;
+   - provenance metrics;
+   - layer visibility and degradation state.
+
+3. Close P2 water / road / bridge visual correctness:
+   - water channel depression is measurable and visible;
+   - no terrain-colored gap appears where attributable water exists;
+   - bridge decks are continuous;
+   - route guidance remains readable above the geographic skeleton.
 
 4. Split building massing and dissolve:
    - create deterministic massing clusters;
-   - make detail LOD a dissolve stage.
+   - mark fallback context as `syntheticMassing`;
+   - make detail LOD a dissolve stage only after P2 visual gates are stable.
 
-5. Add screenshot QA:
-   - `entering-foundation`;
-   - `carved-water-road-bridge`;
-   - `building-massing`;
-   - `building-dissolve`;
-   - `route-focus`.
+5. Add inspect camera and scene profile gates:
+   - overview / route-focus / inspect are explicit camera modes;
+   - scene profiles expose budgets;
+   - over-budget scenes degrade context layers before route readability.

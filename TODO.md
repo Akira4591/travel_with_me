@@ -46,6 +46,48 @@ Known remaining gaps:
 - Add city/scenic/hiking/old-street/landmark scenario visual baselines.
 - Add ROI screenshot gates and structured QA snapshots for the first three scene fixtures.
 
+Next-stage deep-research decision:
+
+```text
+visual proof infrastructure first
+  -> P2 water / road / bridge visual correctness
+  -> P3 building massing / dissolve
+  -> inspect camera and scene precision profiles
+```
+
+Do not start P4 DEM tiles, P5 landmark restoration, or commercial 3D provider routing until the first visual baseline and P2 visual correctness gates are stable.
+
+## Immediate Next Batch: Visual Proof Infrastructure
+
+Goal: make 3D visual quality regression-testable before adding more visual complexity.
+
+Tasks:
+
+1. Build ROI visual baseline harness for `river-bridge`, `micro-street`, and `hiking-terrain`.
+   - Modules: tests, QA docs, Playwright helpers.
+   - Acceptance: Chromium-only ROI visual subset can run locally without live provider calls.
+   - Rollback: keep capture-only screenshots and disable blocking assertions until stable.
+
+2. Formalize `window.__threeDebug__.qa` v1.
+   - Modules: renderer QA/debug contract, docs.
+   - Acceptance: each visual capture can export QA JSON with geometry, budget, provenance, and layer fields.
+   - Rollback: keep new fields additive and non-blocking.
+
+3. Add `river-bridge` structured P2 geometry gates.
+   - Modules: scene quality gates, terrain/water/bridge metrics, tests.
+   - Acceptance: emit `waterCoverageRatio`, `bridgeContinuity`, `routeGroundClearanceP95`, `zFightingRisk`, and `bridgePierCount`.
+   - Rollback: downgrade unstable thresholds to warnings while preserving telemetry.
+
+4. Attach failure evidence to Playwright reports.
+   - Modules: E2E/visual test helpers.
+   - Acceptance: failed visual runs attach actual screenshot, diff, fixture JSON, camera preset JSON, QA JSON, and trace.
+   - Rollback: attach only on failure to control artifact size.
+
+5. Keep live-provider tests out of default visual CI.
+   - Modules: test config and docs.
+   - Acceptance: local and CI visual gates are deterministic and use only fixture data.
+   - Rollback: keep live-provider smoke as explicit opt-in only.
+
 ## P0: 3D Correctness Floor
 
 Goal: 3D must not blank, lie, desync from 2D, or violate the required generation sequence.
