@@ -26,7 +26,7 @@ Latest verified baseline from 2026-06-23. Detailed gate accounting is maintained
 | `npm.cmd run check`               | Passed                                                                                                            |
 | `npm.cmd test`                    | Passed: 29 files, 139 tests                                                                                       |
 | `npm.cmd run check:encoding`      | Passed: 307 visible source/doc/test files scanned                                                                 |
-| Full visual baseline suite        | Passed: 22 local ROI fixture captures/interactions with QA JSON and screenshots in 10.4m                          |
+| Full visual baseline suite        | Passed: 22 local ROI fixture captures/interactions with QA JSON and screenshots in 10.7m                          |
 | `npm.cmd run check:architecture`  | Passed: 35 render files scanned                                                                                   |
 | `npm.cmd run check:provenance`    | Passed: 42 scene fixture files scanned                                                                            |
 | `npm.cmd run check:landmarks`     | Passed: 1 landmark record scanned                                                                                 |
@@ -39,10 +39,10 @@ Quality gate count from `docs/quality-gate-status.md`:
 
 | Status       | Count |
 | ------------ | ----: |
-| Complete     |    48 |
+| Complete     |    49 |
 | Partial      |     1 |
 | Not complete |     0 |
-| Total        |    49 |
+| Total        |    50 |
 
 VQ0 local visual reset implemented in code:
 
@@ -133,6 +133,8 @@ Next Beta work:
   **Started:** near/far `qa.lod` response is now covered for `old-street` and `landmark-pilot`;
   stepped no-pop remains limited to `micro-street` until repeated-run stability is proven.
 - Extend vegetation budget work from per-area density caps to chunking/frustum-culling performance telemetry.
+  **Started:** vegetation QA now emits chunk count, visible chunk count, and culled chunk count;
+  hiking visual gates assert the telemetry is internally consistent.
 
 ## P0: 3D Correctness Floor
 

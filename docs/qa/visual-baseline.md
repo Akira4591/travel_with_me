@@ -148,7 +148,8 @@ Default behavior:
 - runs a 30-second `river-bridge` camera stress subset and samples route readability plus z-fighting risk;
 - runs a 30-second `micro-street` dense-building camera stress subset and samples route readability plus z-fighting risk;
 - runs a 30-second `hiking-terrain` terrain camera stress subset and samples route readability plus z-fighting risk;
-- asserts licensed landcover vegetation stays within the per-area template density budget;
+- asserts licensed landcover vegetation stays within the per-area template density budget and
+  exposes chunk/frustum telemetry;
 - does not call live providers;
 - does not require committed golden images.
 
@@ -210,6 +211,10 @@ Current blocking vegetation budget metrics:
 
 - `qa.budgets.vegetationAreaCount > 0` for `hiking-terrain`;
 - `qa.budgets.vegetationMaxInstancesPerArea <= qa.budgets.vegetationDensityCap`;
+- `qa.budgets.vegetationChunkCount > 0`;
+- `qa.budgets.vegetationVisibleChunkCount > 0`;
+- `qa.budgets.vegetationVisibleChunkCount <= qa.budgets.vegetationChunkCount`;
+- `qa.budgets.vegetationVisibleChunkCount + qa.budgets.vegetationCulledChunkCount === qa.budgets.vegetationChunkCount`;
 - density overflow is a hard `VEGETATION_DENSITY_CAP_EXCEEDED` QA error.
 
 Current blocking building LOD metrics for `micro-street`, `old-street`, and `landmark-pilot`:

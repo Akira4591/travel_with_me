@@ -27,7 +27,10 @@ describe('scene quality gates', () => {
       vegetationMetrics: {
         areaCount: 1,
         maxInstancesPerArea: 12,
-        densityCap: 12
+        densityCap: 12,
+        chunkCount: 1,
+        visibleChunkCount: 1,
+        culledChunkCount: 0
       },
       geoAssetCounts: { waterways: 2, bridges: 1, roads: 3, buildings: 2, landmarks: 1 },
       landmarkAssetStats: { total: 1, allowlisted: 1, optimized: 1, withIntegrity: 1 },
@@ -69,6 +72,9 @@ describe('scene quality gates', () => {
     expect(result.budgets.vegetationAreaCount).toBe(1);
     expect(result.budgets.vegetationMaxInstancesPerArea).toBe(12);
     expect(result.budgets.vegetationDensityCap).toBe(12);
+    expect(result.budgets.vegetationChunkCount).toBe(1);
+    expect(result.budgets.vegetationVisibleChunkCount).toBe(1);
+    expect(result.budgets.vegetationCulledChunkCount).toBe(0);
     expect(result.layers.water).toMatchObject({ visible: true, count: 2, expected: 2 });
     expect(result.provenance.landmarkAllowlisted).toBe(1);
     expect(result.provenance.landmarkOptimized).toBe(1);
@@ -116,7 +122,10 @@ describe('scene quality gates', () => {
       vegetationMetrics: {
         areaCount: 1,
         maxInstancesPerArea: 13,
-        densityCap: 12
+        densityCap: 12,
+        chunkCount: 1,
+        visibleChunkCount: 1,
+        culledChunkCount: 0
       },
       geoAssetCounts: { landcover: 1 },
       counts: { vegetationInstances: 13 }
@@ -170,7 +179,11 @@ describe('scene quality gates', () => {
         userData: {
           areaCount: 1,
           maxInstancesPerArea: 12,
-          densityCap: 12
+          densityCap: 12,
+          chunks: [mockGroup(1)],
+          chunkCount: 1,
+          visibleChunkCount: 1,
+          culledChunkCount: 0
         }
       },
       sceneBuildContext: {},
@@ -216,6 +229,9 @@ describe('scene quality gates', () => {
     expect(container.dataset.qaBuildingDetailAlphaAverage).toBe('0.8');
     expect(container.dataset.qaVegetationMaxInstancesPerArea).toBe('12');
     expect(container.dataset.qaVegetationDensityCap).toBe('12');
+    expect(container.dataset.qaVegetationChunkCount).toBe('1');
+    expect(container.dataset.qaVegetationVisibleChunkCount).toBe('1');
+    expect(container.dataset.qaVegetationCulledChunkCount).toBe('0');
     expect(container.dataset.qaVersion).toBe('1');
     expect(debug.qa.version).toBe(1);
     expect(debug.qa.lod.buildingDetailRatio).toBe(1);

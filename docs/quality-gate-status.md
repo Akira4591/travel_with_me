@@ -25,7 +25,7 @@ Commands run on 2026-06-23:
 | `npm.cmd run check:landmarks`                                        | Passed: 1 landmark record scanned with allowlist, integrity, LOD, and budget validation                           |
 | `npx.cmd playwright test tests/e2e/smoke.spec.js --project=chromium` | Passed: 12 desktop tests, 1 mobile-only test skipped in Chromium                                                  |
 | `npx.cmd playwright test tests/e2e/live-provider.spec.js`            | Passed by skip: live provider smoke is explicit opt-in only                                                       |
-| Full visual baseline suite                                           | Passed: 22 local ROI fixture captures/interactions with QA JSON and screenshots in 10.4m                          |
+| Full visual baseline suite                                           | Passed: 22 local ROI fixture captures/interactions with QA JSON and screenshots in 10.7m                          |
 | Beta route-yellow fixture calibration                                | Passed: all maintained visual fixtures declare `route.minYellowPixelRatio`; visual suite rejects missing values   |
 | Beta water/bridge fixture expansion                                  | Passed: `river-bridge` and `wide-river-bridges` water/bridge ROI gates                                            |
 | targeted 3D/2D gate E2E                                              | Passed: nonblank 3D, geo assets, WASD camera, geometry P95, 2D fallback, 60s no-auto-exit                         |
@@ -55,10 +55,10 @@ VQ0 target state:
 
 | Status       | Count | Meaning                                                                                             |
 | ------------ | ----: | --------------------------------------------------------------------------------------------------- |
-| Complete     |    48 | Implemented and covered by automated evidence or current browser verification                       |
+| Complete     |    49 | Implemented and covered by automated evidence or current browser verification                       |
 | Partial      |     1 | Implemented or directionally present, but missing final manual acceptance or full repeated baseline |
 | Not complete |     0 | Contradicted by current manual visual evidence                                                      |
-| Total        |    49 | Current tracked quality gates                                                                       |
+| Total        |    50 | Current tracked quality gates                                                                       |
 
 ## Completed Gates
 
@@ -112,16 +112,17 @@ VQ0 target state:
 |  46 | Landmark true-restoration pipeline is release-gated                                                                 | `check:landmarks`, `landmark-assets.test.js`, QA allowlist metrics  |
 |  47 | Water and bridge correctness covers both narrow centerline river and wide polygon/multi-bridge shapes               | `river-bridge` and `wide-river-bridges` visual ROI gates            |
 |  48 | Building LOD near/far response covers old-street storefront and landmark scenes                                     | `old-street` and `landmark-pilot` building LOD visual E2E           |
+|  49 | Licensed vegetation exposes chunk/frustum telemetry and keeps it internally consistent                              | `hiking-terrain` visual E2E and `scene-quality-gates` unit tests    |
 
 ## Partial Gates
 
 |   # | Gate                                                                 | Evidence                                                                                                                                            | Required fix                                                                                  |
 | --: | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-|  49 | Live 3D composition reaches product-quality bounded diorama standard | VQ0 code path implemented and full visual baseline suite passed; final manual screenshot review has not yet accepted the new bounded 3D composition | Run manual visual review on the new VQ0 output, then promote the gate to complete if accepted |
+|  50 | Live 3D composition reaches product-quality bounded diorama standard | VQ0 code path implemented and full visual baseline suite passed; final manual screenshot review has not yet accepted the new bounded 3D composition | Run manual visual review on the new VQ0 output, then promote the gate to complete if accepted |
 
 ## Not Complete Gates
 
-No not-complete gates remain in the current ledger. Gate 49 remains partial until manual review accepts the new bounded composition.
+No not-complete gates remain in the current ledger. Gate 50 remains partial until manual review accepts the new bounded composition.
 
 Real landmark model rendering still remains a future P5 feature, but the release gate that prevents unsafe or unlicensed landmark assets from entering the renderer is now implemented.
 
@@ -155,3 +156,4 @@ Real landmark model rendering still remains a future P5 feature, but the release
 6. Continue P3 building massing/dissolve modularization after the current visual gates are stable. Inspect-camera visual review is **implemented** for maintained review scenes.
 7. Add 30-second P2 camera stress gate for route readability and z-fighting. **implemented for river-bridge, micro-street, and hiking-terrain**
 8. Extend route readability above dense contextual layers. **implemented for old-street and landmark-pilot**
+9. Extend vegetation budget work from density caps to chunk/frustum telemetry. **implemented for licensed landcover visual gates**

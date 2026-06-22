@@ -1009,10 +1009,17 @@ function buildVegetationGroup(proj, terrainModel, vegetationAreas) {
   );
   let count = 0;
   const areaBudgets = [];
+  const chunks = [];
   for (const area of areas) {
     if (!area || area.licensed !== true || !Array.isArray(area.polygon)) continue;
     const points = createVegetationPoints(area, proj);
     const densityCap = vegetationDensityForCover(area.cover);
+    const areaGroup = new THREE.Group();
+    areaGroup.userData.vegetationChunk = true;
+    areaGroup.userData.areaId = area.id || '';
+    areaGroup.userData.cover = area.cover || '';
+    areaGroup.userData.densityCap = densityCap;
+    areaGroup.userData.instances = points.length;
     areaBudgets.push({
       id: area.id || '',
       cover: area.cover || '',
@@ -1036,12 +1043,18 @@ function buildVegetationGroup(proj, terrainModel, vegetationAreas) {
       );
       mesh.castShadow = false;
       mesh.receiveShadow = true;
-      group.add(mesh);
+      areaGroup.add(mesh);
       count += 1;
     }
+    group.add(areaGroup);
+    chunks.push(areaGroup);
   }
   group.userData.templateCount = count;
   group.userData.areaBudgets = areaBudgets;
+  group.userData.chunks = chunks;
+  group.userData.chunkCount = chunks.length;
+  group.userData.visibleChunkCount = chunks.length;
+  group.userData.culledChunkCount = 0;
   group.userData.maxInstancesPerArea = Math.max(0, ...areaBudgets.map(area => area.instances));
   group.userData.densityCap = Math.max(0, ...areaBudgets.map(area => area.densityCap));
   group.userData.areaCount = areaBudgets.length;

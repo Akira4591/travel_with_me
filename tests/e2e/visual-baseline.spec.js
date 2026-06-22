@@ -64,6 +64,7 @@ const CAPTURES = [
       expect(qa.qa.budgets.vegetationMaxInstancesPerArea).toBeLessThanOrEqual(
         qa.qa.budgets.vegetationDensityCap
       );
+      assertVegetationTelemetry(qa);
     }
   }
 ];
@@ -602,6 +603,7 @@ test.describe('@visual-roi desktop 3D visual baseline harness', () => {
     expect(finalQa.qa.budgets.vegetationMaxInstancesPerArea).toBeLessThanOrEqual(
       finalQa.qa.budgets.vegetationDensityCap
     );
+    assertVegetationTelemetry(finalQa);
     expect(finalQa.visual.readable).toBe(true);
     expect(finalQa.visual.routeYellowPixelRatio).toBeGreaterThanOrEqual(
       routeYellowPixelRatioMin(fixture)
@@ -959,6 +961,7 @@ function assertOverviewInspectReview(qa, reviewScene, fixture) {
   if (reviewScene.requiresLandcover) {
     expect(qa.geoAssetCounts.landcover).toBeGreaterThan(0);
     expect(qa.qa.budgets.vegetationAreaCount).toBeGreaterThan(0);
+    assertVegetationTelemetry(qa);
     expect(qa.qa.geometry.terrainHeightVariance).toBeGreaterThanOrEqual(
       fixture.expectations.terrain?.minHeightRangeMeters || 1
     );
@@ -992,6 +995,18 @@ function assertBuildingLodTransition({ overview, inspect, returned, fixture, lod
   if (lodScene.minLandmarks > 0) {
     expect(inspect.qa.provenance.landmarkAllowlisted).toBeGreaterThanOrEqual(lodScene.minLandmarks);
   }
+}
+
+function assertVegetationTelemetry(qa) {
+  expect(qa.qa.budgets.vegetationChunkCount).toBeGreaterThan(0);
+  expect(qa.qa.budgets.vegetationVisibleChunkCount).toBeGreaterThan(0);
+  expect(qa.qa.budgets.vegetationVisibleChunkCount).toBeLessThanOrEqual(
+    qa.qa.budgets.vegetationChunkCount
+  );
+  expect(qa.qa.budgets.vegetationCulledChunkCount).toBeGreaterThanOrEqual(0);
+  expect(qa.qa.budgets.vegetationVisibleChunkCount + qa.qa.budgets.vegetationCulledChunkCount).toBe(
+    qa.qa.budgets.vegetationChunkCount
+  );
 }
 
 function routeYellowPixelRatioMin(fixture) {

@@ -69,7 +69,10 @@ window.__threeDebug__ = {
       textureMemoryEstimateMB: 0,
       vegetationAreaCount: 0,
       vegetationMaxInstancesPerArea: 0,
-      vegetationDensityCap: 0
+      vegetationDensityCap: 0,
+      vegetationChunkCount: 0,
+      vegetationVisibleChunkCount: 0,
+      vegetationCulledChunkCount: 0
     },
     provenance: {
       totalRealAssets: 0,
@@ -121,6 +124,9 @@ These values are starting points and must be calibrated against local fixture ev
 | `buildingBaseTerrainErrorP95`    | `<= 0.25m`                                               | Sprint Gamma |
 | `buildingDetailAlphaAverage`     | increases when zooming into `micro-street` inspect view  | Sprint Gamma |
 | `vegetationMaxInstancesPerArea`  | `<= vegetationDensityCap` for licensed landcover         | Sprint Beta  |
+| `vegetationChunkCount`           | `> 0` when licensed vegetation renders                   | Sprint Beta  |
+| `vegetationVisibleChunkCount`    | `> 0` and `<= vegetationChunkCount`                      | Sprint Beta  |
+| `vegetationCulledChunkCount`     | visible + culled equals `vegetationChunkCount`           | Sprint Beta  |
 | `landmarkAllowlisted`            | equals `landmarkCount` before any landmark model is used | Sprint P5    |
 
 ## Rules
@@ -149,4 +155,7 @@ Current deliberately non-blocking field:
 - `routeGrayOutlinePixelRatio`, `workAreaRaisedPixelRatio`, and `outsideDimmedPixelRatio`; these
   are emitted by VQ0 and mirrored to `#map-3d.dataset.qa*`.
 - `qa.lod.*`; current gates prove near/far building detail response, while module split and video-style no-pop review remain future P3 work.
+- `qa.budgets.vegetationChunkCount`, `vegetationVisibleChunkCount`, and
+  `vegetationCulledChunkCount`; current gates prove chunk/frustum telemetry for licensed landcover,
+  while full terrain-tile streaming remains future P4 work.
 - `qa.provenance.landmarkAllowlisted`, `landmarkOptimized`, and `landmarkIntegrityCount`; these are now blocking release-gate evidence for landmark records, even though remote landmark model rendering remains disabled.

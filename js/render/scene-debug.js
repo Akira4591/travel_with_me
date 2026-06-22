@@ -1,3 +1,5 @@
+import * as THREE from 'three';
+
 import { evaluateSceneQuality } from './scene-quality-gates.js';
 
 export function createDioramaDebugSnapshot(diorama, sceneContext) {
@@ -6,6 +8,7 @@ export function createDioramaDebugSnapshot(diorama, sceneContext) {
   const manifestSources = sceneContext?.provenanceManifest?.sources || [];
   const qualityFlags = sceneContext?.qualityFlags || {};
   const landmarkAssetStats = sceneContext?.landmarkAssetStats || {};
+  const vegetationCulling = computeVegetationCullingMetrics(diorama);
   const timeline = diorama.generationTimeline?.snapshot?.() || {
     phase: 'steady',
     phaseProgress: 1,
@@ -84,7 +87,10 @@ export function createDioramaDebugSnapshot(diorama, sceneContext) {
     vegetationMetrics: {
       areaCount: Number(diorama.vegetationGroup?.userData?.areaCount || 0),
       maxInstancesPerArea: Number(diorama.vegetationGroup?.userData?.maxInstancesPerArea || 0),
-      densityCap: Number(diorama.vegetationGroup?.userData?.densityCap || 0)
+      densityCap: Number(diorama.vegetationGroup?.userData?.densityCap || 0),
+      chunkCount: vegetationCulling.chunkCount,
+      visibleChunkCount: vegetationCulling.visibleChunkCount,
+      culledChunkCount: vegetationCulling.culledChunkCount
     },
     lodMetrics: {
       detailRatio: Number(diorama.buildingGroup?.userData?.lodMetrics?.detailRatio || 0),
@@ -182,6 +188,42 @@ function countBridgeParts(root, bridgePart) {
   return count;
 }
 
+function computeVegetationCullingMetrics(diorama) {
+  const group = diorama?.vegetationGroup;
+  const chunks = Array.isArray(group?.userData?.chunks) ? group.userData.chunks : [];
+  if (!group || chunks.length === 0) {
+    return { chunkCount: 0, visibleChunkCount: 0, culledChunkCount: 0 };
+  }
+  if (!diorama?.camera) {
+    return { chunkCount: chunks.length, visibleChunkCount: chunks.length, culledChunkCount: 0 };
+  }
+
+  group.updateWorldMatrix(true, true);
+  diorama.camera.updateMatrixWorld();
+  const projection = new THREE.Matrix4().multiplyMatrices(
+    diorama.camera.projectionMatrix,
+    diorama.camera.matrixWorldInverse
+  );
+  const frustum = new THREE.Frustum().setFromProjectionMatrix(projection);
+
+  let visibleChunkCount = 0;
+  for (const chunk of chunks) {
+    const bounds = new THREE.Box3().setFromObject(chunk);
+    const visible = bounds.isEmpty() || frustum.intersectsBox(bounds);
+    chunk.userData.frustumVisible = visible;
+    if (visible) visibleChunkCount += 1;
+  }
+
+  const result = {
+    chunkCount: chunks.length,
+    visibleChunkCount,
+    culledChunkCount: Math.max(0, chunks.length - visibleChunkCount)
+  };
+  group.userData.visibleChunkCount = result.visibleChunkCount;
+  group.userData.culledChunkCount = result.culledChunkCount;
+  return result;
+}
+
 function syncDebugDataset(container, debug) {
   if (!container?.dataset) return;
   const dataset = container.dataset;
@@ -213,6 +255,11 @@ function syncDebugDataset(container, debug) {
     debug.qa?.budgets?.vegetationMaxInstancesPerArea || 0
   );
   dataset.qaVegetationDensityCap = String(debug.qa?.budgets?.vegetationDensityCap || 0);
+  dataset.qaVegetationChunkCount = String(debug.qa?.budgets?.vegetationChunkCount || 0);
+  dataset.qaVegetationVisibleChunkCount = String(
+    debug.qa?.budgets?.vegetationVisibleChunkCount || 0
+  );
+  dataset.qaVegetationCulledChunkCount = String(debug.qa?.budgets?.vegetationCulledChunkCount || 0);
   dataset.qaWarningCount = String(debug.quality?.warnings?.length || 0);
   dataset.qaErrorCount = String(debug.quality?.errors?.length || 0);
 }
