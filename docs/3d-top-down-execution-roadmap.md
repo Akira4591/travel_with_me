@@ -350,12 +350,17 @@ Goal: make city/street close views useful without pretending to be a true city r
 
 Engineering tasks:
 
-- Add deterministic rectangular building massing as the first building stage.
-- Build footprint extrusion for authoritative buildings.
+- Add deterministic rectangular building massing as the first building stage. Implemented and
+  covered by generation timeline plus `river-bridge` timeline visual evidence.
+- Build footprint extrusion for authoritative buildings. Implemented and covered by direct
+  renderer tests on flat terrain.
 - Keep the existing five-template fallback catalog per scenario.
-- Replace repeated fallback meshes with `InstancedMesh` where practical.
+- Replace repeated fallback meshes with `InstancedMesh` where practical. Implemented for fallback
+  low-poly massing.
 - Add continuous massing-to-outline dissolve based on camera distance with hysteresis and fade.
-- Align building base to terrain samples and reject abnormal intersections.
+  Implemented and covered by direct LOD tests plus stepped visual gates.
+- Align building base to terrain samples and reject abnormal intersections. Implemented and
+  covered by direct rejected-footprint fallback tests.
 - Split the implementation into `building-massing-renderer.js` and
   `building-dissolve-renderer.js`. Current implementation keeps massing geometry in the former
   and camera-distance LOD/dissolve state in the latter.
@@ -377,9 +382,10 @@ Visual tasks:
 
 QA gates:
 
-- Building base terrain error P95 <= 0.25m in seeded scenes.
-- LOD transition has no visible pop or flicker.
-- Fallback buildings are deterministic across reloads.
+- Building base terrain error P95 <= 0.25m in seeded scenes and direct footprint tests.
+- LOD transition has no visible pop or flicker in `micro-street`, `old-street`, and
+  `landmark-pilot`.
+- Fallback buildings are deterministic across reloads and direct rebuild tests.
 
 Do not do:
 

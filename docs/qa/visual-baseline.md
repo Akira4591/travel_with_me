@@ -8,13 +8,13 @@ This plan is intentionally limited to desktop Chromium, deterministic local fixt
 
 ## Sprint Order
 
-| Sprint | Objective                                            | Output                                                                                   | Rollback                                                                                 |
-| ------ | ---------------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| VQ0    | Repair route layer and local 3D scope                | No-gray route, red-pin selection, bounded square work area, outside dimming              | Fall back to 2D and disable 3D generation until a local center is selected               |
-| Alpha  | Establish deterministic visual proof infrastructure  | ROI screenshot suite, frozen camera presets, QA schema v1, failure attachments           | Keep screenshot capture and QA JSON, disable blocking screenshot assertions until stable |
-| Beta   | Close P2 water, road, bridge visual correctness      | Water carve, bridge continuity, route clearance, z-fighting metrics plus ROI baselines   | Downgrade unstable thresholds to warnings while preserving evidence                      |
-| Gamma  | Modularize P3 building massing and dissolve          | Split building renderers, deterministic synthetic massing metadata, LOD transition gates | Keep massing-only renderer active and guard dissolve behind a feature flag               |
-| Delta  | Complete inspect camera and scene precision profiles | Camera state machine, scene budgets, graceful degradation                                | Lock profile selection to fixture-declared profiles until thresholds are calibrated      |
+| Sprint | Objective                                            | Output                                                                                                     | Rollback                                                                                 |
+| ------ | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| VQ0    | Repair route layer and local 3D scope                | No-gray route, red-pin selection, bounded square work area, outside dimming                                | Fall back to 2D and disable 3D generation until a local center is selected               |
+| Alpha  | Establish deterministic visual proof infrastructure  | ROI screenshot suite, frozen camera presets, QA schema v1, failure attachments                             | Keep screenshot capture and QA JSON, disable blocking screenshot assertions until stable |
+| Beta   | Close P2 water, road, bridge visual correctness      | Water carve, bridge continuity, route clearance, z-fighting metrics plus ROI baselines                     | Downgrade unstable thresholds to warnings while preserving evidence                      |
+| Gamma  | Modularize P3 building massing and dissolve          | Implemented at code level: split renderers, deterministic synthetic massing metadata, LOD transition gates | Keep massing-only renderer active and guard dissolve behind a feature flag               |
+| Delta  | Complete inspect camera and scene precision profiles | Camera state machine, scene budgets, graceful degradation                                                  | Lock profile selection to fixture-declared profiles until thresholds are calibrated      |
 
 Do not start P4 DEM tiles, P5 landmark restoration, or commercial 3D provider routing before
 VQ0 and Delta are stable.
@@ -151,6 +151,9 @@ Default behavior:
 - asserts `old-street` and `landmark-pilot` route readability above contextual buildings and landmark metadata;
 - asserts `hiking-terrain`, `old-street`, and `landmark-pilot` overview-plus-inspect screenshot review through fixed camera presets;
 - captures the `river-bridge` generation timeline at foundation, carved geography, route highlight, building massing, building dissolve, and route-focus checkpoints;
+- directly tests `building-massing-renderer.js` for deterministic fallback rebuilds,
+  authoritative footprint extrusion, and synthetic fallback when unlocated footprints are rejected
+  by terrain-error tolerance;
 - asserts city, scenic, and hiking terrain precision profiles through scenario-specific terrain mode, elevation range, landcover, water, and route-readability gates;
 - runs a 30-second `river-bridge` camera stress subset and samples route readability plus z-fighting risk;
 - runs a 30-second `micro-street` dense-building camera stress subset and samples route readability plus z-fighting risk;

@@ -143,6 +143,31 @@ Self-audit on 2026-06-23 after `codex/next-beta-visual-calibration`:
 - The live 3D entry now starts on the same high-angle overview orbit before terrain data loads, during entry, and after idle auto-rotate starts; it renders the 3D route as a narrow yellow guidance line.
 - Remaining partial item is not an automated gap: the live bounded 3D composition still needs manual product-quality acceptance before gate 50 can close.
 
+## Gamma P3 Self-Audit
+
+P3 building massing and dissolve are complete at code level, but not a release claim that the live
+3D composition has passed final product taste review.
+
+Evidence:
+
+- `building-massing-renderer.js` owns massing geometry, authoritative footprint extrusion,
+  deterministic fallback massing, terrain-error rejection, and synthetic fallback metadata.
+- `building-dissolve-renderer.js` owns camera-distance detail alpha, distance hysteresis, LOD
+  metrics, and publish-signature throttling.
+- `building-massing-renderer.test.js` proves deterministic fallback rebuilds, authoritative
+  footprint extrusion on flat terrain, and synthetic massing fallback for rejected unlocated
+  footprints.
+- `building-lod.test.js` proves near/far detail alpha and the hysteresis band.
+- `river-bridge` timeline visual evidence proves building massing occurs before dissolve.
+- `micro-street`, `old-street`, and `landmark-pilot` visual gates prove near/far LOD response and
+  stepped dissolve smoothness.
+
+Boundary:
+
+- P4 DEM tile precision, P5 landmark restoration, and commercial 3D provider routing remain blocked
+  until gate 50 manual visual acceptance closes or a new user screenshot defines the next visual
+  defect source of truth.
+
 ## Immediate Fix Order
 
 1. Complete VQ0 manual acceptance: **blocking**
