@@ -25,7 +25,7 @@ Commands run on 2026-06-23:
 | `npm.cmd run check:landmarks`                                        | Passed: 1 landmark record scanned with allowlist, integrity, LOD, and budget validation                           |
 | `npx.cmd playwright test tests/e2e/smoke.spec.js --project=chromium` | Passed: 12 desktop tests, 1 mobile-only test skipped in Chromium                                                  |
 | `npx.cmd playwright test tests/e2e/live-provider.spec.js`            | Passed by skip: live provider smoke is explicit opt-in only                                                       |
-| VQ0 targeted visual subset                                           | Passed: river-bridge, micro-street, hiking-terrain ROI evidence plus short camera interaction                     |
+| Full visual baseline suite                                           | Passed: 19 local ROI fixture captures/interactions with QA JSON and screenshots in 9.6m                           |
 | targeted 3D/2D gate E2E                                              | Passed: nonblank 3D, geo assets, WASD camera, geometry P95, 2D fallback, 60s no-auto-exit                         |
 | tracked-source secret scan for known AMap/DeepSeek patterns          | Passed: no matches in tracked source                                                                              |
 | in-app browser 2D/3D visual check                                    | Partial: exposed an empty-workspace stale 3D state; VQ0 now throws/recover instead of silently entering stale 3D  |
@@ -111,9 +111,9 @@ VQ0 target state:
 
 ## Partial Gates
 
-|   # | Gate                                                                 | Evidence                                                                                                                                        | Required fix                                                                                  |
-| --: | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-|  47 | Live 3D composition reaches product-quality bounded diorama standard | VQ0 code path implemented and targeted visual subset passed; final manual screenshot review has not yet accepted the new bounded 3D composition | Run manual visual review on the new VQ0 output, then promote the gate to complete if accepted |
+|   # | Gate                                                                 | Evidence                                                                                                                                            | Required fix                                                                                  |
+| --: | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+|  47 | Live 3D composition reaches product-quality bounded diorama standard | VQ0 code path implemented and full visual baseline suite passed; final manual screenshot review has not yet accepted the new bounded 3D composition | Run manual visual review on the new VQ0 output, then promote the gate to complete if accepted |
 
 ## Not Complete Gates
 

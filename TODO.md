@@ -26,7 +26,7 @@ Latest verified baseline from 2026-06-23. Detailed gate accounting is maintained
 | `npm.cmd run check`               | Passed                                                                                                            |
 | `npm.cmd test`                    | Passed: 29 files, 139 tests                                                                                       |
 | `npm.cmd run check:encoding`      | Passed: 301 visible source/doc/test files scanned                                                                 |
-| VQ0 targeted visual subset        | Passed: river-bridge, micro-street, hiking-terrain ROI evidence plus short camera interaction                     |
+| Full visual baseline suite        | Passed: 19 local ROI fixture captures/interactions with QA JSON and screenshots in 9.6m                           |
 | `npm.cmd run check:architecture`  | Passed: 35 render files scanned                                                                                   |
 | `npm.cmd run check:provenance`    | Passed: 36 scene fixture files scanned                                                                            |
 | `npm.cmd run check:landmarks`     | Passed: 1 landmark record scanned                                                                                 |
@@ -90,7 +90,7 @@ Tasks:
      outside context renderer, visual QA.
    - Acceptance: user selects a 2D point with red pin, 3D builds only the bounded square, outside
      context is dimmed, the first selected-plane lift is uniform-height, gray route outline is gone,
-     yellow route remains readable, VQ0 targeted QA passes, and manual visual review accepts the
+     yellow route remains readable, full visual baseline QA passes, and manual visual review accepts the
      new bounded composition.
    - Rollback: keep 3D disabled with a reason when no work-area center is selected.
 
