@@ -725,6 +725,8 @@ test.describe('@visual-roi desktop 3D visual baseline harness', () => {
     });
 
     expect(inspect.qa.lod.buildingEntryCount).toBeGreaterThan(0);
+    expect(inspect.counts.syntheticBuildingMassings).toBeGreaterThan(0);
+    expect(inspect.counts.instancedBuildingMassingMeshes).toBeGreaterThan(0);
     expect(inspect.qa.lod.buildingDetailAlphaAverage).toBeGreaterThan(
       overview.qa.lod.buildingDetailAlphaAverage
     );
@@ -997,6 +999,8 @@ function assertBuildingLodTransition({ overview, inspect, returned, fixture, lod
   const minLodEntries = fixture.expectations.building?.minLodEntries || minContextBuildings;
   expect(inspect.qa.lod.buildingEntryCount).toBeGreaterThanOrEqual(minLodEntries);
   expect(inspect.qa.layers.buildings.count).toBeGreaterThanOrEqual(minContextBuildings);
+  expect(inspect.counts.syntheticBuildingMassings).toBeGreaterThanOrEqual(minContextBuildings);
+  expect(inspect.counts.instancedBuildingMassingMeshes).toBeGreaterThan(0);
   expect(inspect.qa.lod.buildingDetailAlphaAverage).toBeGreaterThan(
     overview.qa.lod.buildingDetailAlphaAverage
   );

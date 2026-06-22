@@ -127,8 +127,14 @@ export function createDioramaDebugSnapshot(diorama, sceneContext) {
       bridgeDecks: countBridgeParts(diorama.bridgeGroup, 'deck'),
       bridgePiers: countBridgePiers(diorama.bridgeGroup),
       routeSegments: routeUserData.realGeometryCount || 0,
-      buildingMassings: countVisibleMeshes(diorama.buildingGroup),
+      buildingMassings: countBuildingMassings(diorama.buildingGroup),
       buildingDetailed: diorama.buildingDetailCount || 0,
+      syntheticBuildingMassings: Number(
+        diorama.buildingGroup?.userData?.syntheticMassingCount || 0
+      ),
+      instancedBuildingMassingMeshes: Number(
+        diorama.buildingGroup?.userData?.instancedMassingMeshCount || 0
+      ),
       vegetationInstances: Number(diorama.container.dataset.vegetationTemplateCount || 0)
     },
     camera,
@@ -173,6 +179,13 @@ export function countVisibleMeshes(root) {
     if (node.isMesh && node.visible !== false) count += 1;
   });
   return count;
+}
+
+function countBuildingMassings(root) {
+  if (!root) return 0;
+  const declaredCount = Number(root.userData?.count || 0);
+  if (declaredCount > 0) return declaredCount;
+  return countVisibleMeshes(root);
 }
 
 function countBridgePiers(root) {

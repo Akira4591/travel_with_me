@@ -18,7 +18,7 @@ Every use scenario has exactly five stable procedural templates. A hash of `loca
 | Residential | gable, terrace, courtyard, annex, tower  |
 | Generic     | box, gable, terrace, annex, courtyard    |
 
-Source priority: licensed GLB/CityGML model -> licensed building footprint with height/levels -> OSM-compatible footprint where its licence and attribution are accepted -> this POI template. The UI must preserve provenance on every record.
+Source priority: licensed GLB/CityGML model -> licensed building footprint with height/levels -> OSM-compatible footprint where its licence and attribution are accepted -> this POI template. The UI must preserve provenance on every record. If an attributable footprint cannot pass the terrain-base tolerance gate, the renderer degrades it to neutral synthetic massing at the footprint center instead of silently dropping all building context.
 
 ## 3. Mountains and vegetation
 
@@ -146,7 +146,7 @@ Candidate data classes to evaluate during provider onboarding: official municipa
 }
 ```
 
-Current renderer behavior: an authorized `buildings[].locationId` replaces that POI's fallback block with a footprint extrusion. An attributable building without `locationId` is rendered as surrounding context, capped to keep the frame and GPU budget stable. Attributable roads become a muted terrain-conforming base layer, while the selected itinerary uses a warm road bed, graphite outline, and industrial safety-yellow guidance stripe. Authorized land-cover polygons generate deterministic vegetation clusters on the terrain; attributable waterways and bridges render on the same terrain model as roads. Landmark records are retained only after `js/render/landmark-assets.js` validates their release-gate metadata. The renderer still does not auto-load remote model URLs; the gate exists so future model loading cannot begin without allowlist, content-type/size validation, integrity metadata, LOD outputs, and GLTF/GLB optimization.
+Current renderer behavior: an authorized `buildings[].locationId` replaces that POI's fallback block with a footprint extrusion. An attributable building without `locationId` is rendered as surrounding context, capped to keep the frame and GPU budget stable. Rejected footprint extrusions fall back to neutral synthetic massing and are not presented as real exterior models. Repeated fallback low-poly massing is batched with `InstancedMesh`; close-range detail and dissolve LOD remain per building. Attributable roads become a muted terrain-conforming base layer, while the selected itinerary uses a warm road bed, graphite outline, and industrial safety-yellow guidance stripe. Authorized land-cover polygons generate deterministic vegetation clusters on the terrain; attributable waterways and bridges render on the same terrain model as roads. Landmark records are retained only after `js/render/landmark-assets.js` validates their release-gate metadata. The renderer still does not auto-load remote model URLs; the gate exists so future model loading cannot begin without allowlist, content-type/size validation, integrity metadata, LOD outputs, and GLTF/GLB optimization.
 
 ### OpenStreetMap context ingestion
 

@@ -26,7 +26,7 @@ Latest verified baseline from 2026-06-23. Detailed gate accounting is maintained
 | `npm.cmd run check`               | Passed                                                                                                              |
 | `npm.cmd test`                    | Passed: 29 files, 141 tests                                                                                         |
 | `npm.cmd run check:encoding`      | Passed: 307 visible source/doc/test files scanned                                                                   |
-| Full visual baseline suite        | Passed: 22 local ROI fixture captures/interactions with QA JSON and screenshots in 9.8m                             |
+| Full visual baseline suite        | Passed: 24 local ROI fixture captures/interactions with QA JSON and screenshots in 12.4m                            |
 | `npm.cmd run check:architecture`  | Passed: 35 render files scanned                                                                                     |
 | `npm.cmd run check:provenance`    | Passed: 42 scene fixture files scanned                                                                              |
 | `npm.cmd run check:landmarks`     | Passed: 1 landmark record scanned                                                                                   |
@@ -240,9 +240,10 @@ Tasks:
 - Use authoritative footprint extrusion when available.
 - Keep fallback buildings neutral and deterministic.
 - Add continuous massing-to-outline dissolve with distance hysteresis.
-- Use `InstancedMesh` for repeated fallback massing where practical.
+- Use `InstancedMesh` for repeated fallback massing where practical. **Implemented for fallback low-poly massing.**
 - Align building bases to terrain samples and reject abnormal intersections.
 - Mark fallback buildings as `syntheticMassing=true`; never present them as real exterior models.
+  **Implemented:** rejected authoritative footprints degrade to neutral synthetic massing instead of disappearing.
 
 QA:
 

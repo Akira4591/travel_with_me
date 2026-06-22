@@ -145,6 +145,8 @@ Default behavior:
 - asserts `micro-street`, `old-street`, and `landmark-pilot` near/far building LOD response through `qa.lod` metrics;
 - asserts `micro-street`, `old-street`, and `landmark-pilot` stepped building dissolve smoothness
   through bounded `buildingDetailAlphaAverage` deltas;
+- asserts fallback low-poly building massing uses `InstancedMesh` while semantic building counts
+  remain fixture-readable;
 - asserts `micro-street` inspect view readability with close-camera y clamp, route visibility, and building context;
 - asserts `old-street` and `landmark-pilot` route readability above contextual buildings and landmark metadata;
 - asserts `hiking-terrain`, `old-street`, and `landmark-pilot` overview-plus-inspect screenshot review through fixed camera presets;
@@ -231,6 +233,8 @@ Current blocking building LOD metrics for `micro-street`, `old-street`, and `lan
 - `qa.lod.buildingEntryCount > 0`;
 - fixture-specific `qa.lod.buildingEntryCount >= expectations.building.minLodEntries`;
 - fixture-specific building layer count `>= expectations.building.minContextBuildings`;
+- fallback scenes must expose `counts.syntheticBuildingMassings > 0` and
+  `counts.instancedBuildingMassingMeshes > 0`;
 - inspect-distance `buildingDetailAlphaAverage` must be greater than overview-distance `buildingDetailAlphaAverage`;
 - returning to overview distance must reduce `buildingDetailAlphaAverage`;
 - inspect-distance `buildingDetailRatio` must not regress below overview-distance `buildingDetailRatio`.
@@ -253,6 +257,7 @@ Current blocking building dissolve smoothness metrics for `micro-street`, `old-s
 - final inspect ROI must retain `routeYellowPixelRatio >= expectations.route.minYellowPixelRatio`.
 - fixture-specific `qa.lod.buildingEntryCount` and building layer counts must satisfy
   `expectations.building.minLodEntries` and `expectations.building.minContextBuildings` when set.
+- fallback low-poly massing must remain instanced during the dissolve review.
 
 Current blocking `micro-street` inspect metrics:
 

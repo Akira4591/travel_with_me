@@ -675,6 +675,7 @@ function buildBuildingGroup(proj, locations, terrainModel, geoAssets = {}) {
   const group = new THREE.Group();
   const lodEntries = [];
   const baseTerrainErrorsMeters = [];
+  const fallbackMassings = [];
   const featureScale = getOverviewFeatureScale(terrainModel.bounds);
   const authoritativeBuildings = Array.isArray(geoAssets.buildings) ? geoAssets.buildings : [];
   const realBuildings = new Map(
@@ -685,10 +686,22 @@ function buildBuildingGroup(proj, locations, terrainModel, geoAssets = {}) {
     .filter(asset => !asset.locationId)
     .forEach(asset => {
       const entry = createAuthoritativeBuildingLod(asset, proj, terrainModel);
-      if (!entry) return;
-      group.add(entry.low, entry.detail);
-      lodEntries.push(entry);
-      baseTerrainErrorsMeters.push(...entry.baseTerrainErrorsMeters);
+      if (entry) {
+        group.add(entry.low, entry.detail);
+        lodEntries.push(entry);
+        baseTerrainErrorsMeters.push(...entry.baseTerrainErrorsMeters);
+        return;
+      }
+      const fallbackMassing = createFallbackMassingFromAsset(
+        asset,
+        proj,
+        terrainModel,
+        featureScale
+      );
+      if (!fallbackMassing) return;
+      fallbackMassings.push(fallbackMassing);
+      group.add(fallbackMassing.detail);
+      baseTerrainErrorsMeters.push(0);
     });
 
   for (const loc of locations) {
@@ -716,33 +729,97 @@ function buildBuildingGroup(proj, locations, terrainModel, geoAssets = {}) {
 
     const w = (isLarge ? 3 + seed * 3 : 1.5 + seed * 2) * featureScale;
     const terrainY = terrainModel.heightAt(x, z);
-    const lowMaterial = createBuildingMaterial(C.building, 0.9);
-    const low = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), lowMaterial);
-    low.position.set(x, terrainY + h / 2, z);
-    low.castShadow = true;
-    low.receiveShadow = true;
 
     const detail = createDetailedBuilding({ x, z, terrainY, width: w, height: h, seed, template });
     detail.visible = false;
-    group.add(low, detail);
-    baseTerrainErrorsMeters.push(0);
-    lodEntries.push({
+    fallbackMassings.push({
       center: new THREE.Vector3(x, terrainY + h / 2, z),
-      low,
-      detail,
-      lowMaterial,
-      detailMaterials: detail.userData.materials,
-      detailAlpha: 0
+      width: w,
+      height: h,
+      detail
     });
+    group.add(detail);
+    baseTerrainErrorsMeters.push(0);
   }
 
+  addFallbackMassingInstances(group, lodEntries, fallbackMassings);
   group.userData.lodEntries = lodEntries;
   group.userData.authoritativeCount = lodEntries.filter(entry => entry.authoritative).length;
   group.userData.count = lodEntries.length;
+  group.userData.syntheticMassingCount = fallbackMassings.length;
+  group.userData.instancedMassingMeshCount = fallbackMassings.length > 0 ? 1 : 0;
   group.userData.baseTerrainErrorsMeters = baseTerrainErrorsMeters;
   group.userData.baseTerrainErrorP95Meters = percentile(baseTerrainErrorsMeters, 0.95);
   group.userData.baseTerrainErrorMaxMeters = maxMetric(baseTerrainErrorsMeters);
   return group;
+}
+
+function addFallbackMassingInstances(group, lodEntries, fallbackMassings) {
+  if (!fallbackMassings.length) return;
+  const material = createBuildingMaterial(C.building, 0.9);
+  const geometry = new THREE.BoxGeometry(1, 1, 1);
+  const mesh = new THREE.InstancedMesh(geometry, material, fallbackMassings.length);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.userData.syntheticMassing = true;
+  mesh.userData.instanceCount = fallbackMassings.length;
+
+  const matrix = new THREE.Matrix4();
+  const position = new THREE.Vector3();
+  const quaternion = new THREE.Quaternion();
+  const scale = new THREE.Vector3();
+  for (const [index, massing] of fallbackMassings.entries()) {
+    position.copy(massing.center);
+    scale.set(massing.width, massing.height, massing.width);
+    matrix.compose(position, quaternion, scale);
+    mesh.setMatrixAt(index, matrix);
+    lodEntries.push({
+      center: massing.center,
+      low: mesh,
+      lowMaterial: material,
+      lowInstanced: true,
+      lowAlpha: 0.9,
+      instanceIndex: index,
+      detail: massing.detail,
+      detailMaterials: massing.detail.userData.materials,
+      detailAlpha: 0,
+      syntheticMassing: true
+    });
+  }
+  mesh.instanceMatrix.needsUpdate = true;
+  group.add(mesh);
+}
+
+function createFallbackMassingFromAsset(asset, proj, terrainModel, featureScale) {
+  if (!Array.isArray(asset?.footprint) || asset.footprint.length < 3) return null;
+  const points = asset.footprint.map(lnglat => proj.toScene(lnglat));
+  const xs = points.map(point => point.x);
+  const zs = points.map(point => point.z);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minZ = Math.min(...zs);
+  const maxZ = Math.max(...zs);
+  const x = (minX + maxX) / 2;
+  const z = (minZ + maxZ) / 2;
+  const width = Math.max(maxX - minX, maxZ - minZ, 2 * featureScale);
+  const height = Math.max(
+    BUILDING_MIN_HEIGHT * featureScale,
+    proj.metersToUnits(Number(asset.heightMeters) || BUILDING_MIN_HEIGHT)
+  );
+  const terrainY = terrainModel.heightAt(x, z);
+  const seed = seededUnit(asset.id || `${x}:${z}`);
+  const template = { id: 'box' };
+  const detail = createDetailedBuilding({ x, z, terrainY, width, height, seed, template });
+  detail.visible = false;
+  detail.userData.syntheticFromRejectedFootprint = true;
+  detail.userData.sourceAssetId = asset.id || '';
+  return {
+    center: new THREE.Vector3(x, terrainY + height / 2, z),
+    width,
+    height,
+    detail,
+    fallbackFromAuthoritativeAsset: true
+  };
 }
 
 function createAuthoritativeBuildingLod(asset, proj, terrainModel) {
@@ -881,6 +958,7 @@ function updateBuildingLod(diorama) {
   const buildingDissolve = clamp(diorama.buildingDissolveProgress ?? 1, 0, 1);
   let detailCount = 0;
   let detailAlphaTotal = 0;
+  const instancedLowMaterials = new Map();
   const distances = [];
   for (const entry of diorama.buildingLodEntries) {
     const distance = diorama.camera.position.distanceTo(entry.center);
@@ -891,8 +969,15 @@ function updateBuildingLod(diorama) {
     const lowAlpha = 1 - detailAlpha * 0.72;
     detailAlphaTotal += detailAlpha;
 
-    entry.lowMaterial.opacity = lowAlpha * buildingReveal;
-    entry.lowMaterial.depthWrite = lowAlpha * buildingReveal > 0.98;
+    if (entry.lowInstanced) {
+      const bucket = instancedLowMaterials.get(entry.lowMaterial) || { total: 0, count: 0 };
+      bucket.total += lowAlpha;
+      bucket.count += 1;
+      instancedLowMaterials.set(entry.lowMaterial, bucket);
+    } else {
+      entry.lowMaterial.opacity = lowAlpha * buildingReveal;
+      entry.lowMaterial.depthWrite = lowAlpha * buildingReveal > 0.98;
+    }
     entry.detail.visible = detailAlpha > 0.015 && buildingReveal > 0.015;
     if (detailAlpha >= 0.5) detailCount += 1;
     entry.detail.scale.y = 0.74 + detailAlpha * 0.26;
@@ -901,6 +986,11 @@ function updateBuildingLod(diorama) {
       material.opacity = detailAlpha * buildingReveal;
       material.depthWrite = detailAlpha * buildingReveal > 0.98;
     });
+  }
+  for (const [material, bucket] of instancedLowMaterials.entries()) {
+    const lowAlpha = bucket.count > 0 ? bucket.total / bucket.count : 1;
+    material.opacity = lowAlpha * buildingReveal;
+    material.depthWrite = lowAlpha * buildingReveal > 0.98;
   }
   diorama.buildingDetailCount = detailCount;
   const total = diorama.buildingLodEntries.length;

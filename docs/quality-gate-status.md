@@ -25,7 +25,7 @@ Commands run on 2026-06-23:
 | `npm.cmd run check:landmarks`                                        | Passed: 1 landmark record scanned with allowlist, integrity, LOD, and budget validation                               |
 | `npx.cmd playwright test tests/e2e/smoke.spec.js --project=chromium` | Passed: 12 desktop tests, 1 mobile-only test skipped in Chromium                                                      |
 | `npx.cmd playwright test tests/e2e/live-provider.spec.js`            | Passed by skip: live provider smoke is explicit opt-in only                                                           |
-| Full visual baseline suite                                           | Passed: 22 local ROI fixture captures/interactions with QA JSON and screenshots in 9.8m                               |
+| Full visual baseline suite                                           | Passed: 24 local ROI fixture captures/interactions with QA JSON and screenshots in 12.4m                              |
 | Beta route-yellow fixture calibration                                | Passed: all maintained visual fixtures declare `route.minYellowPixelRatio`; visual suite rejects missing values       |
 | Beta water/bridge fixture expansion                                  | Passed: `river-bridge` and `wide-river-bridges` water/bridge ROI gates                                                |
 | targeted 3D/2D gate E2E                                              | Passed: nonblank 3D, geo assets, WASD camera, geometry P95, 2D fallback, 60s no-auto-exit                             |
@@ -135,6 +135,7 @@ Self-audit on 2026-06-23 after `codex/next-beta-visual-calibration`:
 - Route-yellow readability thresholds are fixture-owned and missing thresholds fail the visual suite.
 - Water/bridge correctness now covers both the original narrow `river-bridge` fixture and the `wide-river-bridges` polygon-water, multi-span fixture.
 - Building near/far LOD response and stepped no-pop dissolve are gated for `micro-street`, `old-street`, and `landmark-pilot`.
+- Repeated fallback low-poly building massing now uses `InstancedMesh`; old-street rejected footprints degrade to neutral synthetic massing instead of disappearing.
 - Licensed vegetation now reports density, chunk count, visible chunk count, and frustum-culled chunk count through `qa.budgets`.
 - Vegetation frustum telemetry now uses landcover chunk bounds, keeping camera-stress telemetry aligned with actual licensed vegetation areas.
 - The live 3D entry now starts on the same high-angle overview orbit used by idle auto-rotate and renders the 3D route as a narrow yellow guidance line.
@@ -167,7 +168,7 @@ Self-audit on 2026-06-23 after `codex/next-beta-visual-calibration`:
    - `qa.lod.buildingDistanceP50`;
    - near/far zoom interaction evidence;
    - stepped zoom-in evidence with bounded alpha deltas.
-6. Continue P3 building massing/dissolve modularization after the current visual gates are stable. Inspect-camera visual review is **implemented** for maintained review scenes.
+6. Continue P3 building massing/dissolve modularization after the current visual gates are stable. Inspect-camera visual review and fallback massing instancing are **implemented** for maintained review scenes.
 7. Add 30-second P2 camera stress gate for route readability and z-fighting. **implemented for river-bridge, micro-street, and hiking-terrain**
 8. Extend route readability above dense contextual layers. **implemented for old-street and landmark-pilot**
 9. Extend vegetation budget work from density caps to chunk/frustum telemetry. **implemented for licensed landcover visual gates**
