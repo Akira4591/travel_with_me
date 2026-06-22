@@ -203,7 +203,7 @@ The building dissolve smoothness gate samples stepped zoom-in movement from over
 
 The following Beta stability expansion adds 30-second `river-bridge`, `micro-street`, and `hiking-terrain` camera stress gates. They exercise repeated drag, WASD, and wheel input while sampling QA snapshots. The gates block if the route loses its industrial safety-yellow pixel signal, if `zFightingRisk` exceeds `0.01`, or if the scene leaves `steady` phase during the stress window. The `micro-street` variant also requires visible building-layer context so dense street scenes cannot hide or weaken the route signal without detection. The `hiking-terrain` variant requires attributable landcover context so terrain and vegetation templates cannot hide the route signal without detection.
 
-The vegetation budget gate records per-landcover-area template counts and fails if generated instances exceed the declared density cap. This is an immediate guardrail for route readability; future chunking and frustum culling remain separate performance work.
+The vegetation budget gate records per-landcover-area template counts and fails if generated instances exceed the declared density cap. It also exposes vegetation chunk, visible chunk, and frustum-culled chunk telemetry for licensed landcover. Full terrain-tile streaming remains separate P4 work.
 
 The inspect-view gate validates the close-camera state directly: `micro-street` must enter `camera.mode === "inspect"`, keep terrain-relative camera clearance inside profile bounds, keep route and building context visible together, and retain the industrial safety-yellow route signal. This closes the first deterministic inspect-state visual review without requiring committed golden screenshots.
 

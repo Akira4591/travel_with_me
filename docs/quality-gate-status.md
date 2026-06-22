@@ -126,11 +126,21 @@ No not-complete gates remain in the current ledger. Gate 50 remains partial unti
 
 Real landmark model rendering still remains a future P5 feature, but the release gate that prevents unsafe or unlicensed landmark assets from entering the renderer is now implemented.
 
+## Beta Self-Audit
+
+Self-audit on 2026-06-23 after `codex/next-beta-visual-calibration`:
+
+- Route-yellow readability thresholds are fixture-owned and missing thresholds fail the visual suite.
+- Water/bridge correctness now covers both the original narrow `river-bridge` fixture and the `wide-river-bridges` polygon-water, multi-span fixture.
+- Building near/far LOD response is gated for `micro-street`, `old-street`, and `landmark-pilot`; stepped no-pop remains gated on `micro-street`.
+- Licensed vegetation now reports density, chunk count, visible chunk count, and frustum-culled chunk count through `qa.budgets`.
+- Remaining partial item is not an automated gap: the live bounded 3D composition still needs manual product-quality acceptance before gate 50 can close.
+
 ## Immediate Fix Order
 
 1. Complete VQ0 manual acceptance: **blocking**
    - review the new bounded 3D output after route de-gray, red-pin selection, fixed square work area, outside dimming, and VQ0 QA fields;
-   - if accepted, promote gate 47 to complete;
+   - if accepted, promote gate 50 to complete;
    - if rejected, use the screenshot as the next visual-defect source of truth.
 2. Add deterministic visual proof infrastructure before more visual fixes: **first Alpha subset implemented**
    - ROI screenshots for `river-bridge`, `micro-street`, and `hiking-terrain`;

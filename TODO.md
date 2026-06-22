@@ -55,7 +55,7 @@ VQ0 local visual reset implemented in code:
 
 Remaining VQ0 acceptance item:
 
-- Complete a fresh manual visual review against the new bounded diorama output and, if accepted, move gate 47 from partial to complete.
+- Complete a fresh manual visual review against the new bounded diorama output and, if accepted, move gate 50 from partial to complete.
 
 Known remaining non-blocking follow-ups after VQ0:
 
