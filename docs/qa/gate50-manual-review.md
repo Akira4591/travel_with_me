@@ -28,6 +28,18 @@ npm.cmd run gate50:review -- --skip-visual
 npm.cmd run gate50:review -- --skip-smoke
 ```
 
+When collecting repeatability evidence before a visual acceptance meeting:
+
+```powershell
+npm.cmd run gate50:review -- --include-stability --stability-runs=5
+```
+
+For scoped diagnosis, add a stability preset:
+
+```powershell
+npm.cmd run gate50:review -- --include-stability --stability-runs=5 --stability-preset=precision
+```
+
 The full command runs:
 
 - `npm.cmd run check`
@@ -36,6 +48,9 @@ The full command runs:
 - `npm.cmd run check:ledger`
 - desktop smoke gates through `scripts/run-e2e-smoke.mjs`
 - full Chromium visual baseline through `tests/e2e/visual-baseline.spec.js`
+
+The optional stability step is explicit because the full five-run visual baseline is intentionally
+expensive. It strengthens evidence but still does not replace the human Gate 50 visual decision.
 
 ## Manual Review Steps
 

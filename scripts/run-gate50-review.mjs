@@ -1,40 +1,19 @@
 import { spawnSync } from 'node:child_process';
 
-const args = new Set(process.argv.slice(2));
+import { buildGate50ReviewSteps, parseGate50ReviewOptions } from './gate50-review-options.mjs';
+
 const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-const dryRun = args.has('--dry-run');
-const skipSmoke = args.has('--skip-smoke');
-const skipVisual = args.has('--skip-visual');
-
-const steps = [
-  ['Static quality gates', npmCommand, ['run', 'check']],
-  ['Unit tests', npmCommand, ['test']],
-  ['Visible text encoding gate', npmCommand, ['run', 'check:encoding']]
-];
-
-if (!skipSmoke) {
-  steps.push(['Desktop smoke gates', process.execPath, ['scripts/run-e2e-smoke.mjs']]);
-}
-
-if (!skipVisual) {
-  steps.push([
-    'Full 3D visual baseline',
-    process.execPath,
-    [
-      'node_modules/@playwright/test/cli.js',
-      'test',
-      'tests/e2e/visual-baseline.spec.js',
-      '--project=chromium',
-      '--reporter=line',
-      '--workers=1'
-    ]
-  ]);
-}
+const options = parseGate50ReviewOptions(process.argv.slice(2));
+const steps = buildGate50ReviewSteps({
+  npmCommand,
+  nodeCommand: process.execPath,
+  options
+});
 
 for (const [label, command, commandArgs] of steps) {
   console.log(`\n[gate50] ${label}`);
   console.log(`$ ${[command, ...commandArgs].join(' ')}`);
-  if (dryRun) continue;
+  if (options.dryRun) continue;
 
   const usesWindowsCommandShell = process.platform === 'win32' && command.endsWith('.cmd');
   const result = spawnSync(

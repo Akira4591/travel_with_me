@@ -24,8 +24,8 @@ Latest verified baseline from 2026-06-23. Detailed gate accounting is maintained
 | Gate                              | Result                                                                                                                               |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `npm.cmd run check`               | Passed                                                                                                                               |
-| `npm.cmd test`                    | Passed: 32 files, 159 tests                                                                                                          |
-| `npm.cmd run check:encoding`      | Passed: 318 visible source/doc/test files scanned                                                                                    |
+| `npm.cmd test`                    | Passed: 33 files, 162 tests                                                                                                          |
+| `npm.cmd run check:encoding`      | Passed: 320 visible source/doc/test files scanned                                                                                    |
 | Full visual baseline suite        | Passed: 24 local ROI fixture captures/interactions with QA JSON and screenshots in 13.0m                                             |
 | `npm.cmd run check:architecture`  | Passed: 37 render files scanned                                                                                                      |
 | `npm.cmd run check:provenance`    | Passed: 42 scene fixture files scanned                                                                                               |
@@ -70,6 +70,8 @@ Remaining VQ0 acceptance item:
 - Run `npm.cmd run gate50:review`, complete `docs/qa/gate50-manual-review.md` against the new bounded diorama output, and if accepted move gate 50 from partial to complete.
   The latest live browser check confirms blank off-route selections now anchor to a location and preserve
   `qaPassed=true`, but final product-quality acceptance is still manual.
+  For a stronger pre-review evidence packet, run
+  `npm.cmd run gate50:review -- --include-stability --stability-runs=5`.
 
 Known remaining non-blocking follow-ups after VQ0:
 
