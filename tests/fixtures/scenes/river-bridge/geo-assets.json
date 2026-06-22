@@ -1,0 +1,60 @@
+{
+  "waterways": [
+    {
+      "id": "fixture-canal",
+      "centerline": [
+        [116.398, 39.9075],
+        [116.401, 39.91],
+        [116.404, 39.9125]
+      ],
+      "widthMeters": 18,
+      "realityClaim": true,
+      "provenance": {
+        "source": "fixture-open-data",
+        "licence": "ODbL-compatible-test",
+        "attribution": "Travel With Me fixture data",
+        "updatedAt": "2026-06-22T00:00:00.000Z"
+      }
+    }
+  ],
+  "roads": [
+    {
+      "id": "fixture-bridge-road",
+      "kind": "local",
+      "centerline": [
+        [116.397, 39.908],
+        [116.401, 39.91],
+        [116.405, 39.912]
+      ],
+      "widthMeters": 7,
+      "realityClaim": true,
+      "provenance": {
+        "source": "fixture-open-data",
+        "licence": "ODbL-compatible-test",
+        "attribution": "Travel With Me fixture data",
+        "updatedAt": "2026-06-22T00:00:00.000Z"
+      }
+    }
+  ],
+  "bridges": [
+    {
+      "id": "fixture-canal-bridge",
+      "centerline": [
+        [116.3997, 39.9092],
+        [116.4023, 39.9108]
+      ],
+      "widthMeters": 9,
+      "deckHeightMeters": 5,
+      "realityClaim": true,
+      "provenance": {
+        "source": "fixture-open-data",
+        "licence": "ODbL-compatible-test",
+        "attribution": "Travel With Me fixture data",
+        "updatedAt": "2026-06-22T00:00:00.000Z"
+      }
+    }
+  ],
+  "buildings": [],
+  "landcover": [],
+  "landmarks": []
+}

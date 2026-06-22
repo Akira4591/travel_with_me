@@ -7,8 +7,9 @@ import {
   searchRoute,
   buildEstimatedResult,
   safeClearService
-} from './api/routing.js';
-import { getAppState, getTrip, getDay, hasActiveTrip } from './state.js';
+} from './api/routing.js?v=20260621-p0-v1';
+import { createRouteGeometryDiagnostics } from './route-geometry.js';
+import { cacheRouteGeometry, getAppState, getTrip, hasActiveTrip } from './state.js';
 import {
   buildRouteSegments,
   resetRouteCards,
@@ -59,6 +60,18 @@ async function planRoutesForDay(day, segments, serial) {
     if (result.ok) {
       success += 1;
       drawRoutePaths(segment, result.paths, false);
+      const simplifiedPaths = simplifyRoutePaths(result.paths);
+      cacheRouteGeometry(segment.dayId, segment.eventId, {
+        source: 'amap-web-service',
+        mode: segment.mode,
+        paths: simplifiedPaths,
+        diagnostics: createRouteGeometryDiagnostics({
+          source: 'amap-web-service',
+          mode: segment.mode,
+          paths: simplifiedPaths
+        }),
+        fetchedAt: Date.now()
+      });
       updateRouteCardOk(segment, result.detail);
     } else if (result.estimated) {
       estimated += 1;
@@ -76,6 +89,18 @@ async function planRoutesForDay(day, segments, serial) {
   );
 }
 
+function simplifyRoutePaths(paths) {
+  const validPaths = (Array.isArray(paths) ? paths : [])
+    .filter(path => Array.isArray(path) && path.length >= 2)
+    .map(path => path.filter(point => Array.isArray(point) && point.length >= 2));
+  if (!validPaths.length) return [];
+  // AMap may return both a full route and its component steps. The full route is the longest path.
+  const primary = validPaths.reduce((longest, path) =>
+    path.length > longest.length ? path : longest
+  );
+  return [primary];
+}
+
 export function dayDisplayLabel(day) {
   if (!day) return '';
   const idx = getTrip().days.findIndex(d => d.id === day.id);
@@ -86,7 +111,7 @@ export function dayDisplayLabel(day) {
 
 async function searchSegment(segment, serial) {
   if (!hasValidSegmentCoords(segment)) {
-    return buildEstimatedResult(asRouteModeSegment(segment, 'driving'));
+    return { ok: false, status: 'missing-coordinates', segmentId: segment.id };
   }
   if (!segment.routeToNext?.manual) {
     return searchAutoSegment(segment, serial);
@@ -137,10 +162,11 @@ function shouldUseTransitOverDriving(transit, driving) {
 async function searchModeSegment(segment, mode, serial) {
   const state = getAppState();
   const targetSegment = asRouteModeSegment(segment, mode);
-  const service = createRouteService(state.AMap, state.map, mode);
-  if (!service) return buildEstimatedResult(targetSegment);
+  const service = hasSdkRouteService(state.AMap, mode)
+    ? createRouteService(state.AMap, state.map, mode)
+    : null;
 
-  state.routeServices.push(service);
+  if (service) state.routeServices.push(service);
   const result = await searchRoute(state.AMap, service, targetSegment);
 
   if (serial !== state.routePlanningSerial) {
@@ -148,6 +174,14 @@ async function searchModeSegment(segment, mode, serial) {
     return { ok: false, stale: true };
   }
   return result;
+}
+
+function hasSdkRouteService(AMap, mode) {
+  if (!AMap || AMap.__fallback) return false;
+  if (mode === 'transit') return typeof AMap.Transfer === 'function';
+  if (mode === 'walking') return typeof AMap.Walking === 'function';
+  if (mode === 'riding') return typeof AMap.Riding === 'function';
+  return typeof AMap.Driving === 'function';
 }
 
 function asRouteModeSegment(segment, mode) {

@@ -1,0 +1,45 @@
+{
+  "landcover": [
+    {
+      "id": "ridge-forest",
+      "licensed": true,
+      "cover": "forest",
+      "polygon": [
+        [116.249, 40.019],
+        [116.256, 40.019],
+        [116.256, 40.026],
+        [116.249, 40.026]
+      ],
+      "realityClaim": true,
+      "provenance": {
+        "source": "fixture-open-data",
+        "licence": "ODbL-compatible-test",
+        "attribution": "Travel With Me fixture data",
+        "updatedAt": "2026-06-22T00:00:00.000Z"
+      }
+    }
+  ],
+  "roads": [
+    {
+      "id": "ridge-trail",
+      "kind": "path",
+      "centerline": [
+        [116.25, 40.02],
+        [116.252, 40.022],
+        [116.255, 40.025]
+      ],
+      "widthMeters": 2,
+      "realityClaim": true,
+      "provenance": {
+        "source": "fixture-open-data",
+        "licence": "ODbL-compatible-test",
+        "attribution": "Travel With Me fixture data",
+        "updatedAt": "2026-06-22T00:00:00.000Z"
+      }
+    }
+  ],
+  "buildings": [],
+  "waterways": [],
+  "bridges": [],
+  "landmarks": []
+}

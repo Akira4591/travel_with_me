@@ -1,288 +1,218 @@
 # Travel With Me Roadmap
 
-最后更新：2026-06-19
+Last updated: 2026-06-22
+
+This file is the active backlog only. Product direction and data boundaries are owned by `docs/product-architecture-blueprint.md`. The latest 3D technical route is owned by `docs/3d-deep-research-integration.md` and executed through `docs/3d-top-down-execution-roadmap.md`.
+
+## Current Stage
+
+The project is now in:
+
+```text
+S1 desktop private-test baseline closed
+  -> S2 differentiation validation closed at code level
+  -> 3D P0/P1 correctness convergence
+```
+
+Desktop Web is the only active product surface. Mobile Web remains a compatibility guard only. Native Android is deferred as a separate Kotlin product after the desktop Web value and data model stabilize.
+
+## Latest Verification Baseline
+
+Latest verified baseline from 2026-06-22. Detailed gate accounting is maintained in `docs/quality-gate-status.md`.
+
+| Gate                                                                 | Result                                                                          |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `npm.cmd run check`                                                  | Passed                                                                          |
+| `npm.cmd test`                                                       | Passed: 27 files, 131 tests                                                     |
+| `npm.cmd run check:encoding`                                         | Passed: 273 visible source/doc/test files scanned                               |
+| `npm.cmd run check:architecture`                                     | Passed: 34 render files scanned                                                 |
+| `npm.cmd run check:provenance`                                       | Passed: 18 scene fixture files scanned                                          |
+| `npx.cmd playwright test tests/e2e/smoke.spec.js --project=chromium` | Passed: 12 desktop tests, 1 mobile-only test skipped in Chromium                |
+| Tracked-source secret scan                                           | Passed: no known real AMap/DeepSeek key patterns found                          |
+| In-app browser 2D/3D visual check                                    | Passed: 2D AMap provider loaded, 3D enters, canvas visible, DOM metrics present |
+
+Quality gate count from `docs/quality-gate-status.md`:
+
+| Status       | Count |
+| ------------ | ----: |
+| Complete     |    32 |
+| Partial      |     6 |
+| Not complete |     4 |
+| Total        |    42 |
+
+Known remaining gaps:
+
+- Add maintained screenshot baselines for foundation, carved water, route highlight, building massing, building dissolve, route focus, and inspect.
+- Add city/scenic/hiking/old-street/landmark scenario visual baselines.
+- Add ROI screenshot gates and structured QA snapshots for the first three scene fixtures.
+
+## P0: 3D Correctness Floor
+
+Goal: 3D must not blank, lie, desync from 2D, or violate the required generation sequence.
+
+Tasks:
+
+- Add `output/`, `pet-runs/`, and runtime visual artifacts to `.prettierignore` and `.gitignore`.
+- Pin the 2D/3D toggle to the bottom-right map control area.
+- Remove the 60s idle auto-exit. User interaction may pause/resume orbit, but cannot switch modes.
+- Keep the 3D button visible at all zoom levels; low precision must produce a disabled reason or degraded 3D, not a hidden entry.
+- Clean visible UI mojibake and prevent newly added docs from reintroducing encoding ambiguity.
+- Preserve persisted `event.routeToNext.geometry` through every 3D render path.
+- Expose and assert route hash, first point, last point, point count and length.
+- Render real routes as continuous industrial safety-yellow guidance.
+- Render estimated fallback routes as dashed and clearly labelled.
+- Ensure a nonblank foundation slab appears within 1.5 seconds.
+- Add structured `geoAssets` degraded-state results and BFF timeout/error classification.
+- Keep 2D mode normal while 3D work is in progress.
+
+QA:
+
+- `npm.cmd run check`
+- `npm.cmd test`
+- targeted 2D E2E after P0
+- targeted 3D E2E after P0
+- screenshot check for overview and route focus
+- Playwright assertion: button remains bottom-right in both 2D and 3D
+- Playwright assertion: no auto-return from 3D after 60s
+- Playwright assertion: `window.__threeDebug__.quality.degraded` is readable when upstream geo assets fail
+
+## P1: Contracts, Timeline, and Module Boundaries
+
+Goal: all 3D renderers consume stable contracts and a named generation timeline.
 
-本文档记录当前项目从本地 MVP 走向可私测、可商业化产品的执行 backlog。设计总纲见 `docs/design-refactor-plan.md`。
+Tasks:
 
-## 当前阶段
+- Add `generation-timeline` with debug phase state:
+  - `freeze-2d`
+  - `derive-scene-envelope`
+  - `slab-rise`
+  - `terrain-refine`
+  - `water-carve`
+  - `road-emerge`
+  - `bridge-resolve`
+  - `route-highlight`
+  - `building-massing`
+  - `building-dissolve`
+- Keep `SceneBuildContext` as the boundary for projection, terrain, route, geoAssets, provenance and quality flags.
+- Keep `trip.geoAssets` as the provider-neutral environmental asset contract.
+- Ensure renderer modules do not fetch provider data directly for already displayed state.
+- Add debug metrics for mesh counts, terrain confidence, route diagnostics, generation phase and frame timing.
+- Add `camera-controller.js` for overview, route-focus, inspect, drag-pause and orbit recovery.
+- Add `terrain-foundation.js` so slab rise is independent from terrain refinement and layer reveal.
+- Add Playwright screenshot gates for foundation, carved geography, route highlight, massing, dissolve and route focus.
 
-当前项目处于 **S1 工程可私测已闭环 → S2 差异化验证已收口** 的阶段。
+QA:
 
-最近一次验证：2026-06-19。
+- timeline phase values observable in `window.__threeDebug__`
+- debug exposes `mode`, `phase`, `phaseProgress`, `quality`, `counts`, `camera`, and `provenance`
+- screenshots prove stage order
+- no direct provider renderer fetch for rendered trip state
+- provenance gate blocks real-world asset rendering when source data is missing
 
-| 检查项                          | 结果       | 说明                                                                                                                               |
-| ------------------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `npm.cmd test`                  | 通过       | 10 个测试文件，64 个单元测试通过                                                                                                   |
-| `npm.cmd run test:guide-import` | 通过       | 12 个 AI 导入种子样例，64 个标注地点；召回 100%、误提取 0%、day 准确率 100%、note 覆盖率 100%、攻略类型识别 100%、0 forbidden hits |
-| `npm.cmd run check`             | 通过       | Prettier 与 ESLint 均通过                                                                                                          |
-| `npm.cmd run test:e2e`          | 通过       | Playwright 10 passed / 8 skipped；桌面核心路径、AI 导入、添加地点、导入导出、3D 入口和移动端基础回归通过                           |
-| Git 工作区                      | 基线已提交 | 分支 `codex/s2-5-3d-annotations`，工作区干净，准备合并 main                                                                        |
+## P2: Terrain, Water, Roads, and Bridges
 
-已具备：
+Goal: the geographic skeleton must emerge from the raised foundation.
 
-- Node/Hono BFF + 原生 ES Modules 前端。
-- 多路线 workspace，本地 localStorage 保存。
-- 多日行程、未排期事件池、地点搜索、路线规划。
-- DeepSeek 攻略导入，高德 POI 多层匹配。
-- Canvas 分享长图。
-- 3D diorama 基础渲染模块。
-- ESLint、Prettier、Vitest、CI 文档和基础设施。
+Tasks:
 
-尚未达到商业化上线：
+- Add `terrain-carving.js` as the single place that mutates height grids for water depression or crossing conflict handling.
+- Split foundation surface from terrain relief.
+- Add water channel depression before water surface rendering.
+- Render water polygon when attributable polygon exists.
+- Render centerline water ribbon only when width is provider-supplied.
+- Render muted terrain-conforming road ribbons from licensed centerlines.
+- Render bridge decks after roads and water.
+- Default bridge rendering to deck-only; piers require explicit support data or an approved template with provenance.
+- Add z-order rules for terrain, water, road, bridge, route bed, route outline, route stripe and markers.
 
-- 浏览器级 S1 核心业务路径回归已形成闭环，后续按功能迭代继续扩展。
-- localStorage 仍是主存储，已补恢复快照和 JSON 导出/导入，但尚未云端同步。
-- 桌面端 Web 已确定为当前唯一产品主线；移动 Web 只保留基础列表/地图切换和回归守门。
-- 浏览器级测试已覆盖 shell、桌面新建/重命名、日期编辑、事件编辑、AI 导入预览、添加地点搜索、路线设置、导出/导入、分享图预览、3D canvas 非空和移动端基础切换。
-- 3D 沙盘尚未形成可编辑、可分享、可收费闭环。
+QA:
 
-## P0: S1 工程可私测
+- water data present -> water mesh present
+- bridge data present -> bridge deck mesh present
+- no support data -> bridge pier count remains 0
+- no terrain-colored gap where attributable water exists
+- no obvious z-fighting during 30s camera interaction
+- accepted 4s generation sequence remains stable: 1s foundation, 1s terrain/water/roads, 1s building massing, 1s dissolve
 
-这些任务必须先完成，否则不建议给真实用户长期使用。
+## P3: Building Massing and Dissolve
 
-### 1. 质量门禁恢复（已完成）
+Goal: buildings provide useful planning context without pretending to be survey-grade city replicas.
 
-- 修复 `js/main.js` 正则 lint 错误。
-- 修复 `js/render/map.js` 和 `server/index.js` 空 catch lint 错误。
-- 清理未使用 import、变量和无效 eslint-disable。
-- 确保 `npm run check && npm test` 全绿。
+Tasks:
 
-验收标准：
+- Split `building-massing-renderer.js` from `building-dissolve-renderer.js`.
+- Raise deterministic rectangular massing clusters first.
+- Use authoritative footprint extrusion when available.
+- Keep fallback buildings neutral and deterministic.
+- Add continuous massing-to-outline dissolve with distance hysteresis.
+- Use `InstancedMesh` for repeated fallback massing where practical.
+- Align building bases to terrain samples and reject abnormal intersections.
+- Mark fallback buildings as `syntheticMassing=true`; never present them as real exterior models.
 
-- 本地和 CI 都通过 `npm run check`。
-- 本地和 CI 都通过 `npm test`。
+QA:
 
-### 2. XSS 和输入安全（状态面板已修复，其他渲染点继续审计）
+- building base terrain error P95 <= 0.25m in seeded scenes
+- LOD transition has no visible pop or flicker
+- fallback buildings are deterministic across reloads
+- route guidance remains readable above building context
 
-- 将 `setStatus()` 拆成纯文本状态和受控 HTML 状态。
-- 所有 AI 文本、攻略文本、POI 名称、用户输入默认走 `textContent` 或 `escapeHTML()`。
-- 对 `innerHTML` 使用点建立白名单说明。
-- 给 utils 的 `escapeHTML()` 保持单测覆盖。
+## P4: DEM Tile Precision
 
-验收标准：
+Goal: move from rough terrain to scene-appropriate terrain precision only after P0-P3 are stable.
 
-- 攻略中包含 `<script>`、HTML 属性、特殊符号时不会被执行。
-- 状态栏、预览页、地点卡、分享图入口均不渲染未转义 HTML。
+Tasks:
 
-### 3. BFF 安全与成本保护（基础防护已完成，生产级网关待补）
+- Add DEM tile decoder abstraction.
+- Add worker-based DEM decode and mesh preparation.
+- Add route-corridor local precision mode.
+- Evaluate adaptive terrain mesh options such as Martini/RTIN.
+- Add terrain seam handling and tile skirts.
+- Add IndexedDB terrain grid/mesh cache.
 
-- 为 `/_ai/extract-guide` 增加请求体大小、频率限制、超时和错误码规范。
-- 为 `/_AMapService/*` 增加 origin/referer allowlist 策略。
-- 为 `/_AMapTile` 增加瓦片参数范围校验和缓存策略说明。
-- 日志脱敏，不记录完整攻略原文、密钥、用户身份敏感信息。
-- 基础安全响应头和 AI body limit 已接入。
+Production direction:
 
-验收标准：
+- Prefer self-hosted Copernicus GLO-30/GLO-90 preprocessing.
+- Treat Mapbox Terrain-DEM/RGB or Terrarium-compatible public tiles as prototype accelerators only.
+- Record vertical datum, dataset version, source, licence and attribution.
 
-- 连续高频请求会被拒绝。
-- 非允许来源不能滥用代理。
-- AI 超时、JSON 失败、上游失败都有可读错误。
+## P5: Licensed Landmark Restoration
 
-### 4. 数据可靠性（本地恢复与导入导出已完成，云端同步待 S3）
+Goal: support a small number of legally sourced high-value landmarks.
 
-- localStorage schema 升级不再默认静默丢弃用户数据。
-- 至少提供导出 JSON、导入 JSON 和重置前提示。
-- 为后续云端同步定义 workspace/trip 数据迁移策略。
+Tasks:
 
-验收标准：
+- Build offline import for owner-provided GLB and municipal CityJSON/CityGML.
+- Validate CRS, units, scale, footprint drift, texture size, material count and triangle count.
+- Generate LOD2, LOD1 and placeholder outputs.
+- Add renderer allowlist and integrity checks before loading any remote model.
 
-- 旧 schema 用户进入新版本时有恢复或导出路径。
-- 手动导出的 trip/workspace 可重新导入。
+Non-goals:
 
-### 5. 桌面端 Web 私测体验（S1 核心闭环已完成）
+- no scraping proprietary map imagery
+- no whole-city photorealism as default path
+- no uncertain-licence landmark display
 
-- 聚焦 1280px/1440px 桌面宽屏下的路线编辑、地图联动、AI 导入预览、分享图生成和 3D 入口。
-- 桌面端 E2E 已覆盖创建/重命名路线、AI 导入预览、编辑日期、编辑事件、添加地点搜索、路线段设置、导出/导入、分享图预览和 3D 入口。
-- 下一步进入 S2，补齐 AI 导入评测集、更完整的真实用户私测记录和 3D 价值验证。
-- 保持既有小屏列表/地图切换作为兼容底线，不继续扩展移动端弹窗、触控拖拽和替代排序。
+## P6: Commercial Readiness
 
-验收标准：
+Goal: prepare the product for real launch after the desktop value is proven.
 
-- 桌面端可以稳定完成一条真实旅行路线从 AI 导入/手动编辑到分享图生成的闭环。
-- 375px 只要求无致命遮挡、可打开已有行程、列表/地图切换不回归。
+Tasks:
 
-### 6. 核心路径浏览器测试（S1 核心路径已完成）
+- Accounts and cloud persistence.
+- Quotas and cost controls for AI, AMap and future asset providers.
+- Operational monitoring and release health checks.
+- Privacy policy, data export and deletion.
+- Provider routing by region and asset layer.
+- Build-time attribution and licence gates.
 
-- 增加 Playwright 或等价工具的 smoke tests。
-- 已覆盖启动、创建行程、重命名、AI 导入预览、编辑 day、编辑事件、添加地点搜索、切换 day、路线设置、导入/导出文件交互、生成分享图预览和 3D canvas 非空。
-- 3D 已验证 canvas 非空、进入/退出按钮状态正确；真实地形价值、LOD、标记交互留到 S2。
+## Documentation Rules
 
-验收标准：
-
-- CI 能跑核心 smoke test。
-- 失败截图可用于定位 UI 问题。
-
-## S2 收口结论 (2026-06-19)
-
-S2 差异化验证已从代码层面全部完成。`codex/s2-5-3d-annotations` 分支交付了 AI 导入评测框架、分享隐私控制、5 种地形模式、3D/2D 统一标记层和完整的浏览器回归测试。所有质量门禁全绿。
-
-仍需真实用户验证的项目（无法由代码替代）：
-
-- 20-30 篇真实中文攻略样本采集和标注
-- 真实景区/徒步 DEM 精度反馈
-- 真实用户的 3D 标记使用记录和分享传播反馈
-
-建议：合并到 main → 启动 S3 商业化基础设施，同时进行私测用户招募。
-
-## P1: S2 差异化验证（已收口 ✓）
-
-这些任务决定产品是否真的比竞品强。
-
-### 1. AI 攻略导入评测集（已完成 ✓）
-
-- 已建立 `tests/fixtures/guide-import-evaluation/cases.json` 种子样例集，覆盖按日 citywalk、混合攻略、推荐合集、广告噪声、跨城路线和模型坏输出兜底。
-- 已增加 `npm.cmd run test:guide-import`，输出召回率、误提取率、day 准确率、note 关键词覆盖率、攻略类型准确率和 forbidden hits。
-- 继续收集 20-30 篇真实中文攻略。
-- 继续标注地点召回、误提取、day 归属、note 有用性。
-- 继续区分模型抽取错误和高德搜索失败。
-- 建立每次 Prompt/规则调整后的对比记录。
-
-验收标准：
-
-- 每次修改 AI 导入逻辑都有量化结果，且至少通过 `npm.cmd run test:guide-import`。
-- 关键 bad case 有可复现输入。
-
-### 2. AI 预览编辑能力（已完成）
-
-- 已支持直接编辑事件标题和备注。
-- 已支持调整 day、timeSlot、未排期状态。
-- 未匹配地点保留但明确标灰，允许手动搜索绑定。
-- 默认隐藏原文依据，必要时可展开调试。
-- Playwright 已覆盖预览编辑标题、备注、Day 和时间段后再导入。
-
-验收标准：
-
-- 用户可以在导入确认前修正大部分 AI 错误。
-
-### 3. 分享体系升级（S2-3 已完成首批隐私控制）
-
-- 设计小红书/朋友圈友好的长图版式。
-- 已明确未排期地点默认不进入分享图，除非用户勾选。
-- 已支持分享前选择是否包含备注、交通方式和未排期地点。
-- Playwright 已覆盖分享图预览的内容选项默认值与重新生成。
-- 增加只读分享页设计，旧 `#trip=` 仅保留兼容。
-- 为短链接和复制到我的行程预留模型。
-
-验收标准：
-
-- 分享图在桌面端预览、下载稳定，导出的图片适合在移动社交平台传播。
-- 分享内容不泄露未选择展示的信息。
-
-### 4. 3D Diorama 价值验证（已完成 ✓）
-
-- 明确 3D 的最小可用价值：路线空间理解、地形感知、上下文标记。
-- 已按 `docs/3d-terrain-implementation-research.md` 完成 `chooseTerrainMode()` 首批落地：Micro Street、Citywalk、Scenic Park、Hiking、Region Overview。
-- 已完成 Open-Meteo 分块请求与内存缓存；失败时进入 `flat-fallback` 地形降级。
-- 已完成 `TerrainModel` 首批规格：`bounds`、`grid`、`heightAt(x,z)`、`mesh`、`sideSkirts`、`terrainConfidence`。
-- 已让 3D terrain、建筑、路线、marker 统一通过 `heightAt(x,z)` 贴地。
-- 已完成 `annotations[]` 数据模型、state mutator、6 类功能标记和 3D/2D 贴地展示。
-- 已完成 3D raycast 点击添加标记、轻量编辑面板、保存后刷新 2D/3D。
-- 定义 6 类功能标记与现有 POI icon 的关系已完成首批；分享图已支持用户选择包含标记。
-- 已增加 3D 地形摘要：展示模式、可信度和高差；高程降级时不输出坡度结论。
-- 明确 3D 分享图/视频导出的后续边界。
-
-验收标准：
-
-- 3D 不只是可看，而能帮助用户做路线判断。
-- 标记数据可持久化、可编辑、可分享。
-- 不同模式回答不同问题：小店看位置关系、景区看入口和坡度、徒步看山体结构和爬升。
-- 高程失败时仍能进入 3D，但不展示坡度/爬升结论。
-
-## P2: S3 商业化基础设施
-
-这些任务用于从私测工具走向可运营产品。
-
-### 1. 用户系统
-
-- 选择 Supabase Auth 或 Auth.js。
-- 支持 Email OTP、Google OAuth、Apple Sign In 中至少两种。
-- 用户偏好、默认城市、语言、主题进入用户配置。
-
-验收标准：
-
-- 用户可以跨设备找回自己的行程。
-
-### 2. 云端同步
-
-- localStorage 降级为快速启动缓存。
-- 主存储迁移到云端 workspace/trip 文档。
-- 支持只读链接、复制到我的行程、版本恢复。
-- 协作路线可采用 Yjs 或 Automerge，但必须先写冲突策略。
-
-验收标准：
-
-- 登录用户刷新、更换设备后数据一致。
-- 断网编辑后恢复网络可同步。
-
-### 3. 配额与成本
-
-- AI 导入按用户/月计数。
-- 高德代理按 IP/用户限流。
-- 记录上游错误率和消耗。
-- Pro 权益前先有免费配额策略。
-
-验收标准：
-
-- 单个用户或来源不能无限消耗 AI/API 成本。
-
-### 4. 监控与运营
-
-- 接入错误监控。
-- 增加基础埋点：创建 trip、添加地点、AI 导入成功率、分享图生成、分享链接打开。
-- 建立隐私合规的数据采集边界。
-
-验收标准：
-
-- 能回答“用户卡在哪一步”和“成本花在哪里”。
-
-## P3: S4 付费化
-
-付费化必须建立在 S1-S3 之后。
-
-### 1. 权益边界
-
-建议初版：
-
-- Free：1 workspace、3 trips、基础路线规划、AI 导入每月 3 次、2D 分享图。
-- Pro：无限 workspace/trips、云端同步、AI 导入不限次、3D diorama、离线地图、3D 分享。
-- Team：多人协作、费用分摊、权限管理。
-
-### 2. 支付与合规
-
-- 选择 Lemon Squeezy、Stripe 或本地支付方案。
-- 增加 webhook 激活权益。
-- 增加隐私政策、用户协议、数据导出和删除。
-
-验收标准：
-
-- 支付状态和用户权益一致。
-- 用户可自助取消、导出、删除数据。
-
-## P4: 原生 Android（Kotlin）后置评估
-
-当前暂停移动端 Web 深度开发。Android 不走 WebView 包壳作为主路线，等桌面端 Web 的产品价值和核心数据模型稳定后，再按 Kotlin 原生 App 单独立项。
-
-### 1. 评估前置条件
-
-- 桌面端 Web 已完成 S1 私测闭环。
-- AI 导入、分享图、3D 价值验证至少有一轮真实用户反馈。
-- 云端 workspace/trip 数据模型和 BFF API 边界清晰。
-
-### 2. 推荐方向
-
-- Kotlin + Jetpack Compose 做原生 Android UI。
-- 复用 Hono BFF、用户系统、云端 workspace/trip API。
-- 移动端重点做旅行中查看、轻编辑、离线草稿、分享接收，不复制桌面端复杂编辑器。
-
-验收标准：
-
-- Android 立项前有独立 PRD、交互稿、API 合约和 Kotlin 技术方案。
-
-## 文档维护规则
-
-- 产品能力变化：更新 `README.md`。
-- 架构决策变化：更新 `ARCHITECTURE.md`。
-- 商业化路线变化：更新 `commercialization-solutions.md`。
-- 执行优先级变化：更新本文档。
-- API 契约变化：更新 `docs/api.md`。
-- 技术方案取舍变化：更新 `docs/technical-feature-implementation-scorecard.md`。
+- Product direction: update `docs/product-architecture-blueprint.md`.
+- Architecture decision: update `ARCHITECTURE.md`.
+- Active backlog: update this file.
+- BFF/API contract: update `docs/api.md`.
+- 3D technical route: update `docs/3d-deep-research-integration.md`.
+- 3D execution order: update `docs/3d-top-down-execution-roadmap.md`.
+- 3D process alignment: update `docs/3d-generation-process-alignment.md`.
+- Asset/provenance pipeline: update `docs/3d-assets-landcover-and-landmarks.md`.
+- Commercial strategy: update `commercialization-solutions.md`.

@@ -1,18 +1,20 @@
 import { TIME_SLOT_OPTIONS, normalizeTimeSlot } from '../time-slots.js';
 import { escapeHTML } from '../utils.js';
-import { modalSingleton, setupModalCloseEvents } from './modal-base.js';
+import { modalSingleton } from './modal-base.js';
 
 let draft = null;
 let openActionEventId = null;
+let previewHandlers = null;
 
 export const openGuidePreviewModal = modalSingleton(({ draft: inputDraft, handlers }) => {
   draft = structuredClone(inputDraft);
   openActionEventId = null;
-  const root = createModal(handlers);
+  previewHandlers = handlers;
+  const root = createModal();
   document.body.appendChild(root);
 });
 
-function createModal(handlers) {
+function createModal() {
   const root = document.createElement('div');
   root.className = 'modal-overlay';
   root.innerHTML = `
@@ -222,11 +224,11 @@ function bindBodyEvents(body) {
     draft.title = e.target.value;
   });
   body.querySelector('.guide-preview-back').addEventListener('click', () => {
-    handlers?.onBack?.(draft);
+    previewHandlers?.onBack?.(draft);
     openGuidePreviewModal.close();
   });
   body.querySelector('.guide-preview-confirm').addEventListener('click', () => {
-    handlers?.onConfirm?.(structuredClone(draft));
+    previewHandlers?.onConfirm?.(structuredClone(draft));
     openGuidePreviewModal.close();
   });
   body.querySelectorAll('.guide-preview-event').forEach(card => {
@@ -265,14 +267,14 @@ function bindBodyEvents(body) {
     });
     card.querySelector('.guide-preview-search-btn')?.addEventListener('click', async () => {
       const keyword = card.querySelector('.guide-preview-search-input')?.value.trim();
-      if (!keyword || !handlers?.onSearchPlace) return;
+      if (!keyword || !previewHandlers?.onSearchPlace) return;
       event.searchKeyword = keyword;
       event.searching = true;
       event.searchError = '';
       event.searchResults = [];
       renderBody(body);
       try {
-        const places = await handlers.onSearchPlace(keyword, draft.city);
+        const places = await previewHandlers.onSearchPlace(keyword, draft.city);
         event.searchResults = Array.isArray(places) ? places : [];
         event.searchError = event.searchResults.length ? '' : '没有找到结果，换个关键词试试';
       } catch {

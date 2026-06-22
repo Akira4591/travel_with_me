@@ -1,0 +1,19 @@
+{
+  "scene": "river-bridge",
+  "route": {
+    "hash": "fixture-river-bridge-route-v1",
+    "maxOccludedRatio": 0.2
+  },
+  "water": {
+    "requiresCoverage": true,
+    "maxBlankPixelRatio": 0.005,
+    "minChannelDepthMeters": 1.25
+  },
+  "bridge": {
+    "requiresDeckContinuity": true,
+    "minSpanCoverageRatio": 0.95
+  },
+  "building": {
+    "maxPopDeltaPixels": 18
+  }
+}

@@ -3,7 +3,7 @@ const MAX_TITLE_LENGTH = 80;
 const MAX_NOTE_LENGTH = 240;
 
 export const ANNOTATION_TYPES = Object.freeze([
-  createType('entrance', '\u5165\u53e3', '#C4A44A'),
+  createType('entrance', '\u5165\u53e3', '#E6AD00'),
   createType('viewpoint', '\u89c2\u666f', '#7D9A6D'),
   createType('supply', '\u8865\u7ed9', '#B77855'),
   createType('transfer', '\u4ea4\u901a', '#6E8FA8'),

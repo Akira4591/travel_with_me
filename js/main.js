@@ -1,4 +1,4 @@
-// js/main.js
+﻿// js/main.js
 // 应用入口 + 业务编排
 //
 // 这个文件负责"做什么时候做什么"的业务流程，自己几乎不写渲染或 API 细节
@@ -7,7 +7,11 @@
 //   2) selectDay：切换日期时，更新 UI + marker 显示 + 启动路线规划
 //   3) planRoutes：编排"规划路线 → 画线 → 更新卡片"
 
-import { loadAMap } from './api/amap-loader.js';
+import './error-boundary.js';
+import { loadAMap } from './api/amap-loader.js?v=20260622-map-base-v2';
+import { fetchElevationGrid } from './api/elevation.js';
+import { createFallbackAMap } from './api/fallback-amap.js?v=20260622-map-base-v2';
+import { fetchNearbyGeoAssets } from './api/geo-assets.js';
 import {
   createGeocodeServices,
   resolveLocation,
@@ -25,6 +29,8 @@ import {
   setActiveDayId,
   setAMap,
   updateLocation,
+  updateTripGeoAssetStatus,
+  updateTripGeoAssets,
   removeLocation,
   updateTripMeta,
   initWorkspace,
@@ -88,7 +94,7 @@ import { bindShareButton } from './render/share-flow.js';
 import { openAnnotationModal } from './render/annotation-modal.js';
 import { renderWorkspaceTabs, closeWorkspaceMenu } from './render/workspace-tabs.js';
 import { init3DToggle } from './render/toggle-3d.js';
-import { scheduleRoutePlanning, clearAllRoutes } from './route-planner.js';
+import { scheduleRoutePlanning, clearAllRoutes } from './route-planner.js?v=20260622-map-base-v2';
 import { readSharedTripFromURL } from './share.js';
 import {
   getLastWorkspaceLoadInfo,
@@ -104,17 +110,23 @@ import { createLogger } from './logger.js';
 import { buildGuideDraft, searchGuidePlaces } from './guide-import-flow.js';
 
 const log = createLogger('main');
+const GEO_ASSET_ENTRY_BUDGET_MS = 350;
 
 // ─── boot ──────────────────────────────────────────────
 
 // 启动 banner——刷新后 console 第一行能确认你拿到的是 v8c 代码（不是缓存）
-log.info('main.js v8e · L3 Geocoder + enrich + annotations');
+log.info('main.js v8h · provider fallback + runtime map config');
 
 let mobileViewSwitchBound = false;
 let dioramaInstance = null;
 let threeDToggle = null;
+let lastMapError = null;
 
-window.addEventListener('load', boot);
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', boot, { once: true });
+} else {
+  boot();
+}
 bindMobileViewSwitch();
 
 async function boot() {
@@ -145,6 +157,7 @@ async function boot() {
 
   try {
     const AMap = await loadAMap();
+    lastMapError = null;
     setAMap(AMap);
 
     initMap(AMap);
@@ -159,8 +172,23 @@ async function boot() {
     if (hasActiveTrip()) selectDay(getAppState().activeDayId, { fitView: false, planRoutes: true });
   } catch (error) {
     log.error('高德地图加载失败', error);
-    setStatus('地图加载失败。请检查 Key、安全密钥、域名白名单和网络状态。');
+    lastMapError = error?.message || 'AMAP_LOAD_FAILED';
+    await bootFallbackMap();
+    setStatus('高德底图暂不可用，已启用本地 2D 路线视图。路线与 3D 仍会继续加载。');
   }
+}
+
+async function bootFallbackMap() {
+  const AMap = createFallbackAMap();
+  setAMap(AMap);
+  initMap(AMap);
+  createAllMarkers();
+  renderAnnotationMarkers();
+  selectDay('all', { fitView: true, planRoutes: false });
+  setup3DToggle();
+  syncEmptyWorkspaceUI();
+  await resolveAllLocations();
+  if (hasActiveTrip()) selectDay(getAppState().activeDayId, { fitView: true, planRoutes: true });
 }
 
 function bindMobileViewSwitch() {
@@ -212,6 +240,12 @@ function getItineraryHandlers() {
       focusLocation(event.locationId);
     },
     onRouteClick: segment => {
+      if (threeDToggle?.is3DMode() && dioramaInstance) {
+        import('./render/map-3d.js?v=20260622-quality-gates-v1').then(({ focus3DRoute }) => {
+          focus3DRoute(dioramaInstance, segment.id);
+        });
+        return;
+      }
       fitSegment(segment);
       highlightSegment(segment.id);
     },
@@ -265,18 +299,71 @@ async function enter3DView() {
   const container = document.getElementById('map-3d');
   if (!container) throw new Error('3D container is missing.');
 
-  const { initDiorama, enter3DMode } = await import('./render/map-3d.js');
+  await hydrateGeoAssetsFor3D();
+
+  const { initDiorama, enter3DMode } =
+    await import('./render/map-3d.js?v=20260622-quality-gates-v1');
   dioramaInstance = await initDiorama({ container });
   await enter3DMode(dioramaInstance, {
     trip: getTrip(),
     activeDayId: getAppState().activeDayId,
-    onAnnotationRequest: open3DAnnotationFlow
+    onAnnotationRequest: open3DAnnotationFlow,
+    loadElevationGrid: fetchElevationGrid
   });
+}
+
+async function hydrateGeoAssetsFor3D() {
+  const trip = getTrip();
+  if (hasGeoAssetGeometry(trip.geoAssets)) return;
+  const locations = get3DActiveLocations(trip, getAppState().activeDayId);
+  if (!locations.length) return;
+  setStatus('正在加载周边建筑、水体与桥梁...');
+  const hydration = fetchNearbyGeoAssets(locations).then(result => {
+    applyGeoAssetHydrationResult(result);
+    return result;
+  });
+  const result = await Promise.race([
+    hydration,
+    sleep(GEO_ASSET_ENTRY_BUDGET_MS).then(() => ({
+      status: 'degraded',
+      reason: 'GEO_ASSETS_PENDING',
+      sourceSummary: '周边地理要素仍在后台加载，先进入简化 3D 场景。',
+      degraded: true
+    }))
+  ]);
+  if (result?.reason === 'GEO_ASSETS_PENDING') {
+    updateTripGeoAssetStatus(result);
+    setStatus('周边地理要素仍在加载，3D 先使用简化场景。');
+  }
+}
+
+function applyGeoAssetHydrationResult(result) {
+  if (result?.data) {
+    updateTripGeoAssets(result.data);
+    updateTripGeoAssetStatus(result);
+    return;
+  }
+  if (result) {
+    updateTripGeoAssetStatus(result);
+    setStatus('周边地理要素暂不可用，3D 将使用简化场景。');
+  }
+}
+
+function get3DActiveLocations(trip, activeDayId) {
+  const days = activeDayId === 'all' ? trip.days : trip.days.filter(day => day.id === activeDayId);
+  const ids = new Set(days.flatMap(day => (day.events || []).map(event => event.locationId)));
+  return [...ids]
+    .map(id => trip.locations?.[id])
+    .filter(location => hasValidLngLat(location?.lnglat));
+}
+
+function hasGeoAssetGeometry(geoAssets = {}) {
+  return ['buildings', 'waterways', 'bridges', 'landcover'].some(key => geoAssets[key]?.length);
 }
 
 async function exit3DView() {
   if (!dioramaInstance) return;
-  const { exit3DMode } = await import('./render/map-3d.js');
+  const { exit3DMode } = await import('./render/map-3d.js?v=20260622-quality-gates-v1');
   await exit3DMode(dioramaInstance);
 }
 
@@ -297,7 +384,8 @@ function open3DAnnotationFlow(draft) {
         }
         renderAnnotationMarkers();
         if (dioramaInstance) {
-          const { refresh3DAnnotations } = await import('./render/map-3d.js');
+          const { refresh3DAnnotations } =
+            await import('./render/map-3d.js?v=20260622-quality-gates-v1');
           refresh3DAnnotations(dioramaInstance, { trip: getTrip() });
         }
         setStatus('3D 标记已保存。');
@@ -848,6 +936,7 @@ function handleWorkspaceChanged() {
 function handleTripChanged(payload) {
   if (!payload) return;
   persistWorkspace();
+  if (payload.kind === 'route:geometry-cached') return;
   renderWorkspace();
 
   if (payload.kind === 'trip:updated') {
@@ -950,6 +1039,22 @@ function selectDay(dayId, { fitView = false, planRoutes = false } = {}) {
   }
 
   if (fitView && visibleMarkers.length) fitMarkers(visibleMarkers);
+  updateMapDebug();
+}
+
+function updateMapDebug() {
+  if (typeof window === 'undefined') return;
+  const state = getAppState();
+  const providerKind = state.AMap?.__fallback ? 'fallback' : state.AMap ? 'amap' : 'none';
+  window.__mapDebug__ = {
+    providerKind,
+    amapReady: providerKind === 'amap',
+    fallbackReady: providerKind === 'fallback',
+    canEnter3D: hasActiveTrip() && hasTripEventLocations(),
+    routeOverlayCount: state.routeOverlays?.size || 0,
+    routeSource: 'amap-webservice-bff',
+    lastMapError
+  };
 }
 
 // ─── 后台批量解析地点坐标 ───────────────────────────────
@@ -983,7 +1088,8 @@ async function resolveAllLocations() {
         province: result.province || loc.province || '',
         city: result.city || loc.city || '',
         district: result.district || loc.district || '',
-        tag: result.tag || loc.tag || ''
+        tag: result.tag || loc.tag || '',
+        source: result.source || loc.source || 'amap-web-service'
       });
       createOrUpdateMarker(locationId, result.lnglat);
       success += 1;

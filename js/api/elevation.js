@@ -5,19 +5,17 @@
 // 文档: https://open-meteo.com/en/docs/elevation-api
 //
 // 使用方式:
-//   import { createLogger } from '../logger.js';
-import { fetchElevationGrid } from './api/elevation.js';
+//   import { fetchElevationGrid } from './api/elevation.js';
 //   const grid = await fetchElevationGrid(center, span, resolution);
 
-const log = createLogger('elevation');
 import { createLogger } from '../logger.js';
 const log = createLogger('elevation');
 
-import { createLogger } from "../logger.js";
-const log = createLogger("elevation");
-
-const ELEVATION_API = 'https://api.open-meteo.com/v1/elevation';
+const ELEVATION_API = '/_elevation';
 const MAX_LOCATIONS_PER_REQUEST = 100;
+const ELEVATION_REQUEST_TIMEOUT_MS = 8000;
+const ELEVATION_REQUEST_INTERVAL_MS = 1000;
+const ELEVATION_RATE_LIMIT_RETRIES = 2;
 const gridCache = new Map();
 
 /**
@@ -65,31 +63,26 @@ export async function fetchElevationGrid({ center, span, resolution = 40 }) {
   if (gridCache.has(cacheKey)) return gridCache.get(cacheKey);
 
   // 生成采样点数组
-  const coordPairs = [];
+  const latitudes = [];
+  const longitudes = [];
   for (let row = 0; row < rows; row++) {
     const lat = minLat + (maxLat - minLat) * (row / (rows - 1));
     for (let col = 0; col < cols; col++) {
       const lng = minLng + (maxLng - minLng) * (col / (cols - 1));
-      coordPairs.push(`${lat.toFixed(6)},${lng.toFixed(6)}`);
+      latitudes.push(lat);
+      longitudes.push(lng);
     }
   }
 
   try {
     const elevations = [];
-    for (let start = 0; start < coordPairs.length; start += MAX_LOCATIONS_PER_REQUEST) {
-      const chunk = coordPairs.slice(start, start + MAX_LOCATIONS_PER_REQUEST);
-      const url = new URL(ELEVATION_API);
-      url.searchParams.set('locations', chunk.join('|'));
-      url.searchParams.set('format', 'json');
-
-      const resp = await fetch(url.toString(), {
-        headers: { accept: 'application/json' }
-      });
-      if (!resp.ok) throw new Error(`Elevation API ${resp.status}`);
-
-      const data = await resp.json();
-      if (!Array.isArray(data.elevation)) throw new Error('Invalid elevation response');
-      elevations.push(...data.elevation);
+    for (let start = 0; start < latitudes.length; start += MAX_LOCATIONS_PER_REQUEST) {
+      if (start > 0) await sleep(ELEVATION_REQUEST_INTERVAL_MS);
+      const chunkElevations = await requestElevationChunk(
+        latitudes.slice(start, start + MAX_LOCATIONS_PER_REQUEST),
+        longitudes.slice(start, start + MAX_LOCATIONS_PER_REQUEST)
+      );
+      elevations.push(...chunkElevations);
     }
 
     if (elevations.length < rows * cols) throw new Error('Incomplete elevation response');
@@ -131,18 +124,59 @@ export async function fetchElevationGrid({ center, span, resolution = 40 }) {
  */
 export async function fetchPointElevation([lng, lat]) {
   try {
-    const url = new URL(ELEVATION_API);
-    url.searchParams.set('locations', `${lat.toFixed(6)},${lng.toFixed(6)}`);
-    url.searchParams.set('format', 'json');
-
-    const resp = await fetch(url.toString(), {
-      headers: { accept: 'application/json' }
-    });
-    if (!resp.ok) return null;
-
-    const data = await resp.json();
-    return Number(data.elevation?.[0]) || 0;
+    const [elevation] = await requestElevationChunk([lat], [lng]);
+    return Number(elevation) || 0;
   } catch {
     return null;
   }
+}
+
+async function requestElevationChunk(latitudes, longitudes) {
+  if (
+    !latitudes.length ||
+    latitudes.length !== longitudes.length ||
+    !latitudes.every(Number.isFinite) ||
+    !longitudes.every(Number.isFinite)
+  ) {
+    throw new Error('Invalid elevation coordinates');
+  }
+
+  const url = new URL(ELEVATION_API, globalThis.location?.origin || 'http://localhost');
+  url.searchParams.set('latitude', latitudes.map(value => value.toFixed(6)).join(','));
+  url.searchParams.set('longitude', longitudes.map(value => value.toFixed(6)).join(','));
+
+  for (let attempt = 0; attempt <= ELEVATION_RATE_LIMIT_RETRIES; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), ELEVATION_REQUEST_TIMEOUT_MS);
+    try {
+      const resp = await fetch(url.toString(), {
+        headers: { accept: 'application/json' },
+        signal: controller.signal
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (!Array.isArray(data.elevation) || data.elevation.length !== latitudes.length) {
+          throw new Error('Invalid elevation response');
+        }
+        return data.elevation;
+      }
+      if (resp.status !== 429 || attempt >= ELEVATION_RATE_LIMIT_RETRIES) {
+        throw new Error(`Elevation API ${resp.status}`);
+      }
+      await sleep(getRetryAfterMs(resp));
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  throw new Error('Elevation API rate limit retry exhausted');
+}
+
+function getRetryAfterMs(response) {
+  const seconds = Number(response.headers?.get?.('retry-after'));
+  return Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000 : ELEVATION_REQUEST_INTERVAL_MS;
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }

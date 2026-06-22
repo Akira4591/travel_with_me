@@ -18,6 +18,7 @@ import { getAnnotationType } from './annotations.js';
 // 所有数字以 mockup 的 "logical px" 为基准，最后乘 SCALE 得到画布像素。
 const SCALE = 2.5;
 const L = px => px * SCALE;
+const IMAGE_LOAD_TIMEOUT_MS = 4_000;
 
 const W = L(420);
 
@@ -1106,11 +1107,26 @@ function lngLatToPixel([lng, lat], zoom) {
 
 // ─── 通用绘制工具 ─────────────────────────────────────
 
-function loadImage(src) {
+function loadImage(src, timeoutMs = IMAGE_LOAD_TIMEOUT_MS) {
   return new Promise(resolve => {
     const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => resolve(null);
+    let settled = false;
+    const finish = value => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeoutId);
+      img.onload = null;
+      img.onerror = null;
+      resolve(value);
+    };
+
+    img.onload = () => finish(img);
+    img.onerror = () => finish(null);
+    const timeoutId = window.setTimeout(() => {
+      // A stalled tile must not block the whole share-image regeneration.
+      img.src = '';
+      finish(null);
+    }, timeoutMs);
     img.src = src;
   });
 }

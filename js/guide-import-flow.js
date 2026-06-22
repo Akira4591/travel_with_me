@@ -2,16 +2,17 @@
 // AI 攻略导入：纯函数层。从 main.js 提取。零循环依赖。
 // 编排器 importGuideDraft/openGuideImportFlow 仍留在 main.js。
 
-import { extractGuideText } from './api/guide-import.js';
-import { searchPlaces, searchNearBy, buildDisplayAddress } from './api/geocode.js';
+import { searchPlaces, searchNearBy } from './api/geocode.js';
 import { loadAMap } from './api/amap-loader.js';
-import { getAppState, getTrip, setAMap } from './state.js';
+import { getAppState, setAMap } from './state.js';
 import { sleep } from './utils.js';
-import { inferIconId } from './render/icons.js';
 import { setStatus } from './render/sidebar.js';
+import { cleanGuideExtractedEvents } from './guide-import-cleanup.js';
+import { createLogger } from './logger.js';
 
 const GUIDE_MATCH_LIMIT = 40;
 const GUIDE_MATCH_TIMEOUT_MS = 8000;
+const log = createLogger('guide-import');
 
 export async function buildGuideDraft(extracted, source, onProgress) {
   const city = source.cityHint || extracted.city || '';

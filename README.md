@@ -6,26 +6,28 @@ Trip App 是一个中文旅行路线规划 Web App，用来创建多条旅行路
 
 ## 项目阶段
 
-当前项目处于 **本地 MVP → 工程可私测** 的过渡期。核心规划闭环已经成立，但还不建议直接商业化上线：质量门禁、安全、数据可靠性、桌面端 Web 私测体验、云端同步和成本控制仍需补齐。
+当前项目处于 **S1 工程可私测已闭环 → S2 差异化验证已收口 → 3D P0/P1 正确性收敛** 阶段。桌面端核心规划闭环已经成立，但还不建议直接商业化上线：云端同步、账号体系、配额、监控、真实用户反馈和 3D 商业级质量门禁仍需补齐。
 
 当前开发主线已调整为 **桌面端 Web 优先**：先把宽屏路线规划、地图联动、AI 导入、分享图和 3D 价值验证做成稳定的网页产品。移动 Web 只保留基础可访问和回归守门，不再继续作为并行功能主线；原生 Android 后续按 Kotlin 技术路线单独评估。
 
-设计级重构入口：
+当前主文档：
 
-- [设计重构总纲](docs/design-refactor-plan.md)：项目阶段、文档职责、设计边界、质量门槛。
-- [工程工作流底座](docs/development-workflow-foundation.md)：软件安装、账号密钥、环境准备和日常开发流程。
-- [大厂交付 Playbook](docs/enterprise-delivery-playbook.md)：按完整互联网项目流程组织阶段、门禁、产物和工作流。
-- [项目成熟度评估](docs/project-delivery-maturity-review.md)：从完整互联网研发流程判断当前进度和阶段门槛。
-- [Codex 自用提示词](docs/codex-self-prompts.md)：后续迭代时用于自检、重构、验收和文档同步的工作提示词。
-- [技术特性实现评分表](docs/technical-feature-implementation-scorecard.md)：逐项比较可选实现方式、加权评分并保留真实开发步骤。
+- [文档索引](docs/documentation-index.md)：当前保留文档、职责边界和已删除历史文档清单。
+- [产品与架构总纲](docs/product-architecture-blueprint.md)：产品定位、2D 数据事实层、3D 同源表达、双 Key 边界和交付门禁。
+- [2D 数据事实层](docs/2d-data-foundation.md)：地点、路线、地理事实、BFF 和持久化边界。
+- [3D 深度研究整合](docs/3d-deep-research-integration.md)：最新 3D 技术路线、数据源、状态机、性能预算和质量门禁。
+- [3D 设计过程对齐](docs/3d-generation-process-alignment.md)：用户要求的 2D 冻结、地基抬升、水路桥融化、建筑体块溶解流程。
+- [3D 执行路线图](docs/3d-top-down-execution-roadmap.md)：3D 从 P0 到 P6 的分批实施顺序。
+- [3D 资产与地标管线](docs/3d-assets-landcover-and-landmarks.md)：建筑、道路、水域、桥梁、植被和地标的授权资产边界。
 - [UI 视觉风格守则](docs/ui-visual-style-guide.md)：锁定当前颜色、图标、布局、圆角、阴影和后续新增 UI 的审查清单。
-- [3D 地形实现研究](docs/3d-terrain-implementation-research.md)：2D 抬升、地形融化、高程数据、相机和动效实现路径。
 - [AI 导入评测](docs/guide-import-evaluation.md)：攻略导入召回率、误提取率、day 准确率和 note 覆盖率的离线评测。
-- [S2 差距审查](docs/s2-completion-gap-review.md)：S2 已修复项、仍需真实用户验证项和后续阶段判断。
 - [架构文档](ARCHITECTURE.md)：当前系统架构、ADR、模块边界和 3D 设计规范。
 - [商业化策略](commercialization-solutions.md)：商业化缺口、方案取舍、阶段路线和暂不做清单。
-- [Roadmap](TODO.md)：按 P0/P1/P2/P3 组织的执行 backlog。
+- [Roadmap](TODO.md)：当前可执行 backlog。
 - [BFF API 文档](docs/api.md)：服务端代理和接口契约。
+- [工程工作流底座](docs/development-workflow-foundation.md)：软件安装、账号密钥、环境准备和日常开发流程。
+- [发布运行手册](docs/release-playbook.md)：健康检查、灰度、回滚与上线门禁。
+- [Codex 自用提示词](docs/codex-self-prompts.md)：后续迭代时用于自检、重构、验收和文档同步的工作提示词。
 
 ## 当前能力
 
@@ -59,6 +61,7 @@ Browser
   ├─ 原生 ES Modules
   ├─ 原生 DOM 渲染
   ├─ 高德地图 JS API 2.0
+  ├─ Three.js 3D planning diorama
   ├─ localStorage workspace
   └─ Canvas 分享长图
 ```
@@ -90,7 +93,7 @@ npm run dev
 
 ```bash
 npm run check       # Prettier 格式检查 + ESLint
-npm test            # 运行单元测试（48 tests, 6 suites）
+npm test            # 运行单元测试（当前基线 21 files, 103 tests）
 npm run test:guide-import # 运行 AI 攻略导入离线评测
 npm run test:e2e    # 运行 Playwright 桌面主线 smoke + 移动端基础回归
 npm run test:watch  # 测试持续监听模式
@@ -107,16 +110,21 @@ Stop-Process -Id <PID> -Force
 
 ## 环境变量
 
-高德安全密钥 `jscode` 和 DeepSeek API Key 都只能放在服务端环境变量里，不能写入前端代码。
+高德 Key 和 DeepSeek API Key 都只能放在环境变量里，不能写入源码仓库。`AMAP_JS_KEY`
+会在浏览器运行时可见，这是 JS SDK 的限制；但它也必须通过服务端 `/_config` 注入，不能硬编码进
+`js/config.js`。
 
 ```text
+AMAP_JS_KEY=<your-amap-js-api-key>
 AMAP_JSCODE=<your-amap-jscode>
+AMAP_WEB_SERVICE_KEY=<your-amap-web-service-key>
 DEEPSEEK_API_KEY=<your-deepseek-api-key>
 DEEPSEEK_TIMEOUT_MS=90000
 PORT=8080
 ```
 
-本地可参考 `.env.example`。生产环境需要在部署平台配置 `AMAP_JSCODE` 和 `DEEPSEEK_API_KEY`。如果不配置 `DEEPSEEK_API_KEY`，AI 导入入口会不可用，但普通行程规划不受影响。
+本地可参考 `.env.example`。生产环境需要在部署平台配置 `AMAP_JS_KEY`、`AMAP_JSCODE`、
+`AMAP_WEB_SERVICE_KEY` 和 `DEEPSEEK_API_KEY`。如果不配置 `DEEPSEEK_API_KEY`，AI 导入入口会不可用，但普通行程规划不受影响。
 
 `DEEPSEEK_TIMEOUT_MS` 可选，默认 90000。Zeabur 等部署环境到 DeepSeek 的链路可能比本地慢，如果 AI 导入频繁超时，可在部署平台显式配置为 `90000` 或更高。
 
@@ -128,7 +136,7 @@ Zeabur 或类似平台需要：
 
 - 使用 Node 18+。
 - 安装依赖后运行 `node server/index.js`。
-- 配置环境变量 `AMAP_JSCODE`。
+- 配置环境变量 `AMAP_JS_KEY`、`AMAP_JSCODE`、`AMAP_WEB_SERVICE_KEY`。
 - 如需 AI 导入，配置环境变量 `DEEPSEEK_API_KEY`。
 - 在高德控制台把生产域名加入 Web JS API Key 的域名白名单。
 
@@ -140,6 +148,7 @@ Zeabur 或类似平台需要：
 - 路线规划能返回真实路线或估算路线。
 - 分享长图能显示地图瓦片。
 - AI 导入能打开、解析、进入预览；未匹配地点可手动搜索绑定。
+- 仓库源码里搜不到真实 `AMAP_JS_KEY`、`AMAP_JSCODE`、`AMAP_WEB_SERVICE_KEY`。
 - 浏览器源码里搜不到 `AMAP_JSCODE`。
 - 浏览器源码里搜不到 `DEEPSEEK_API_KEY`。
 
@@ -311,12 +320,14 @@ routeToNext = {
 
 ## 高德代理说明
 
-前端只暴露 Web JS API Key。安全密钥 `AMAP_JSCODE` 在服务端注入：
+源码不写任何真实高德 Key。浏览器运行时通过 `/_config` 获取 Web JS API Key；安全密钥
+`AMAP_JSCODE` 和 Web Service Key 只在服务端使用：
 
-1. `api/amap-loader.js` 设置 `window._AMapSecurityConfig.serviceHost = location.origin + '/_AMapService'`。
-2. 高德 SDK Web 服务请求打到同源 `/_AMapService/...`。
-3. `server/index.js` 转发到 `https://restapi.amap.com`，并注入 `jscode=$AMAP_JSCODE`。
-4. 分享长图地图瓦片走 `/_AMapTile`，避免跨域图片污染 canvas。
+1. `api/amap-loader.js` 先请求 `/_config` 获取 `AMAP_JS_KEY`。
+2. `api/amap-loader.js` 设置 `window._AMapSecurityConfig.serviceHost = location.origin + '/_AMapService'`。
+3. 高德 SDK Web 服务请求打到同源 `/_AMapService/...`。
+4. `server/index.js` 转发到 `https://restapi.amap.com`，并注入 `key=$AMAP_WEB_SERVICE_KEY` 和 `jscode=$AMAP_JSCODE`。
+5. 分享长图地图瓦片走 `/_AMapTile`，避免跨域图片污染 canvas。
 
 ## AI 攻略导入
 
@@ -354,8 +365,8 @@ AI 导入入口在顶部行程标签栏中与新建 `+` 并列显示；空工作
 
 ## 后续 TODO
 
-1. 真实用户评测：补 20-30 篇真实攻略、分享图反馈和 3D 标记使用记录。
-2. 3D 深化：标记聚焦相机、label 避让、长按轮盘、DEM tile 和坡度分段。
+1. 3D P0/P1：右下角入口、乱码清理、路线同源诊断、generation timeline、地基抬升、水路桥分阶段融化。
+2. 真实用户评测：补 20-30 篇真实攻略、分享图反馈和 3D 标记使用记录。
 3. 分享传播：只读短链接、复制到我的行程、撤销分享和打开统计。
 4. 交通方式模型升级：支持中转点/途经点，让组合交通能映射到真实分段路线。
 5. 数据同步：在 localStorage 基础上增加可选云端保存。

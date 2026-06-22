@@ -1,6 +1,12 @@
 .playwright-mcp/
 playwright-report/
 test-results/
+output/
+pet-runs/
+coverage/
+dist/
+tmp/
+temp/
 .claude/
 *.log
 trip-app-step1-verified.png

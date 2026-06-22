@@ -19,11 +19,15 @@ describe('createTerrainModel', () => {
       }
     });
 
-    expect(model.heightAt(-10, -10)).toBeCloseTo(0);
-    expect(model.heightAt(10, 10)).toBeCloseTo(20);
-    expect(model.heightAt(0, 0)).toBeCloseTo(10);
+    expect(model.foundationHeight).toBeGreaterThan(0);
+    expect(model.heightAt(-10, -10)).toBeCloseTo(model.foundationHeight);
+    expect(model.heightAt(10, 10)).toBeCloseTo(model.foundationHeight + 20);
+    expect(model.heightAt(0, 0)).toBeCloseTo(model.foundationHeight + 10);
+    expect(model.sampleHeight(0, 0)).toBeCloseTo(model.heightAt(0, 0));
+    expect(model.elevationAt(0, 0)).toBeCloseTo(130);
     expect(model.terrainConfidence).toBe('estimated');
     expect(model.metrics.range).toBe(60);
+    expect(model.metrics.mean).toBe(130);
   });
 
   it('falls back to low procedural terrain when no grid is available', () => {
@@ -31,6 +35,7 @@ describe('createTerrainModel', () => {
 
     expect(model.terrainConfidence).toBe('flat-fallback');
     expect(model.heightAt(0, 0)).toBeGreaterThanOrEqual(0);
+    expect(model.elevationAt(0, 0)).toBeNull();
     expect(model.mesh).toBeNull();
     expect(model.sideSkirts).toBeNull();
   });

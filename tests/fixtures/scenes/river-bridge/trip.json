@@ -1,0 +1,53 @@
+{
+  "id": "fixture-river-bridge",
+  "title": "River Bridge Fixture",
+  "activeDayId": "day-river",
+  "locations": {
+    "river-start": {
+      "id": "river-start",
+      "name": "Canal West Bank",
+      "lnglat": [116.397, 39.908],
+      "resolved": true
+    },
+    "river-end": {
+      "id": "river-end",
+      "name": "Canal East Bank",
+      "lnglat": [116.405, 39.912],
+      "resolved": true
+    }
+  },
+  "days": [
+    {
+      "id": "day-river",
+      "title": "Bridge Crossing",
+      "events": [
+        {
+          "id": "event-river-start",
+          "title": "Start at west bank",
+          "locationId": "river-start",
+          "routeToNext": {
+            "mode": "walking",
+            "geometry": [
+              [116.397, 39.908],
+              [116.401, 39.91],
+              [116.405, 39.912]
+            ],
+            "distanceMeters": 920,
+            "durationSeconds": 780,
+            "source": "fixture",
+            "fetchedAt": "2026-06-22T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "event-river-end",
+          "title": "Finish at east bank",
+          "locationId": "river-end"
+        }
+      ]
+    }
+  ],
+  "geoAssetStatus": {
+    "status": "ok",
+    "updatedAt": "2026-06-22T00:00:00.000Z"
+  }
+}

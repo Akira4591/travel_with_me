@@ -386,7 +386,7 @@ npm.cmd run test:watch
 - 代码、测试、文档一起更新。
 - 新 API 必须同步 `docs/api.md`。
 - 新架构决策必须同步 `ARCHITECTURE.md`。
-- 新技术方案取舍必须同步 `docs/technical-feature-implementation-scorecard.md`。
+- 新产品/技术方向必须同步 `docs/product-architecture-blueprint.md`；3D 技术取舍必须同步 `docs/3d-deep-research-integration.md` 和 `docs/3d-top-down-execution-roadmap.md`。
 
 ### 8.3 提交前
 

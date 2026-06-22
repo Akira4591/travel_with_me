@@ -13,7 +13,9 @@ import {
   renderIconSVG
 } from './icons.js';
 import { TIME_SLOT_OPTIONS, normalizeTimeSlot } from '../time-slots.js';
-import { modalSingleton, setupModalCloseEvents } from './modal-base.js';
+import { modalSingleton } from './modal-base.js';
+
+const log = createLogger('event-editor');
 
 export const openEventEditorModal = modalSingleton(({ event, location, handlers }) => {
   const root = createModal(event, location, handlers);
@@ -94,11 +96,11 @@ function createModal(event, location, handlers) {
     if (anchorEl) anchorEl.textContent = anchorName;
   }
 
-  bindEvents(root, location);
+  bindEvents(root, location, handlers);
   return root;
 }
 
-function bindEvents(root, initialLocation) {
+function bindEvents(root, initialLocation, handlers) {
   const form = root.querySelector('.editor-form');
   const searchInput = root.querySelector('.editor-search-input');
   const searchBtn = root.querySelector('.editor-search-btn');
@@ -168,7 +170,7 @@ function bindEvents(root, initialLocation) {
 
     try {
       const places = await runner(keyword);
-      if (!modalEl) return;
+      if (!root.isConnected) return;
       if (!places || !places.length) {
         const emptyHTML = isNearby
           ? '<div class="modal-hint">附近没找到相关地点，换个关键词试试</div>'

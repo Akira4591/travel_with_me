@@ -16,14 +16,19 @@ import {
   setInfoWindow
 } from '../state.js';
 import { getAnnotationType } from '../annotations.js';
+import { ROUTE_GUIDANCE } from '../route-guidance.js';
 import { escapeHTML, unique } from '../utils.js';
-import { createLogger } from '../logger.js';
 
 const log = createLogger('map');
 
 // ─── 初始化 ─────────────────────────────────────────────
 
 export function initMap(AMap) {
+  const mapElement = document.getElementById('map');
+  if (mapElement) {
+    mapElement.dataset.mapProvider = AMap?.__fallback ? 'local-fallback' : 'amap';
+  }
+
   const map = new AMap.Map('map', {
     zoom: AppConfig.defaultZoom,
     center: AppConfig.defaultCenter,
@@ -211,7 +216,6 @@ function getVisibleMarkers(dayId) {
 // 每帧调 setZoomAndCenter(..., true) 让 AMap 立刻渲染当前帧。
 //
 // 视觉时长 + 曲线在这两个常量里调，动画感觉不对就改这两个值：
-const log = createLogger('map');
 const PAN_DURATION = 900;
 const EASE = t => 1 - Math.pow(1 - t, 3); // ease-out-cubic
 const FIT_PADDING = [60, 60, 60, 60];
@@ -343,9 +347,9 @@ export function openAnnotationInfoWindow(annotationId) {
 // 每段路线按 segmentId 存进 state.routeOverlays（Map），方便点击某段时高亮"它"
 // 而不是其他段。
 
-const ROUTE_DEFAULT = { strokeWeight: 7, strokeOpacity: 0.96, zIndex: 200 };
-const ROUTE_DIM = { strokeWeight: 5, strokeOpacity: 0.32, zIndex: 100 };
-const ROUTE_ACTIVE = { strokeWeight: 9, strokeOpacity: 1.0, zIndex: 220 };
+const ROUTE_DEFAULT = ROUTE_GUIDANCE.default;
+const ROUTE_DIM = ROUTE_GUIDANCE.dim;
+const ROUTE_ACTIVE = ROUTE_GUIDANCE.active;
 const PULSE_DURATION_MS = 1400;
 
 export function drawRoutePaths(segment, paths, dashed = false) {
@@ -353,24 +357,24 @@ export function drawRoutePaths(segment, paths, dashed = false) {
   const polylines = [];
   paths.forEach(path => {
     if (path.length < 2) return;
-    polylines.push(addPolyline(path, segment.color, dashed));
+    polylines.push(addPolyline(path, dashed));
   });
   state.routeOverlays.set(segment.id, {
     polylines,
     halo: [],
-    color: segment.color,
+    color: ROUTE_GUIDANCE.line,
     dashed
   });
 }
 
-function addPolyline(path, color, dashed) {
+function addPolyline(path, dashed) {
   const state = getAppState();
   const polyline = new state.AMap.Polyline({
     path,
     isOutline: true,
-    outlineColor: '#ffffff',
+    outlineColor: ROUTE_GUIDANCE.outline,
     borderWeight: 2,
-    strokeColor: color || '#c4a44a',
+    strokeColor: ROUTE_GUIDANCE.line,
     strokeOpacity: ROUTE_DEFAULT.strokeOpacity,
     strokeWeight: ROUTE_DEFAULT.strokeWeight,
     strokeStyle: dashed ? 'dashed' : 'solid',
@@ -439,9 +443,9 @@ export function highlightSegment(segmentId) {
           const halo = new state.AMap.Polyline({
             path,
             isOutline: false,
-            strokeColor: entry.color || '#c4a44a',
-            strokeOpacity: 0.22,
-            strokeWeight: 18,
+            strokeColor: entry.color || ROUTE_GUIDANCE.line,
+            strokeOpacity: ROUTE_GUIDANCE.halo.strokeOpacity,
+            strokeWeight: ROUTE_GUIDANCE.halo.strokeWeight,
             strokeStyle: 'solid',
             lineJoin: 'round',
             lineCap: 'round',

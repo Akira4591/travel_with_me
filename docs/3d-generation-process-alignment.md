@@ -1,0 +1,310 @@
+# 3D Generation Process Alignment
+
+## 1. Correct Design Intent
+
+3D mode is not a layer switch that directly places terrain, water, roads, bridges, and buildings into a Three.js scene.
+
+The latest deep research is integrated in `docs/3d-deep-research-integration.md`. Its most important conclusion for this file is that the generation process must be a state machine with QA hooks, not only a visual animation.
+
+The correct product metaphor is:
+
+```text
+2D map
+  -> raised foundation slab
+  -> carved / emerged geographic skeleton
+  -> rectangular building massing clusters
+  -> dissolved building outlines and local detail
+```
+
+The animation must explain where every object comes from. Objects should feel like they emerge from the 2D map surface, not like independent meshes pasted onto a board.
+
+## 2. Required User-Visible Sequence
+
+### Step 1: 2D / 3D Toggle
+
+The user clicks the explicit `2D / 3D` toggle. The control must stay in the map control area, visually aligned with the existing UI style, and appear in the bottom-right map region.
+
+The control has four product states:
+
+```text
+enabled-2d
+loading-3d
+enabled-3d
+disabled-with-reason
+```
+
+The button must not disappear only because the zoom or precision budget is low. Low precision
+either enters a degraded overview scene or disables the button with a clear reason. 3D mode must
+not auto-exit after idle time. User dragging may pause camera orbit, and camera orbit may resume
+after a delay, but mode switching is always explicit.
+
+The 2D map is frozen as the geographic source of truth. 3D must consume persisted trip data:
+
+- `trip.locations`
+- `days[].events`
+- `event.routeToNext.geometry`
+- `trip.geoAssets`
+- provider provenance
+
+3D must not reinterpret AMap JS renderer internals.
+
+### Step 2: Raise the Terrain Foundation
+
+The first visible 3D object is the ground foundation. It starts as a flat or slightly relieved base derived from the 2D map extent and elevation budget.
+
+Rules:
+
+- A visible nonblank slab must appear within 1.5 seconds.
+- The slab has a stable foundation height even in flat cities.
+- DEM failure produces a neutral low-relief fallback, but the scene must label the confidence honestly.
+- The foundation should not look like a floating island with hard decorative borders.
+
+Implementation direction:
+
+```text
+foundationHeight = compressed absolute elevation baseline
+surfaceHeight = foundationHeight + local relief
+initial vertices = foundationHeight
+animated vertices = lerp(foundationHeight, surfaceHeight, progress)
+```
+
+### Step 3: Carve and Emerge the Geographic Skeleton
+
+After the foundation rises, the ground starts to resolve into geographic structure.
+
+Required behavior:
+
+- Waterways carve downward into the foundation and reveal a quiet blue-gray water surface.
+- Roads emerge as muted surface ribbons on top of the ground.
+- Bridges emerge after roads/water and visibly cross waterways or terrain gaps.
+- The itinerary route uses the same 2D route guidance identity: industrial safety yellow, continuous for real geometry, dashed only for estimated fallback.
+
+This means water is not just a blue mesh pasted above terrain. It needs a terrain depression or visual channel mask when the data supports it.
+
+Layer order:
+
+```text
+foundation surface
+  -> water channel depression
+  -> water surface
+  -> neutral roads
+  -> bridges
+  -> itinerary route bed / outline / safety-yellow line
+```
+
+### Step 4: Raise Rectangular Building Clusters
+
+Before detailed buildings appear, building areas first become simple rectangular massing clusters.
+
+Rules:
+
+- Generic building blocks are allowed only as neutral planning context.
+- Authoritative footprints, when available, replace generic blocks.
+- Missing real building data must not be described as real buildings.
+- Heights must be deterministic, never random per load.
+
+The massing stage should read as "blocks rising out of the map".
+
+### Step 5: Dissolve Building Massing Into Outlines
+
+At closer camera distances or after the massing stage completes, rectangular blocks dissolve into more specific building silhouettes.
+
+Required behavior:
+
+- Far view: simple low-poly blocks.
+- Near view: more faces, inset facade planes, roof hints, entrance hints.
+- Transition: continuous dissolve / fade / scale interpolation, not an abrupt swap.
+- The route must remain visually dominant; building detail must not hide the guidance line.
+
+Recommended interpolation:
+
+```text
+detailAlpha = 1 - smoothstep(nearDistance, farDistance, cameraDistance)
+block.opacity = 1 - detailAlpha * 0.72
+detail.opacity = detailAlpha
+detail.scaleY = 0.74 + detailAlpha * 0.26
+detail.offsetY = (1 - detailAlpha) * -1.2
+```
+
+## 3. Current Implementation Gap
+
+The current implementation has the correct data boundary and can render terrain, roads, water, bridges, buildings, markers, and route guidance. However, it is still closer to "construct meshes and reveal them together" than to the intended generation process.
+
+Current remaining gaps from visual QA and quality-gate review:
+
+- Terrain can fall back to an overly flat board.
+- Water currently reads as a surface ribbon more than a carved channel.
+- Roads and bridges render, but lack a clear "emerge from ground" stage.
+- Real route geometry can degrade to estimated dashed output if route contract is not preserved through the visual test path.
+- Building LOD exists, but the "rectangular massing cluster -> dissolved outline" process is not yet explicit enough.
+- Geo asset fetch failure currently needs a visible degraded-state/debug path instead of silent fallback.
+
+Closed gates as of 2026-06-22:
+
+- The 3D button is covered by bottom-right control-area E2E.
+- 3D no longer auto-exits after 60 seconds and is covered by dedicated E2E.
+- Maintained visible source, tests, and docs pass `npm.cmd run check:encoding`.
+
+## 4. Required Architecture Adjustment
+
+The 3D renderer should introduce a generation timeline instead of letting each layer decide reveal behavior independently.
+
+Recommended modules:
+
+```text
+scene-build-context.js
+  -> validates trip facts, geoAssets, route geometry, provenance
+
+terrain-foundation-renderer.js
+  -> builds raised base and terrain surface vertices
+
+terrain-carving-renderer.js
+  -> creates water channel depression masks and z-order rules
+
+geo-skeleton-renderer.js
+  -> roads, bridges, water surfaces
+
+route-guidance-renderer.js
+  -> 2D/3D shared route identity and real/estimated state
+
+building-massing-renderer.js
+  -> deterministic rectangular clusters
+
+building-dissolve-renderer.js
+  -> footprint/detail interpolation and camera LOD
+
+generation-timeline.js
+  -> owns animation phases and reveal progress
+
+camera-rig.js
+  -> entry camera, idle orbit, drag pause, route focus, inspect mode
+```
+
+## 5. Generation Timeline Contract
+
+Use a single timeline contract so screenshots and tests can verify the expected stage.
+
+```text
+phase 0: idle-2d
+phase 1: freeze-2d
+phase 2: derive-scene-envelope
+phase 3: slab-rise
+phase 4: terrain-refine
+phase 5: water-carve
+phase 6: road-emerge
+phase 7: bridge-resolve
+phase 8: route-highlight
+phase 9: building-massing
+phase 10: building-dissolve
+phase 11: camera-overview
+phase 12: camera-route-focus-or-inspect
+```
+
+Each phase must expose debug state:
+
+```text
+window.__threeDebug__.mode
+window.__threeDebug__.phase
+window.__threeDebug__.phaseProgress
+window.__threeDebug__.quality.degraded
+window.__threeDebug__.quality.reasons
+window.__threeDebug__.quality.missingLayers
+window.__threeDebug__.counts.terrainChunks
+window.__threeDebug__.counts.waterMeshes
+window.__threeDebug__.counts.roadMeshes
+window.__threeDebug__.counts.bridgeDecks
+window.__threeDebug__.counts.bridgePiers
+window.__threeDebug__.counts.routeSegments
+window.__threeDebug__.counts.buildingMassings
+window.__threeDebug__.counts.buildingDetailed
+window.__threeDebug__.camera.mode
+window.__threeDebug__.camera.autoRotate
+window.__threeDebug__.camera.userInteracting
+window.__threeDebug__.provenance
+```
+
+Recommended target timing:
+
+| Stage                         | Target window |
+| ----------------------------- | ------------: |
+| Freeze 2D                     |       0-150ms |
+| Slab rise                     |     150-450ms |
+| Terrain refine                |     450-700ms |
+| Water carve and water reveal  |    700-1100ms |
+| Road emerge                   |    850-1300ms |
+| Bridge resolve                |   1000-1500ms |
+| Route highlight draw          |   1100-1700ms |
+| Building massing rise         |   1400-2200ms |
+| Building dissolve             |   1900-2800ms |
+| Camera settle and interaction |   2200-3000ms |
+
+## 6. Acceptance Criteria
+
+P0 visual acceptance:
+
+- 3D button is visible in the bottom-right map control area.
+- 3D button remains visible at low precision, either enabled for degraded overview or disabled with a reason.
+- 3D mode does not auto-exit after idle time.
+- 2D to 3D transition starts with a raised foundation, not instantly visible final layers.
+- The canvas is nonblank within 1.5 seconds.
+- Real route geometry renders as a continuous safety-yellow line.
+- Estimated fallback route renders dashed and is clearly labelled.
+- Text in 3D UI contains no mojibake.
+- Route hash, first point, last point, and length diagnostics are exposed in debug state.
+- Geo asset upstream failure exposes degraded state in `window.__threeDebug__.quality`.
+
+P1 visual acceptance:
+
+- Waterways visibly carve downward or sit in a depressed channel.
+- Roads and bridges emerge from the ground after the foundation.
+- Bridge decks read as crossing structures.
+- Buildings first appear as rectangular massing clusters.
+- Near-view buildings dissolve into more detailed outlines without popping.
+- Route guidance stays readable above all geographic and building layers.
+- Timeline screenshot gates can capture foundation, carved geography, route highlight, massing, dissolve, and route focus states.
+
+P2 visual acceptance:
+
+- City scenes prioritize route, roads, POI, and building massing over exaggerated terrain.
+- Scenic and hiking scenes prioritize terrain relief, slope, and route elevation.
+- Close-up inspect mode shows local terrain relationships without loading whole-city detail.
+
+Engineering acceptance:
+
+- Nonblank slab appears within 1.5 seconds.
+- Accepted generation timing is 4 seconds on the desktop target: 1s foundation, 1s terrain/water/roads, 1s building massing, 1s building dissolve.
+- Route length error is within 1%.
+- Route clearance P95 is within 0.3m above terrain/road surface.
+- Terrain variance is nonzero unless the scene explicitly reports flat fallback.
+- Building base terrain error P95 is <= 0.25m in seeded scenes.
+- Console errors are zero except whitelisted third-party noise.
+- Every visible real-world asset has source, licence, attribution, and updatedAt.
+
+## 7. Immediate Implementation Order
+
+1. Fix UI and route correctness blockers:
+   - bottom-right 3D toggle position;
+   - keep low-precision entry visible with disabled reason or degraded overview;
+   - 2D/3D route hash preservation;
+   - real route continuous line;
+   - structured geoAssets degraded-state handling.
+
+2. Extract `generation-timeline.js`:
+   - replace ad hoc reveal calls with named phase progress;
+   - expose debug progress for Playwright.
+
+3. Split terrain foundation and carving:
+   - foundation slab first;
+   - terrain relief second;
+   - water channel depression before water surface.
+
+4. Split building massing and dissolve:
+   - create deterministic massing clusters;
+   - make detail LOD a dissolve stage.
+
+5. Add screenshot QA:
+   - `entering-foundation`;
+   - `carved-water-road-bridge`;
+   - `building-massing`;
+   - `building-dissolve`;
+   - `route-focus`.

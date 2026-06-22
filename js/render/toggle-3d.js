@@ -1,101 +1,68 @@
 // js/render/toggle-3d.js
-// 3D 地图切换模块：精度尺监听 + 按钮状态机 + 2D↔3D 过渡
-//
-// 精度尺阈值（ADR-6 §二）:
-//   zoom ≥ 14 → 按钮可见 (hint)
-//   zoom ≥ 15 → 按钮突出 (active)
-//   点击触发 → 进入 3D (in-3d)
-//
-// 使用方式:
-//   import { init3DToggle } from './render/toggle-3d.js';
-//   const toggle = init3DToggle({ map, onEnter3D, onExit3D });
+// 3D map switch: precision state, button state, and explicit 2D/3D transition.
 
 import { setStatus } from './sidebar.js';
 import { createLogger } from '../logger.js';
 
 const log = createLogger('toggle-3d');
 
-const ZOOM_HINT = 14; // 按钮可见
-const ZOOM_ACTIVE = 15; // 按钮突出
+const ZOOM_HINT = 12.5;
+const ZOOM_ACTIVE = 13.5;
 
 /**
  * @param {object} options
- * @param {object} options.map — AMap 实例
- * @param {Function} options.onEnter3D — 进入 3D 模式回调
- * @param {Function} options.onExit3D — 退出 3D 模式回调
+ * @param {object} options.map AMap instance
+ * @param {Function} options.onEnter3D Enter 3D callback
+ * @param {Function} options.onExit3D Exit 3D callback
  * @returns {{ is3DMode: () => boolean }}
  */
 export function init3DToggle({ map, onEnter3D, onExit3D }) {
   const btn = document.getElementById('map-3d-toggle');
   if (!btn) {
-    log.warn('3D 切换按钮元素未找到');
+    log.warn('3D toggle button was not found');
     return { is3DMode: () => false };
   }
 
   let is3D = false;
   let transitioning = false;
-
-  // ─── 60s 闲置自动回 2D (ADR-6 性能策略) ──────────────
-
-  const IDLE_RETURN_DELAY = 60000; // 60s 无操作自动切回 2D
-  let idleReturnTimer = null;
-
-  function resetIdleReturnTimer() {
-    if (idleReturnTimer) clearTimeout(idleReturnTimer);
-    if (!is3D) return;
-    idleReturnTimer = setTimeout(async () => {
-      if (!is3D || transitioning) return;
-      log.info('60s 无操作，自动切回 2D');
-      await exit3DFlow();
-    }, IDLE_RETURN_DELAY);
-  }
-
-  function clearIdleReturnTimer() {
-    if (idleReturnTimer) {
-      clearTimeout(idleReturnTimer);
-      idleReturnTimer = null;
-    }
-  }
-
-  // ─── 按钮状态机 ──────────────────────────────
+  btn.dataset.state = 'enabled-2d';
 
   function updateButtonState(zoom) {
-    if (is3D) return; // 3D 模式中不响应 zoom
+    if (is3D) return;
+    btn.hidden = false;
+    btn.disabled = false;
+    btn.classList.toggle('low-precision', zoom < ZOOM_HINT);
 
     if (zoom < ZOOM_HINT) {
-      btn.hidden = true;
       btn.classList.remove('hint', 'active');
+      btn.title = '当前范围较大，将以低精度 3D 概览打开';
     } else if (zoom < ZOOM_ACTIVE) {
-      btn.hidden = false;
       btn.classList.add('hint');
       btn.classList.remove('active');
+      btn.title = '打开 3D 概览';
     } else {
-      btn.hidden = false;
       btn.classList.remove('hint');
       btn.classList.add('active');
+      btn.title = '打开 3D 视图';
     }
   }
 
-  // zoom 变化监听
   map.on('zoomchange', () => {
     if (!transitioning) updateButtonState(map.getZoom());
   });
 
-  // 初始状态
   updateButtonState(map.getZoom());
 
-  // 移动端也监听 zoomend 做一次检查（某些版本 zoomchange 不触发）
   map.on('zoomend', () => {
     if (!transitioning) updateButtonState(map.getZoom());
   });
-
-  // ─── 点击切换 ───────────────────────────────
 
   btn.addEventListener('click', async () => {
     if (transitioning) return;
     const was3D = is3D;
     transitioning = true;
     btn.disabled = true;
+    btn.dataset.state = 'loading-3d';
 
     try {
       if (is3D) {
@@ -104,43 +71,36 @@ export function init3DToggle({ map, onEnter3D, onExit3D }) {
         await enter3DFlow();
       }
     } catch (err) {
-      log.error('3D 切换失败', err);
+      log.error('3D toggle failed', err);
       recoverFailedTransition(was3D);
       setStatus('3D 视图切换失败，请稍后重试。');
     } finally {
       transitioning = false;
       btn.disabled = false;
+      btn.dataset.state = is3D ? 'enabled-3d' : 'enabled-2d';
     }
   });
-
-  // ─── 进入 3D ──────────────────────────────────
 
   async function enter3DFlow() {
     setStatus('正在构建 3D 视图...');
     btn.classList.remove('hint', 'active');
     btn.classList.add('in-3d');
+    btn.dataset.state = 'enabled-3d';
+    btn.title = '切回 2D 视图';
     btn.querySelector('.map-3d-toggle-label').textContent = '2D';
-    btn.querySelector('.map-3d-toggle-dot').style.background = '#d4a830';
+    btn.querySelector('.map-3d-toggle-dot').style.background = '#f2b705';
     is3D = true;
 
-    // 隐藏 2D 地图 (保留在 DOM 中作为坐标参考)
     const mapEl = document.getElementById('map');
     if (mapEl) mapEl.style.opacity = '0.12';
 
     await onEnter3D?.();
 
-    // 隐藏 2D status panel
     const statusPanel = document.getElementById('status-panel');
     if (statusPanel) statusPanel.style.display = 'none';
 
-    // 启动 60s 闲置自动回退计时器
-    startIdleDetection();
-    resetIdleReturnTimer();
-
-    setStatus('3D 视图已就绪 · 拖拽旋转 · 捏合缩放 · 点击「2D」切回');
+    setStatus('3D 视图已就绪，可拖拽旋转、缩放，点击 2D 切回。');
   }
-
-  // ─── 退出 3D ──────────────────────────────────
 
   async function exit3DFlow() {
     setStatus('正在切回 2D 视图...');
@@ -151,26 +111,16 @@ export function init3DToggle({ map, onEnter3D, onExit3D }) {
     if (mapEl) mapEl.style.opacity = '1';
 
     btn.classList.remove('in-3d');
+    btn.dataset.state = 'enabled-2d';
     btn.querySelector('.map-3d-toggle-label').textContent = '3D 视图';
-    btn.querySelector('.map-3d-toggle-dot').style.background = '#c4a44a';
+    btn.querySelector('.map-3d-toggle-dot').style.background = '#e6ad00';
     is3D = false;
 
     const statusPanel = document.getElementById('status-panel');
     if (statusPanel) statusPanel.style.display = '';
 
-    clearIdleReturnTimer();
     updateButtonState(map.getZoom());
     setStatus('已切回 2D 视图。');
-  }
-
-  // ─── 用户交互检测 ──────────────────────────────
-
-  function startIdleDetection() {
-    const canvas3D = document.getElementById('map-3d');
-    if (!canvas3D) return;
-    ['pointerdown', 'wheel', 'touchstart'].forEach(evt => {
-      canvas3D.addEventListener(evt, resetIdleReturnTimer, { passive: true });
-    });
   }
 
   function recoverFailedTransition(was3D) {
@@ -183,8 +133,9 @@ export function init3DToggle({ map, onEnter3D, onExit3D }) {
     if (statusPanel) statusPanel.style.display = '';
 
     btn.classList.remove('in-3d');
+    btn.dataset.state = 'enabled-2d';
     btn.querySelector('.map-3d-toggle-label').textContent = '3D 视图';
-    btn.querySelector('.map-3d-toggle-dot').style.background = '#c4a44a';
+    btn.querySelector('.map-3d-toggle-dot').style.background = '#e6ad00';
     is3D = false;
     updateButtonState(map.getZoom());
   }

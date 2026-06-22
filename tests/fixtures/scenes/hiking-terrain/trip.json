@@ -1,0 +1,53 @@
+{
+  "id": "fixture-hiking-terrain",
+  "title": "Hiking Terrain Fixture",
+  "activeDayId": "day-hiking",
+  "locations": {
+    "trailhead": {
+      "id": "trailhead",
+      "name": "Trailhead",
+      "lnglat": [116.25, 40.02],
+      "resolved": true
+    },
+    "ridge": {
+      "id": "ridge",
+      "name": "Ridge View",
+      "lnglat": [116.255, 40.025],
+      "resolved": true
+    }
+  },
+  "days": [
+    {
+      "id": "day-hiking",
+      "title": "Ridge hike",
+      "events": [
+        {
+          "id": "event-trailhead",
+          "title": "Start hiking",
+          "locationId": "trailhead",
+          "routeToNext": {
+            "mode": "walking",
+            "geometry": [
+              [116.25, 40.02],
+              [116.252, 40.022],
+              [116.255, 40.025]
+            ],
+            "distanceMeters": 760,
+            "durationSeconds": 1800,
+            "source": "fixture",
+            "fetchedAt": "2026-06-22T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "event-ridge",
+          "title": "Reach ridge view",
+          "locationId": "ridge"
+        }
+      ]
+    }
+  ],
+  "geoAssetStatus": {
+    "status": "ok",
+    "updatedAt": "2026-06-22T00:00:00.000Z"
+  }
+}
