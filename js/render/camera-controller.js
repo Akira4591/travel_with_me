@@ -16,6 +16,10 @@ const PRECISION_KEY = 'AltLeft';
 const PRECISION_KEY_RIGHT = 'AltRight';
 const AUTO_ORBIT_MODES = new Set(['overview']);
 
+export function getCameraProfile(terrainMode) {
+  return resolveProfile(terrainMode);
+}
+
 export function createCameraController({
   camera,
   controls,
@@ -208,7 +212,7 @@ export function createCameraController({
   }
 
   function syncAdaptiveMode() {
-    if (mode !== 'overview' && mode !== 'inspect') return;
+    if (mode !== 'overview' && mode !== 'route-focus' && mode !== 'inspect') return;
     const distance = camera.position.distanceTo(controls.target);
     const inspectDistance = Number(currentProfile.inspectDistance || 0);
     if (inspectDistance <= 0) return;
@@ -216,7 +220,7 @@ export function createCameraController({
     if (distance <= inspectDistance && mode !== 'inspect') {
       mode = 'inspect';
       syncAutoRotate();
-    } else if (distance >= exitDistance && mode !== 'overview') {
+    } else if (mode === 'inspect' && distance >= exitDistance) {
       mode = 'overview';
       syncAutoRotate();
     }

@@ -18,13 +18,13 @@ Commands run on 2026-06-22:
 | Check                                                                | Result                                                                                    |
 | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | `npm.cmd run check`                                                  | Passed                                                                                    |
-| `npm.cmd test`                                                       | Passed: 27 files, 134 tests                                                               |
+| `npm.cmd test`                                                       | Passed: 27 files, 135 tests                                                               |
 | `npm.cmd run check:encoding`                                         | Passed: 297 visible source/doc/test files scanned                                         |
 | `npm.cmd run check:architecture`                                     | Passed: 34 render files scanned; renderer/provider boundary enforced                      |
 | `npm.cmd run check:provenance`                                       | Passed: 36 scene fixture files scanned                                                    |
 | `npx.cmd playwright test tests/e2e/smoke.spec.js --project=chromium` | Passed: 12 desktop tests, 1 mobile-only test skipped in Chromium                          |
 | `npx.cmd playwright test tests/e2e/live-provider.spec.js`            | Passed by skip: live provider smoke is explicit opt-in only                               |
-| `npm.cmd run test:e2e:visual`                                        | Passed: 16 local ROI fixture captures/interactions with QA JSON and screenshots           |
+| `npm.cmd run test:e2e:visual`                                        | Passed: 19 local ROI fixture captures/interactions with QA JSON and screenshots           |
 | targeted 3D/2D gate E2E                                              | Passed: nonblank 3D, geo assets, WASD camera, geometry P95, 2D fallback, 60s no-auto-exit |
 | tracked-source secret scan for known AMap/DeepSeek patterns          | Passed: no matches in tracked source                                                      |
 | in-app browser 2D/3D visual check                                    | Passed: 2D AMap provider loaded, 3D enters, canvas visible, 3D DOM metrics populated      |
@@ -33,9 +33,9 @@ Commands run on 2026-06-22:
 
 | Status       | Count | Meaning                                                                                               |
 | ------------ | ----: | ----------------------------------------------------------------------------------------------------- |
-| Complete     |    44 | Implemented and covered by automated evidence or current browser verification                         |
+| Complete     |    45 | Implemented and covered by automated evidence or current browser verification                         |
 | Partial      |     0 | Implemented or directionally present, but missing a dedicated gate, full scenario, or visual baseline |
-| Not complete |     2 | Not implemented, not verified, or contradicted by current evidence                                    |
+| Not complete |     1 | Not implemented, not verified, or contradicted by current evidence                                    |
 | Total        |    46 | Current tracked quality gates                                                                         |
 
 ## Completed Gates
@@ -43,7 +43,7 @@ Commands run on 2026-06-22:
 |   # | Gate                                                                                                                | Evidence                                                            |
 | --: | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
 |   1 | Format, lint, and source style pass                                                                                 | `npm.cmd run check`                                                 |
-|   2 | Unit tests pass                                                                                                     | `npm.cmd test`: 27 files, 134 tests                                 |
+|   2 | Unit tests pass                                                                                                     | `npm.cmd test`: 27 files, 135 tests                                 |
 |   3 | Desktop browser smoke tests pass                                                                                    | Chromium smoke: 12 passed, 1 mobile-only skipped                    |
 |   4 | Tracked source does not contain known real API keys                                                                 | `git grep` secret scan returned no matches                          |
 |   5 | 2D AMap mode renders real map content after CSP fixes                                                               | Browser and E2E map flow                                            |
@@ -86,6 +86,7 @@ Commands run on 2026-06-22:
 |  42 | Route guidance remains readable above geographic, old-street, and landmark layers                                   | `old-street` and `landmark-pilot` visual readability E2E            |
 |  43 | Timeline screenshot gates capture foundation, carved geography, route highlight, massing, dissolve, and route focus | `river-bridge captures timeline visual stages...` visual E2E        |
 |  44 | City, scenic, and hiking scenes pass scenario-specific terrain precision review                                     | `passes ... terrain precision review` visual E2E                    |
+|  45 | Mountain, old-street storefront, and landmark route screenshots pass overview and inspect review                    | `passes overview and inspect screenshot review` visual E2E          |
 
 ## Partial Gates
 
@@ -93,10 +94,9 @@ No partial gates remain in the current ledger. New gaps should enter this sectio
 
 ## Not Complete Gates
 
-|   # | Gate                                                                                             | Reason                                                                                                      |
-| --: | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
-|  45 | Mountain, old-street storefront, and landmark route screenshots pass overview and inspect review | Old-street and landmark inspect readability gates exist; mountain and maintained overview baselines remain. |
-|  46 | Landmark true-restoration pipeline is release-gated                                              | Landmark records are retained, but remote model allowlist/content validation/optimization is not complete.  |
+|   # | Gate                                                | Reason                                                                                                     |
+| --: | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+|  46 | Landmark true-restoration pipeline is release-gated | Landmark records are retained, but remote model allowlist/content validation/optimization is not complete. |
 
 ## Immediate Fix Order
 

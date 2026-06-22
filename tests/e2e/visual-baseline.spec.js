@@ -9,6 +9,7 @@ import {
   measureRouteVisualMetrics,
   openVisualFixture,
   setEmergenceProgress,
+  setVisualCameraPreset,
   visualRoiFor
 } from './helpers/visual-fixtures.js';
 
@@ -97,6 +98,33 @@ const SCENARIO_PRECISION_SCENES = [
     scene: 'hiking-terrain',
     point: 'scenario-hiking-precision',
     scenario: 'hiking'
+  }
+];
+
+const OVERVIEW_INSPECT_REVIEW_SCENES = [
+  {
+    scene: 'hiking-terrain',
+    label: 'mountain route',
+    minBuildings: 0,
+    minLandmarks: 0,
+    requiresLandcover: true,
+    routeSegmentId: 'day-hiking-route-0'
+  },
+  {
+    scene: 'old-street',
+    label: 'old-street storefront',
+    minBuildings: 4,
+    minLandmarks: 0,
+    requiresLandcover: false,
+    routeSegmentId: 'day-old-street-route-0'
+  },
+  {
+    scene: 'landmark-pilot',
+    label: 'landmark route',
+    minBuildings: 2,
+    minLandmarks: 1,
+    requiresLandcover: false,
+    routeSegmentId: 'day-landmark-route-0'
   }
 ];
 
@@ -324,6 +352,66 @@ test.describe('@visual-roi desktop 3D visual baseline harness', () => {
         expect(qa.counts.waterMeshes).toBeGreaterThan(0);
         expect(qa.waterVisual.readable).toBe(true);
       }
+    });
+  }
+
+  for (const reviewScene of OVERVIEW_INSPECT_REVIEW_SCENES) {
+    test(`${reviewScene.scene} passes overview and inspect screenshot review`, async ({
+      page
+    }, testInfo) => {
+      test.setTimeout(95_000);
+      const fixture = await loadSceneFixture(reviewScene.scene);
+      await openVisualFixture(page, fixture);
+      await page.addStyleTag({ path: 'tests/visual/styles/screenshot-normalize.css' });
+
+      await focusFrozenRoute(page, reviewScene.routeSegmentId);
+      await setVisualCameraPreset(page, 'overview', fixture.cameraPresets.overview);
+      await expect
+        .poll(async () => page.evaluate(() => window.__threeDebug__?.camera?.mode || ''), {
+          timeout: 8_000
+        })
+        .toBe('overview');
+      const overview = await exportVisualQa(page, fixture, 'overview-review');
+      await attachVisualEvidence(testInfo, {
+        fixture,
+        capturePoint: 'overview-review',
+        qa: overview,
+        screenshot: await page.screenshot({
+          animations: 'disabled',
+          caret: 'hide',
+          scale: 'css',
+          clip: visualRoiFor('route-focus')
+        })
+      });
+
+      await setVisualCameraPreset(page, 'inspect', fixture.cameraPresets.inspect);
+      await expect
+        .poll(async () => page.evaluate(() => window.__threeDebug__?.camera?.mode || ''), {
+          timeout: 8_000
+        })
+        .toBe('inspect');
+      const inspect = await exportVisualQa(page, fixture, 'inspect-review');
+      await attachVisualEvidence(testInfo, {
+        fixture,
+        capturePoint: 'inspect-review',
+        qa: inspect,
+        screenshot: await page.screenshot({
+          animations: 'disabled',
+          caret: 'hide',
+          scale: 'css',
+          clip: visualRoiFor('inspect')
+        })
+      });
+
+      assertOverviewInspectReview(overview, reviewScene, fixture);
+      assertOverviewInspectReview(inspect, reviewScene, fixture);
+      expect(overview.camera.mode).toBe('overview');
+      expect(inspect.camera.mode).toBe('inspect');
+      expect(inspect.camera.clearance).toBeGreaterThanOrEqual(inspect.camera.minClearance);
+      expect(inspect.camera.clearance).toBeLessThanOrEqual(inspect.camera.maxClearance);
+      expect(inspect.visual.routeYellowPixelRatio).toBeGreaterThanOrEqual(
+        fixture.expectations.route?.minYellowPixelRatio || ROUTE_YELLOW_PIXEL_RATIO_MIN
+      );
     });
   }
 
@@ -769,6 +857,29 @@ async function runCameraStress(
     nonSteadySamples: samples.filter(sample => sample.phase !== 'steady'),
     unreadableSamples: samples.filter(sample => !sample.visual.readable)
   };
+}
+
+function assertOverviewInspectReview(qa, reviewScene, fixture) {
+  expect(qa.phase).toBe('steady');
+  expect(qa.qa.version).toBe(1);
+  expect(qa.qa.layers.route.visible).toBe(true);
+  expect(qa.visual.readable).toBe(true);
+  expect(qa.visual.routeYellowPixelRatio).toBeGreaterThanOrEqual(
+    fixture.expectations.route?.minYellowPixelRatio || ROUTE_YELLOW_PIXEL_RATIO_MIN
+  );
+  expect(qa.qa.layers.buildings.count).toBeGreaterThanOrEqual(reviewScene.minBuildings);
+  expect(qa.geoAssetCounts.landmarks).toBeGreaterThanOrEqual(reviewScene.minLandmarks);
+  expect(qa.qa.geometry.zFightingRisk).toBeLessThanOrEqual(0.01);
+  if (reviewScene.requiresLandcover) {
+    expect(qa.geoAssetCounts.landcover).toBeGreaterThan(0);
+    expect(qa.qa.budgets.vegetationAreaCount).toBeGreaterThan(0);
+    expect(qa.qa.geometry.terrainHeightVariance).toBeGreaterThanOrEqual(
+      fixture.expectations.terrain?.minHeightRangeMeters || 1
+    );
+  }
+  if (reviewScene.minBuildings > 0) {
+    expect(qa.qa.geometry.buildingBaseTerrainErrorP95).toBeLessThanOrEqual(0.25);
+  }
 }
 
 function assertCameraStress(

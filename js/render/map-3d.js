@@ -17,7 +17,7 @@ import { createSceneBuildContext } from './scene-build-context.js';
 import { publishDioramaDebug } from './scene-debug.js';
 import { buildBridgeGroup, buildRoadGroup, buildWaterGroup } from './geo-asset-renderer.js';
 import { buildRouteGroup, set3DRouteHighlight } from './route-guidance-renderer.js';
-import { createCameraController } from './camera-controller.js';
+import { createCameraController, getCameraProfile } from './camera-controller.js';
 import { createGenerationTimeline } from './generation-timeline.js';
 import { GENERATION_TIMING_MS } from './generation-timing.js';
 import { createFoundationMetrics } from './terrain-foundation.js';
@@ -450,8 +450,9 @@ export async function enter3DMode(
   }
   camera.position.set(cx + sceneSpan * 0.55, sceneSpan * 0.95, cz + sceneSpan * 0.72);
   controls.target.set(cx, 0, cz);
-  controls.minDistance = Math.max(56, sceneSpan * 0.22);
-  controls.maxDistance = Math.max(controls.minDistance * 4, sceneSpan * 2.1);
+  const cameraDistances = getCameraControlDistances(sceneSpan, terrainMode);
+  controls.minDistance = cameraDistances.minDistance;
+  controls.maxDistance = cameraDistances.maxDistance;
   diorama.cameraController?.setSceneContext({
     terrainModel,
     terrainMode,
@@ -1428,6 +1429,11 @@ function installVisualDebugControls(diorama, bounds, { allowEmergenceProgress = 
       const focused = await focus3DRoute(diorama, segmentId);
       updateThreeDebug(diorama);
       return { focused, debug: window.__threeDebug };
+    },
+    setCameraPreset(name, preset = {}) {
+      const applied = applyVisualCameraPreset(diorama, bounds, name, preset);
+      updateThreeDebug(diorama);
+      return { applied, debug: window.__threeDebug };
     }
   };
   if (allowEmergenceProgress) {
@@ -1443,6 +1449,45 @@ function installVisualDebugControls(diorama, bounds, { allowEmergenceProgress = 
     };
   }
   window.__threeDebugControls = controls;
+}
+
+function applyVisualCameraPreset(diorama, bounds, name, preset = {}) {
+  if (!diorama?.camera || !diorama?.controls) return false;
+  const { camera, controls, dioramaGroup, proj } = diorama;
+  const span = getBoundsSpan(bounds);
+  const cx = (bounds.minX + bounds.maxX) / 2;
+  const cz = (bounds.minZ + bounds.maxZ) / 2;
+  const targetY = dioramaGroup.position.y + span * 0.04;
+  const distanceMeters = Number(preset.distanceMeters);
+  const requestedDistance = Number.isFinite(distanceMeters)
+    ? proj.metersToUnits(distanceMeters)
+    : span * (name === 'inspect' ? 0.32 : 0.95);
+  const profile = getCameraProfile(diorama.sceneBuildContext?.terrainMode);
+  const inspectDistance = Number(profile.inspectDistance) || 180;
+  const distance =
+    name === 'inspect'
+      ? Math.min(requestedDistance, inspectDistance * 0.85)
+      : Math.max(requestedDistance, inspectDistance * 1.45);
+  const heading = THREE.MathUtils.degToRad(Number(preset.heading) || 38);
+  const pitch = THREE.MathUtils.degToRad(THREE.MathUtils.clamp(Number(preset.pitch) || 52, 18, 72));
+  const horizontalBase = Math.max(controls.minDistance, distance) * Math.cos(pitch);
+  const horizontal =
+    name === 'inspect' ? horizontalBase : Math.max(horizontalBase, inspectDistance * 1.45);
+  const target = new THREE.Vector3(cx, targetY, cz);
+  const position = new THREE.Vector3(
+    cx + Math.sin(heading) * horizontal,
+    targetY + Math.max(controls.minDistance * 0.35, distance * Math.sin(pitch)),
+    cz + Math.cos(heading) * horizontal
+  );
+
+  camera.position.copy(position);
+  controls.target.copy(target);
+  diorama.cameraController?.setMode(name === 'inspect' ? 'inspect' : 'overview');
+  diorama.cameraController?.update(0);
+  controls.update();
+  updateBuildingLod(diorama);
+  diorama.renderer.render(diorama.scene, camera);
+  return true;
 }
 
 function updateGenerationTimeline(diorama, progress, steady = false) {
@@ -1662,6 +1707,16 @@ function getOverviewFeatureScale(bounds) {
 
 function getBoundsSpan(bounds) {
   return Math.max(bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ);
+}
+
+function getCameraControlDistances(sceneSpan, terrainMode) {
+  const profile = getCameraProfile(terrainMode);
+  const inspectDistance = Number(profile.inspectDistance) || 180;
+  const minDistance = THREE.MathUtils.clamp(sceneSpan * 0.06, 36, inspectDistance * 0.75);
+  return {
+    minDistance,
+    maxDistance: Math.max(minDistance * 4, sceneSpan * 2.1)
+  };
 }
 
 function seededUnit(value) {

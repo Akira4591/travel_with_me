@@ -165,6 +165,26 @@ describe('camera controller', () => {
     controller.dispose();
   });
 
+  it('allows a focused route camera to continue into inspect distance', () => {
+    const controls = mockControls();
+    const camera = mockCamera({ x: 0, y: 22, z: 95 });
+    controls.target.set(0, 10, 0);
+    const controller = createCameraController({
+      camera,
+      controls,
+      eventTarget: mockEventTarget(),
+      phase: 'steady',
+      terrainMode: 'micro-street',
+      terrainModel: flatTerrain(0)
+    });
+
+    controller.setMode('route-focus');
+    controller.update(0.016);
+
+    expect(controller.getDebugSnapshot().mode).toBe('inspect');
+    controller.dispose();
+  });
+
   it('does not apply movement or y clamp before steady phase', () => {
     const eventTarget = mockEventTarget();
     const controls = mockControls();

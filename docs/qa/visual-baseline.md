@@ -105,6 +105,7 @@ Default behavior:
   `buildingDetailAlphaAverage` deltas;
 - asserts `micro-street` inspect view readability with close-camera y clamp, route visibility, and building context;
 - asserts `old-street` and `landmark-pilot` route readability above contextual buildings and landmark metadata;
+- asserts `hiking-terrain`, `old-street`, and `landmark-pilot` overview-plus-inspect screenshot review through fixed camera presets;
 - captures the `river-bridge` generation timeline at foundation, carved geography, route highlight, building massing, building dissolve, and route-focus checkpoints;
 - asserts city, scenic, and hiking terrain precision profiles through scenario-specific terrain mode, elevation range, landcover, water, and route-readability gates;
 - runs a 30-second `river-bridge` camera stress subset and samples route readability plus z-fighting risk;
@@ -199,6 +200,18 @@ Current blocking `old-street` / `landmark-pilot` contextual route metrics:
 - `landmark-pilot` must retain at least one attributable landmark record;
 - `buildingBaseTerrainErrorP95 <= 0.25`;
 - `zFightingRisk <= 0.01`.
+
+Current blocking overview / inspect review metrics:
+
+- `hiking-terrain`, `old-street`, and `landmark-pilot` must each attach fixed-preset overview and inspect ROI screenshots;
+- overview capture must enter `camera.mode === "overview"`;
+- inspect capture must enter `camera.mode === "inspect"`;
+- inspect capture must keep `camera.clearance` inside the terrain-relative profile bounds;
+- both captures must keep the route layer visible and route pixels readable at the fixture threshold;
+- `hiking-terrain` must retain attributable landcover, vegetation budget evidence, and terrain height variance at the mountain threshold;
+- `old-street` must retain at least four contextual building entries;
+- `landmark-pilot` must retain at least one attributable landmark record;
+- all captures must keep `zFightingRisk <= 0.01`.
 
 Current blocking `river-bridge` timeline stage metrics:
 

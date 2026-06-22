@@ -71,6 +71,14 @@ export async function focusFrozenRoute(page, segmentId) {
   return page.evaluate(value => window.__threeDebugControls?.focusRoute(value), segmentId);
 }
 
+export async function setVisualCameraPreset(page, name, preset) {
+  return page.evaluate(
+    ({ modeName, cameraPreset }) =>
+      window.__threeDebugControls?.setCameraPreset(modeName, cameraPreset),
+    { modeName: name, cameraPreset: preset }
+  );
+}
+
 export async function exportVisualQa(page, fixture, capturePoint) {
   const visual = await measureRouteVisualMetrics(page);
   const waterVisual = await measureWaterVisualMetrics(page);
