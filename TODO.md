@@ -24,8 +24,8 @@ Latest verified baseline from 2026-06-23. Detailed gate accounting is maintained
 | Gate                              | Result                                                                                                                               |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `npm.cmd run check`               | Passed                                                                                                                               |
-| `npm.cmd test`                    | Passed: 31 files, 153 tests                                                                                                          |
-| `npm.cmd run check:encoding`      | Passed: 316 visible source/doc/test files scanned                                                                                    |
+| `npm.cmd test`                    | Passed: 32 files, 159 tests                                                                                                          |
+| `npm.cmd run check:encoding`      | Passed: 318 visible source/doc/test files scanned                                                                                    |
 | Full visual baseline suite        | Passed: 24 local ROI fixture captures/interactions with QA JSON and screenshots in 13.0m                                             |
 | `npm.cmd run check:architecture`  | Passed: 37 render files scanned                                                                                                      |
 | `npm.cmd run check:provenance`    | Passed: 42 scene fixture files scanned                                                                                               |
@@ -77,8 +77,8 @@ Known remaining non-blocking follow-ups after VQ0:
   **Prepared:** `npm.cmd run test:e2e:visual:stability -- --runs=5` is now the repeatability command
   for collecting five-run local evidence before turning on committed golden assertions.
 - Promote city/scenic/hiking precision gates from fixture coverage to repeated-run baseline once thresholds stabilize.
-  **Prepared:** the same visual stability runner can scope repeated scenario checks by passing
-  Playwright arguments after `--`.
+  **Prepared:** `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=precision` now scopes
+  repeated scenario checks without hand-writing a grep.
 - Keep real landmark model rendering disabled until an actual licensed model package passes the release gate.
 
 Next-stage deep-research decision:
@@ -116,7 +116,9 @@ Tasks:
    - Modules: tests, QA docs, Playwright helpers.
    - Acceptance: `npm.cmd run test:e2e:visual` passes in Chromium without live provider calls.
    - Repeatability evidence: `npm.cmd run test:e2e:visual:stability -- --runs=5` must pass before
-     screenshot assertions are promoted from capture evidence to maintained golden baselines.
+     screenshot assertions are promoted from capture evidence to maintained golden baselines. Use
+     `--preset=core`, `--preset=precision`, `--preset=overview-inspect`,
+     `--preset=camera-stress`, or `--preset=timeline` for scoped repeatability evidence.
    - Rollback: keep capture-only screenshots and disable blocking assertions until stable.
 
 2. Formalize `window.__threeDebug__.qa` v1. **Implemented.**

@@ -1,25 +1,32 @@
 import { spawnSync } from 'node:child_process';
 
-const rawArgs = process.argv.slice(2);
-const { options, passthrough } = parseArgs(rawArgs);
-const runs = parsePositiveInteger(options.runs ?? process.env.VISUAL_STABILITY_RUNS, 2);
-const dryRun = Boolean(options['dry-run']);
-const workers = parsePositiveInteger(options.workers ?? process.env.VISUAL_STABILITY_WORKERS, 1);
-const project = options.project || 'chromium';
+import {
+  VISUAL_STABILITY_PRESETS,
+  buildVisualStabilityCommand,
+  parseVisualStabilityArgs
+} from './visual-stability-options.mjs';
 
-const baseCommand = [
-  process.execPath,
-  'node_modules/@playwright/test/cli.js',
-  'test',
-  'tests/e2e/visual-baseline.spec.js',
-  '--project',
-  project,
-  '--reporter',
-  'line',
-  '--workers',
-  String(workers),
-  ...passthrough
-];
+const { options, passthrough } = parseVisualStabilityArgs(process.argv.slice(2));
+const {
+  command: baseCommand,
+  dryRun,
+  listPresets,
+  runs
+} = buildVisualStabilityCommand({
+  nodeCommand: process.execPath,
+  options,
+  passthrough,
+  env: process.env
+});
+
+if (listPresets) {
+  console.log('[visual-stability] Available presets');
+  for (const [name, preset] of Object.entries(VISUAL_STABILITY_PRESETS)) {
+    console.log(`  ${name}: ${preset.description}`);
+    console.log(`    --grep ${JSON.stringify(preset.grep)}`);
+  }
+  process.exit(0);
+}
 
 const results = [];
 for (let run = 1; run <= runs; run += 1) {
@@ -51,33 +58,6 @@ for (let run = 1; run <= runs; run += 1) {
 
 printSummary(results, runs);
 console.log('\n[visual-stability] Visual baseline remained stable across requested runs.');
-
-function parseArgs(args) {
-  const options = {};
-  const passthrough = [];
-  let passthroughMode = false;
-
-  for (const arg of args) {
-    if (arg === '--') {
-      passthroughMode = true;
-      continue;
-    }
-    if (!passthroughMode && arg.startsWith('--')) {
-      const [key, value] = arg.slice(2).split('=', 2);
-      options[key] = value ?? true;
-      continue;
-    }
-    passthrough.push(arg);
-  }
-
-  return { options, passthrough };
-}
-
-function parsePositiveInteger(value, fallback) {
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed <= 0) return fallback;
-  return parsed;
-}
 
 function printSummary(results, expectedRuns) {
   const passed = results.filter(result => result.status === 0).length;

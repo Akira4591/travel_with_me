@@ -110,8 +110,19 @@ npm.cmd run test:e2e:visual:stability -- --runs=5
 
 The runner repeats the maintained visual baseline suite with fixture data and the Chromium project.
 It accepts Playwright arguments after `--`, so a narrow calibration run can scope by grep before the
-full five-run gate is attempted. Passing this command is required before capture-only ROI evidence is
-promoted to maintained golden screenshots.
+full five-run gate is attempted. It also provides named presets:
+
+```powershell
+npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=core
+npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=precision
+npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=overview-inspect
+npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=camera-stress
+npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=timeline
+```
+
+Passing the full command is required before capture-only ROI evidence is promoted to maintained
+golden screenshots. Presets are for diagnosis and scoped calibration; they do not replace the full
+five-run gate.
 
 ## Failure Artifacts
 
