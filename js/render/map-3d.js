@@ -462,7 +462,7 @@ export async function enter3DMode(
   if (shouldFreezeEmergenceForVisualQa()) {
     diorama.generationTimeline = createGenerationTimeline();
     applyEmergenceProgress(diorama, bounds, 0);
-    installEmergenceDebugControls(diorama, bounds);
+    installVisualDebugControls(diorama, bounds, { allowEmergenceProgress: true });
     updateThreeDebug(diorama);
     return;
   }
@@ -481,6 +481,7 @@ export async function enter3DMode(
   diorama.cameraController?.setEnabled(true);
   diorama.cameraController?.setMode('overview');
   diorama.cameraController?.update(0);
+  installVisualDebugControls(diorama, bounds);
   updateThreeDebug(diorama);
   log.info('3D mode steady');
 }
@@ -1420,25 +1421,28 @@ function shouldFreezeEmergenceForVisualQa() {
   return Boolean(globalThis.window?.__visualFreezeEmergence);
 }
 
-function installEmergenceDebugControls(diorama, bounds) {
-  if (typeof window === 'undefined') return;
-  window.__threeDebugControls = {
-    setEmergenceProgress(progress) {
-      applyEmergenceProgress(diorama, bounds, progress);
-      return window.__threeDebug;
-    },
-    finishEmergence() {
-      applyEmergenceProgress(diorama, bounds, 1);
-      updateGenerationTimeline(diorama, 1, true);
-      updateThreeDebug(diorama);
-      return window.__threeDebug;
-    },
+function installVisualDebugControls(diorama, bounds, { allowEmergenceProgress = false } = {}) {
+  if (typeof window === 'undefined' || !window.__visualExpose3DControls) return;
+  const controls = {
     async focusRoute(segmentId) {
       const focused = await focus3DRoute(diorama, segmentId);
       updateThreeDebug(diorama);
       return { focused, debug: window.__threeDebug };
     }
   };
+  if (allowEmergenceProgress) {
+    controls.setEmergenceProgress = progress => {
+      applyEmergenceProgress(diorama, bounds, progress);
+      return window.__threeDebug;
+    };
+    controls.finishEmergence = () => {
+      applyEmergenceProgress(diorama, bounds, 1);
+      updateGenerationTimeline(diorama, 1, true);
+      updateThreeDebug(diorama);
+      return window.__threeDebug;
+    };
+  }
+  window.__threeDebugControls = controls;
 }
 
 function updateGenerationTimeline(diorama, progress, steady = false) {

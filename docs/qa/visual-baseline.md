@@ -28,6 +28,7 @@ The first blocking visual baseline covers:
 | `hiking-terrain` | Terrain relief and route height cue           | `foundation-rise`, `route-highlight`, `inspect`           |
 | `old-street`     | Narrow storefront street occlusion            | `route-highlight`, `inspect`                              |
 | `landmark-pilot` | Landmark workflow preflight and route clarity | `route-highlight`, `inspect`                              |
+| `scenic-park`    | Scenic park relief and landcover              | `route-highlight`, `inspect`                              |
 
 Candidate fixture layout:
 
@@ -105,6 +106,7 @@ Default behavior:
 - asserts `micro-street` inspect view readability with close-camera y clamp, route visibility, and building context;
 - asserts `old-street` and `landmark-pilot` route readability above contextual buildings and landmark metadata;
 - captures the `river-bridge` generation timeline at foundation, carved geography, route highlight, building massing, building dissolve, and route-focus checkpoints;
+- asserts city, scenic, and hiking terrain precision profiles through scenario-specific terrain mode, elevation range, landcover, water, and route-readability gates;
 - runs a 30-second `river-bridge` camera stress subset and samples route readability plus z-fighting risk;
 - runs a 30-second `micro-street` dense-building camera stress subset and samples route readability plus z-fighting risk;
 - runs a 30-second `hiking-terrain` terrain camera stress subset and samples route readability plus z-fighting risk;
@@ -206,3 +208,10 @@ Current blocking `river-bridge` timeline stage metrics:
 - `building-massing` must remain in `building-massing`, expose partial building massing progress, and keep dissolve progress at `0`;
 - `building-dissolve` must remain in `building-dissolve`, expose completed massing plus active dissolve progress;
 - `route-focus` must finish emergence, enter `camera.mode === "route-focus"`, and retain `routeYellowPixelRatio >= 0.00008`.
+
+Current blocking scenario precision metrics:
+
+- `old-street` must choose `terrainMode === "micro-street"` and keep low city elevation range within the fixture threshold;
+- `scenic-park` must choose `terrainMode === "scenic-park"`, retain attributable landcover and water, and show medium terrain relief;
+- `hiking-terrain` must choose `terrainMode === "hiking"` and show high mountain elevation range;
+- all three scenario reviews must keep route layer visible, route pixels readable at the scene-specific threshold, and `zFightingRisk <= 0.01`.

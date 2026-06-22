@@ -1,0 +1,64 @@
+{
+  "landcover": [
+    {
+      "id": "scenic-forest",
+      "licensed": true,
+      "cover": "forest",
+      "polygon": [
+        [116.454, 40.009],
+        [116.471, 40.009],
+        [116.471, 40.023],
+        [116.454, 40.023]
+      ],
+      "realityClaim": true,
+      "provenance": {
+        "source": "fixture-open-data",
+        "licence": "ODbL-compatible-test",
+        "attribution": "Travel With Me fixture data",
+        "updatedAt": "2026-06-22T00:00:00.000Z"
+      }
+    }
+  ],
+  "roads": [
+    {
+      "id": "scenic-park-trail",
+      "kind": "path",
+      "centerline": [
+        [116.455, 40.01],
+        [116.459, 40.013],
+        [116.463, 40.016],
+        [116.466, 40.019],
+        [116.47, 40.022]
+      ],
+      "widthMeters": 2.6,
+      "realityClaim": true,
+      "provenance": {
+        "source": "fixture-open-data",
+        "licence": "ODbL-compatible-test",
+        "attribution": "Travel With Me fixture data",
+        "updatedAt": "2026-06-22T00:00:00.000Z"
+      }
+    }
+  ],
+  "waterways": [
+    {
+      "id": "scenic-lake-edge",
+      "polygon": [
+        [116.4665, 40.0204],
+        [116.4708, 40.0207],
+        [116.4706, 40.0226],
+        [116.4663, 40.0224]
+      ],
+      "realityClaim": true,
+      "provenance": {
+        "source": "fixture-open-data",
+        "licence": "ODbL-compatible-test",
+        "attribution": "Travel With Me fixture data",
+        "updatedAt": "2026-06-22T00:00:00.000Z"
+      }
+    }
+  ],
+  "bridges": [],
+  "buildings": [],
+  "landmarks": []
+}

@@ -5,7 +5,14 @@ import path from 'node:path';
 import { normalizeGeoAssets } from '../render/geo-assets.js';
 
 const FIXTURE_ROOT = path.resolve('tests/fixtures/scenes');
-const SCENES = ['river-bridge', 'micro-street', 'hiking-terrain', 'old-street', 'landmark-pilot'];
+const SCENES = [
+  'river-bridge',
+  'micro-street',
+  'hiking-terrain',
+  'old-street',
+  'landmark-pilot',
+  'scenic-park'
+];
 const REQUIRED_FILES = [
   'trip.json',
   'route.json',
@@ -22,7 +29,8 @@ describe('3D visual scene fixtures', () => {
       'micro-street',
       'hiking-terrain',
       'old-street',
-      'landmark-pilot'
+      'landmark-pilot',
+      'scenic-park'
     ]);
 
     SCENES.forEach(scene => {
@@ -54,6 +62,11 @@ describe('3D visual scene fixtures', () => {
     expect(landmarkAssets.buildings).toHaveLength(2);
     expect(landmarkAssets.roads).toHaveLength(1);
     expect(landmarkAssets.landmarks).toHaveLength(1);
+
+    const scenicAssets = normalizeGeoAssets(readFixture('scenic-park', 'geo-assets.json'));
+    expect(scenicAssets.landcover).toHaveLength(1);
+    expect(scenicAssets.roads).toHaveLength(1);
+    expect(scenicAssets.waterways).toHaveLength(1);
   });
 
   it('defines scenario-specific visual and geometry expectations', () => {
@@ -68,13 +81,17 @@ describe('3D visual scene fixtures', () => {
 
     const hiking = readFixture('hiking-terrain', 'dem-grid.json');
     const range = flatten(hiking.heights);
-    expect(Math.max(...range) - Math.min(...range)).toBeGreaterThanOrEqual(120);
+    expect(Math.max(...range) - Math.min(...range)).toBeGreaterThanOrEqual(400);
 
     const oldStreet = readFixture('old-street', 'expectations.json');
     expect(oldStreet.building.minContextBuildings).toBeGreaterThanOrEqual(4);
 
     const landmark = readFixture('landmark-pilot', 'expectations.json');
     expect(landmark.landmark.requiresAllowlistedPlaceholder).toBe(true);
+
+    const scenic = readFixture('scenic-park', 'expectations.json');
+    expect(scenic.terrain.expectedMode).toBe('scenic-park');
+    expect(scenic.terrain.minHeightRangeMeters).toBeGreaterThanOrEqual(80);
   });
 });
 

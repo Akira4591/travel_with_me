@@ -29,14 +29,15 @@ visual proof infrastructure
 
 Maintain five deterministic scene fixtures:
 
-| Scene            | Purpose                                      | Required checks                                                     |
-| ---------------- | -------------------------------------------- | ------------------------------------------------------------------- |
-| `micro-street`   | Dense street-level city planning             | route readability, building LOD, POI marker readability             |
-| `citywalk`       | Flat urban route with roads and context mass | 2D/3D route identity, muted road ribbons, building base consistency |
-| `river-bridge`   | Water and bridge correctness                 | water carve, no terrain blank gap, bridge deck continuity           |
-| `hiking-terrain` | Mountain or hiking relief                    | terrain variance, slope honesty, route height cue                   |
-| `old-street`     | Narrow storefront route readability          | route clarity above dense low-rise storefront context               |
-| `landmark-pilot` | Allowlisted real landmark workflow           | provenance, attribution, fallback when model is unavailable         |
+| Scene            | Purpose                                       | Required checks                                                     |
+| ---------------- | --------------------------------------------- | ------------------------------------------------------------------- |
+| `micro-street`   | Dense street-level city planning              | route readability, building LOD, POI marker readability             |
+| `citywalk`       | Flat urban route with roads and context mass  | 2D/3D route identity, muted road ribbons, building base consistency |
+| `river-bridge`   | Water and bridge correctness                  | water carve, no terrain blank gap, bridge deck continuity           |
+| `scenic-park`    | Scenic route with landcover and medium relief | scenic terrain mode, landcover, water, route readability            |
+| `hiking-terrain` | Mountain or hiking relief                     | terrain variance, slope honesty, route height cue                   |
+| `old-street`     | Narrow storefront route readability           | route clarity above dense low-rise storefront context               |
+| `landmark-pilot` | Allowlisted real landmark workflow            | provenance, attribution, fallback when model is unavailable         |
 
 Fixtures must be local and deterministic. Live provider calls are not allowed in baseline tests.
 
@@ -44,6 +45,7 @@ The first fixture catalog is now stored under:
 
 ```text
 tests/fixtures/scenes/river-bridge/
+tests/fixtures/scenes/scenic-park/
 tests/fixtures/scenes/micro-street/
 tests/fixtures/scenes/hiking-terrain/
 tests/fixtures/scenes/old-street/
@@ -162,3 +164,5 @@ The water-pixel gate validates `river-bridge` as a rendered image, not only as m
 The contextual-route gate adds `old-street` and `landmark-pilot` fixtures. `old-street` verifies narrow storefront context does not hide the industrial safety-yellow route. `landmark-pilot` keeps landmark provenance and placeholder metadata in the scene contract while blocking route unreadability before true restoration is allowed.
 
 The timeline-stage gate freezes the emergence animation in test mode and captures `river-bridge` at foundation rise, carved geography, route highlight, building massing, building dissolve, and route focus. Each checkpoint attaches ROI PNG evidence and QA JSON so the accepted 4-second generation sequence can be reviewed without relying on manual timing.
+
+The scenario-precision gate verifies that the terrain profile matches the use case: `old-street` uses micro-street precision and restrained relief, `scenic-park` uses scenic terrain with landcover and medium relief, and `hiking-terrain` uses hiking terrain with high elevation range. This protects the product rule that street browsing, scenic walking, and mountain hiking should not share one generic terrain setting.

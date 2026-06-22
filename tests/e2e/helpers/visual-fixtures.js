@@ -81,6 +81,9 @@ export async function exportVisualQa(page, fixture, capturePoint) {
         capturePoint: point,
         fixtureId,
         phase: debug.phase,
+        terrainMode: debug.terrainMode,
+        terrainConfidence: debug.terrainConfidence,
+        elevationRange: debug.elevationRange,
         fixture: debug.fixture || {},
         camera: debug.camera || {},
         foundationProgress: debug.foundationProgress,
@@ -289,6 +292,10 @@ async function seedFixtureWorkspace(page, fixture) {
 }
 
 async function installFixtureElevation(page, demGrid) {
+  await page.addInitScript(grid => {
+    window.__visualExpose3DControls = true;
+    window.__visualFixtureElevationGrid = grid;
+  }, demGrid);
   const values = (demGrid.heights || []).flat();
   await page.route('**/_elevation**', async route => {
     const url = new URL(route.request().url());

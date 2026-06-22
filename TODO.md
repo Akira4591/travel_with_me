@@ -23,11 +23,11 @@ Latest verified baseline from 2026-06-22. Detailed gate accounting is maintained
 | Gate                                                                 | Result                                                                          |
 | -------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | `npm.cmd run check`                                                  | Passed                                                                          |
-| `npm.cmd test`                                                       | Passed: 27 files, 133 tests                                                     |
-| `npm.cmd run check:encoding`                                         | Passed: 291 visible source/doc/test files scanned                               |
-| `npm.cmd run test:e2e:visual`                                        | Passed: 13 local ROI fixture captures/interactions with QA JSON and screenshots |
+| `npm.cmd test`                                                       | Passed: 27 files, 134 tests                                                     |
+| `npm.cmd run check:encoding`                                         | Passed: 297 visible source/doc/test files scanned                               |
+| `npm.cmd run test:e2e:visual`                                        | Passed: 16 local ROI fixture captures/interactions with QA JSON and screenshots |
 | `npm.cmd run check:architecture`                                     | Passed: 34 render files scanned                                                 |
-| `npm.cmd run check:provenance`                                       | Passed: 30 scene fixture files scanned                                          |
+| `npm.cmd run check:provenance`                                       | Passed: 36 scene fixture files scanned                                          |
 | `npx.cmd playwright test tests/e2e/smoke.spec.js --project=chromium` | Passed: 12 desktop tests, 1 mobile-only test skipped in Chromium                |
 | Tracked-source secret scan                                           | Passed: no known real AMap/DeepSeek key patterns found                          |
 | In-app browser 2D/3D visual check                                    | Passed: 2D AMap provider loaded, 3D enters, canvas visible, DOM metrics present |
@@ -36,15 +36,15 @@ Quality gate count from `docs/quality-gate-status.md`:
 
 | Status       | Count |
 | ------------ | ----: |
-| Complete     |    43 |
+| Complete     |    44 |
 | Partial      |     0 |
-| Not complete |     3 |
+| Not complete |     2 |
 | Total        |    46 |
 
 Known remaining gaps:
 
 - Promote maintained golden screenshot assertions after the current stage screenshot capture gate is stable across repeated local runs.
-- Add city/scenic/hiking scenario visual baselines beyond the current first-fixture gates.
+- Promote city/scenic/hiking precision gates from fixture coverage to repeated-run baseline once thresholds stabilize.
 - Extend maintained overview screenshot baselines for mountain, old-street, and landmark review cases.
 
 Next-stage deep-research decision:

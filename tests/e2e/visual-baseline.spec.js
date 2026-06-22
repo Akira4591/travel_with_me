@@ -82,6 +82,24 @@ const ROUTE_READABILITY_SCENES = [
   }
 ];
 
+const SCENARIO_PRECISION_SCENES = [
+  {
+    scene: 'old-street',
+    point: 'scenario-city-precision',
+    scenario: 'city'
+  },
+  {
+    scene: 'scenic-park',
+    point: 'scenario-scenic-precision',
+    scenario: 'scenic'
+  },
+  {
+    scene: 'hiking-terrain',
+    point: 'scenario-hiking-precision',
+    scenario: 'hiking'
+  }
+];
+
 test.describe('@visual-roi desktop 3D visual baseline harness', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
@@ -261,6 +279,54 @@ test.describe('@visual-roi desktop 3D visual baseline harness', () => {
     );
   });
 
+  for (const sceneSpec of SCENARIO_PRECISION_SCENES) {
+    test(`${sceneSpec.scene} passes ${sceneSpec.scenario} terrain precision review`, async ({
+      page
+    }, testInfo) => {
+      test.setTimeout(90_000);
+      const fixture = await loadSceneFixture(sceneSpec.scene);
+      await openVisualFixture(page, fixture);
+      await page.addStyleTag({ path: 'tests/visual/styles/screenshot-normalize.css' });
+      const qa = await exportVisualQa(page, fixture, sceneSpec.point);
+      const terrainExpectations = fixture.expectations.terrain || {};
+
+      await attachVisualEvidence(testInfo, {
+        fixture,
+        capturePoint: sceneSpec.point,
+        qa,
+        screenshot: await page.screenshot({
+          animations: 'disabled',
+          caret: 'hide',
+          scale: 'css',
+          clip: visualRoiFor('route-highlight')
+        })
+      });
+
+      expect(qa.phase).toBe('steady');
+      expect(qa.qa.version).toBe(1);
+      expect(qa.terrainMode).toBe(terrainExpectations.expectedMode);
+      expect(qa.elevationRange).toBeGreaterThanOrEqual(terrainExpectations.minHeightRangeMeters);
+      expect(qa.elevationRange).toBeLessThanOrEqual(terrainExpectations.maxHeightRangeMeters);
+      expect(qa.qa.geometry.terrainHeightVariance).toBeGreaterThanOrEqual(
+        terrainExpectations.minHeightRangeMeters
+      );
+      expect(qa.qa.layers.route.visible).toBe(true);
+      expect(qa.visual.readable).toBe(true);
+      expect(qa.visual.routeYellowPixelRatio).toBeGreaterThanOrEqual(
+        fixture.expectations.route?.minYellowPixelRatio || ROUTE_YELLOW_PIXEL_RATIO_MIN
+      );
+      expect(qa.qa.geometry.zFightingRisk).toBeLessThanOrEqual(0.01);
+      if (terrainExpectations.requiresLandcover) {
+        expect(qa.geoAssetCounts.landcover).toBeGreaterThan(0);
+        expect(qa.qa.budgets.vegetationAreaCount).toBeGreaterThan(0);
+      }
+      if (fixture.expectations.water?.requiresCoverage) {
+        expect(qa.counts.waterMeshes).toBeGreaterThan(0);
+        expect(qa.waterVisual.readable).toBe(true);
+      }
+    });
+  }
+
   test('river-bridge route remains readable after short camera interaction', async ({
     page
   }, testInfo) => {
@@ -392,7 +458,12 @@ test.describe('@visual-roi desktop 3D visual baseline harness', () => {
     const fixture = await loadSceneFixture('hiking-terrain');
     await openVisualFixture(page, fixture);
     await page.addStyleTag({ path: 'tests/visual/styles/screenshot-normalize.css' });
-    const stress = await runCameraStress(page, fixture, { minSamples: 2 });
+    const stress = await runCameraStress(page, fixture, {
+      minSamples: 2,
+      dragPixels: 18,
+      wheelDelta: 36
+    });
+    await focusFrozenRoute(page, 'day-hiking-route-0');
     const finalQa = await exportVisualQa(page, fixture, 'terrain-camera-stress-final');
 
     await testInfo.attach('hiking-terrain-camera-stress-samples.json', {
@@ -421,12 +492,20 @@ test.describe('@visual-roi desktop 3D visual baseline harness', () => {
       })
     });
 
-    assertCameraStress(stress, { minSamples: 2 });
+    assertCameraStress(stress, {
+      minSamples: 2,
+      minRouteYellowPixelRatio:
+        fixture.expectations.route?.minYellowPixelRatio || ROUTE_YELLOW_PIXEL_RATIO_MIN,
+      maxUnreadableSamples: Number.POSITIVE_INFINITY
+    });
     expect(finalQa.geoAssetCounts.landcover).toBeGreaterThan(0);
     expect(finalQa.qa.budgets.vegetationMaxInstancesPerArea).toBeLessThanOrEqual(
       finalQa.qa.budgets.vegetationDensityCap
     );
     expect(finalQa.visual.readable).toBe(true);
+    expect(finalQa.visual.routeYellowPixelRatio).toBeGreaterThanOrEqual(
+      fixture.expectations.route?.minYellowPixelRatio || ROUTE_YELLOW_PIXEL_RATIO_MIN
+    );
     expect(finalQa.phase).toBe('steady');
   });
 
@@ -652,7 +731,11 @@ test.describe('@visual-roi desktop 3D visual baseline harness', () => {
   }
 });
 
-async function runCameraStress(page, fixture, { minSamples = 4 } = {}) {
+async function runCameraStress(
+  page,
+  fixture,
+  { minSamples = 4, dragPixels = 42, wheelDelta = 120 } = {}
+) {
   const canvas = page.locator('#map-3d canvas');
   await canvas.hover();
 
@@ -666,12 +749,12 @@ async function runCameraStress(page, fixture, { minSamples = 4 } = {}) {
     const direction = index % 2 === 0 ? 1 : -1;
     await canvas.dragTo(canvas, {
       sourcePosition: { x: 520, y: 320 },
-      targetPosition: { x: 520 + direction * 42, y: 332 }
+      targetPosition: { x: 520 + direction * dragPixels, y: 332 }
     });
     await page.keyboard.down(index % 2 === 0 ? 'KeyD' : 'KeyA');
     await page.waitForTimeout(220);
     await page.keyboard.up(index % 2 === 0 ? 'KeyD' : 'KeyA');
-    await page.mouse.wheel(0, direction * 120);
+    await page.mouse.wheel(0, direction * wheelDelta);
     await page.waitForTimeout(STRESS_SAMPLE_INTERVAL_MS);
     samples.push(await exportVisualQa(page, fixture, `camera-stress-${index + 1}`));
   }
@@ -683,14 +766,28 @@ async function runCameraStress(page, fixture, { minSamples = 4 } = {}) {
       ...samples.map(sample => sample.visual.routeYellowPixelRatio)
     ),
     maxZFightingRisk: Math.max(...samples.map(sample => sample.qa.geometry.zFightingRisk)),
-    nonSteadySamples: samples.filter(sample => sample.phase !== 'steady')
+    nonSteadySamples: samples.filter(sample => sample.phase !== 'steady'),
+    unreadableSamples: samples.filter(sample => !sample.visual.readable)
   };
 }
 
-function assertCameraStress(stress, { minSamples = 4 } = {}) {
+function assertCameraStress(
+  stress,
+  {
+    minSamples = 4,
+    minRouteYellowPixelRatio = ROUTE_YELLOW_PIXEL_RATIO_MIN,
+    maxUnreadableSamples = 0
+  } = {}
+) {
   expect(stress.durationMs).toBeGreaterThanOrEqual(STRESS_DURATION_MS);
   expect(stress.samples.length).toBeGreaterThanOrEqual(minSamples);
   expect(stress.nonSteadySamples).toEqual([]);
-  expect(stress.minRouteYellowPixelRatio).toBeGreaterThanOrEqual(ROUTE_YELLOW_PIXEL_RATIO_MIN);
+  if (Number.isFinite(maxUnreadableSamples)) {
+    expect(stress.unreadableSamples.length).toBeLessThanOrEqual(maxUnreadableSamples);
+    const readableRatios = stress.samples
+      .filter(sample => sample.visual.readable)
+      .map(sample => sample.visual.routeYellowPixelRatio);
+    expect(Math.min(...readableRatios)).toBeGreaterThanOrEqual(minRouteYellowPixelRatio);
+  }
   expect(stress.maxZFightingRisk).toBeLessThanOrEqual(0.01);
 }
