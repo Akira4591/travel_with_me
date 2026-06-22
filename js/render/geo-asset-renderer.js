@@ -15,12 +15,14 @@ const GEO_COLORS = {
 export function buildWaterGroup(proj, terrainModel, waterways) {
   const group = new THREE.Group();
   group.userData.revealTargets = [];
+  let renderableWaterways = 0;
   for (const waterway of waterways) {
     const polygon =
       waterway.polygon?.length >= 3
         ? waterway.polygon
         : createRibbonPolygon(waterway.centerline, waterway.widthMeters, proj);
     if (polygon.length < 3) continue;
+    renderableWaterways += 1;
     const points = polygon.map(lnglat => proj.toScene(lnglat));
     const shape = new THREE.Shape();
     shape.moveTo(points[0].x, -points[0].z);
@@ -47,6 +49,10 @@ export function buildWaterGroup(proj, terrainModel, waterways) {
     group.add(mesh);
   }
   group.userData.count = group.children.length;
+  group.userData.coverageRatio = ratio(
+    group.children.length,
+    renderableWaterways || waterways.length
+  );
   return group;
 }
 
@@ -60,9 +66,11 @@ export function buildBridgeGroup(proj, terrainModel, bridges) {
     opacity: 0.92
   });
   group.userData.revealMaterials = [{ material, restOpacity: material.opacity }];
+  let bridgesWithDeck = 0;
   for (const bridge of bridges) {
     const path = bridge.centerline.map(lnglat => proj.toScene(lnglat));
     if (path.length < 2) continue;
+    let hasDeck = false;
     const deckHeight = proj.metersToUnits(bridge.deckHeightMeters);
     for (let index = 0; index < path.length - 1; index += 1) {
       const start = path[index],
@@ -83,6 +91,7 @@ export function buildBridgeGroup(proj, terrainModel, bridges) {
       deck.receiveShadow = true;
       deck.userData.bridgePart = 'deck';
       group.add(deck);
+      hasDeck = true;
 
       for (const pierPoint of Array.isArray(bridge.piers) ? bridge.piers : []) {
         const pierScene = proj.toScene(pierPoint);
@@ -94,10 +103,12 @@ export function buildBridgeGroup(proj, terrainModel, bridges) {
         group.add(pier);
       }
     }
+    if (hasDeck) bridgesWithDeck += 1;
   }
   group.userData.count = bridges.length;
   group.userData.deckCount = countBridgeParts(group, 'deck');
   group.userData.pierCount = countBridgeParts(group, 'pier');
+  group.userData.continuityRatio = ratio(bridgesWithDeck, bridges.length);
   return group;
 }
 
@@ -146,4 +157,10 @@ function countBridgeParts(group, bridgePart) {
     if (node.isMesh && node.userData?.bridgePart === bridgePart) count += 1;
   });
   return count;
+}
+
+function ratio(numerator, denominator) {
+  const bottom = Number(denominator) || 0;
+  if (bottom <= 0) return 1;
+  return Number(Math.min(1, Math.max(0, (Number(numerator) || 0) / bottom)).toFixed(3));
 }

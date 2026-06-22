@@ -96,12 +96,19 @@ The structured QA payload must expose:
 - `qa.budgets.triangleCount`
 - `qa.budgets.frameTimeP95`
 - `qa.budgets.generationTimeMs`
+- `qa.budgets.vegetationAreaCount`
+- `qa.budgets.vegetationMaxInstancesPerArea`
+- `qa.budgets.vegetationDensityCap`
 - `qa.provenance.missingAttributionCount`
 - `qa.layers.water`
 - `qa.layers.roads`
 - `qa.layers.bridges`
 - `qa.layers.route`
 - `qa.layers.buildings`
+- `qa.lod.buildingEntryCount`
+- `qa.lod.buildingDetailRatio`
+- `qa.lod.buildingDetailAlphaAverage`
+- `qa.lod.buildingDistanceP50`
 
 The DOM clipped contract must expose equivalent `data-qa-*` values on `#map-3d` for browser containers that cannot reliably read `window.__threeDebug__`.
 
@@ -126,3 +133,21 @@ hiking-terrain overview ROI
 ```
 
 Full-screen golden images are useful for release review, but ROI screenshots plus structured metrics are the default regression gate.
+
+The first executable subset is available as:
+
+```powershell
+npm.cmd run test:e2e:visual
+```
+
+It runs capture-plus-metric gates by default. Golden screenshot assertions are opt-in through `VISUAL_BASELINE_ASSERT=1`.
+
+The first Beta expansion promotes `river-bridge` from layer existence to structural correctness by asserting water coverage, bridge continuity, carving depth, route visibility, route yellow ROI pixels, unsupported pier absence, and z-fighting risk.
+
+The next Beta/P3-adjacent expansion adds `micro-street` near/far LOD validation: zooming into inspect distance must increase building detail alpha, and zooming back to overview distance must reduce it. This gate protects the design rule that buildings dissolve from simple massing into more detailed outlines as the camera approaches, without claiming the full building renderer modularization is complete.
+
+The following Beta stability expansion adds 30-second `river-bridge`, `micro-street`, and `hiking-terrain` camera stress gates. They exercise repeated drag, WASD, and wheel input while sampling QA snapshots. The gates block if the route loses its industrial safety-yellow pixel signal, if `zFightingRisk` exceeds `0.01`, or if the scene leaves `steady` phase during the stress window. The `micro-street` variant also requires visible building-layer context so dense street scenes cannot hide or weaken the route signal without detection. The `hiking-terrain` variant requires attributable landcover context so terrain and vegetation templates cannot hide the route signal without detection.
+
+The vegetation budget gate records per-landcover-area template counts and fails if generated instances exceed the declared density cap. This is an immediate guardrail for route readability; future chunking and frustum culling remain separate performance work.
+
+The inspect-view gate validates the close-camera state directly: `micro-street` must enter `camera.mode === "inspect"`, keep terrain-relative camera clearance inside profile bounds, keep route and building context visible together, and retain the industrial safety-yellow route signal. This closes the first deterministic inspect-state visual review without requiring committed golden screenshots.

@@ -143,6 +143,28 @@ describe('camera controller', () => {
     controller.dispose();
   });
 
+  it('switches between overview and inspect based on close camera distance', () => {
+    const controls = mockControls();
+    const camera = mockCamera({ x: 0, y: 20, z: 90 });
+    controls.target.set(0, 10, 0);
+    const controller = createCameraController({
+      camera,
+      controls,
+      eventTarget: mockEventTarget(),
+      phase: 'steady',
+      terrainMode: 'micro-street',
+      terrainModel: flatTerrain(0)
+    });
+
+    controller.update(0.016);
+    expect(controller.getDebugSnapshot().mode).toBe('inspect');
+
+    camera.position.set(0, 40, 220);
+    controller.update(0.016);
+    expect(controller.getDebugSnapshot().mode).toBe('overview');
+    controller.dispose();
+  });
+
   it('does not apply movement or y clamp before steady phase', () => {
     const eventTarget = mockEventTarget();
     const controls = mockControls();

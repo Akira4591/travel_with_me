@@ -24,7 +24,8 @@ Latest verified baseline from 2026-06-22. Detailed gate accounting is maintained
 | -------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | `npm.cmd run check`                                                  | Passed                                                                          |
 | `npm.cmd test`                                                       | Passed: 27 files, 131 tests                                                     |
-| `npm.cmd run check:encoding`                                         | Passed: 273 visible source/doc/test files scanned                               |
+| `npm.cmd run check:encoding`                                         | Passed: 279 visible source/doc/test files scanned                               |
+| `npm.cmd run test:e2e:visual`                                        | Passed: 9 local ROI fixture captures/interactions with QA JSON and screenshots  |
 | `npm.cmd run check:architecture`                                     | Passed: 34 render files scanned                                                 |
 | `npm.cmd run check:provenance`                                       | Passed: 18 scene fixture files scanned                                          |
 | `npx.cmd playwright test tests/e2e/smoke.spec.js --project=chromium` | Passed: 12 desktop tests, 1 mobile-only test skipped in Chromium                |
@@ -35,10 +36,10 @@ Quality gate count from `docs/quality-gate-status.md`:
 
 | Status       | Count |
 | ------------ | ----: |
-| Complete     |    32 |
-| Partial      |     6 |
+| Complete     |    38 |
+| Partial      |     3 |
 | Not complete |     4 |
-| Total        |    42 |
+| Total        |    45 |
 
 Known remaining gaps:
 
@@ -63,30 +64,39 @@ Goal: make 3D visual quality regression-testable before adding more visual compl
 
 Tasks:
 
-1. Build ROI visual baseline harness for `river-bridge`, `micro-street`, and `hiking-terrain`.
+1. Build ROI visual baseline harness for `river-bridge`, `micro-street`, and `hiking-terrain`. **Implemented.**
    - Modules: tests, QA docs, Playwright helpers.
-   - Acceptance: Chromium-only ROI visual subset can run locally without live provider calls.
+   - Acceptance: `npm.cmd run test:e2e:visual` passes in Chromium without live provider calls.
    - Rollback: keep capture-only screenshots and disable blocking assertions until stable.
 
-2. Formalize `window.__threeDebug__.qa` v1.
+2. Formalize `window.__threeDebug__.qa` v1. **Implemented.**
    - Modules: renderer QA/debug contract, docs.
    - Acceptance: each visual capture can export QA JSON with geometry, budget, provenance, and layer fields.
    - Rollback: keep new fields additive and non-blocking.
 
-3. Add `river-bridge` structured P2 geometry gates.
+3. Add `river-bridge` structured P2 geometry gates. **Expanded in the Beta first pass.**
    - Modules: scene quality gates, terrain/water/bridge metrics, tests.
-   - Acceptance: emit `waterCoverageRatio`, `bridgeContinuity`, `routeGroundClearanceP95`, `zFightingRisk`, and `bridgePierCount`.
+   - Acceptance: emit and assert `waterCoverageRatio`, `bridgeContinuity`, `terrainCarvingDepthP50`, `routeVisiblePixelRatio`, `zFightingRisk`, and `bridgePierCount`.
    - Rollback: downgrade unstable thresholds to warnings while preserving telemetry.
 
-4. Attach failure evidence to Playwright reports.
+4. Attach failure evidence to Playwright reports. **Implemented for visual ROI captures.**
    - Modules: E2E/visual test helpers.
-   - Acceptance: failed visual runs attach actual screenshot, diff, fixture JSON, camera preset JSON, QA JSON, and trace.
+   - Acceptance: visual runs attach actual screenshot, fixture JSON, camera preset JSON, and QA JSON; Playwright trace is available through the configured retry/report workflow.
    - Rollback: attach only on failure to control artifact size.
 
-5. Keep live-provider tests out of default visual CI.
+5. Keep live-provider tests out of default visual CI. **Implemented.**
    - Modules: test config and docs.
    - Acceptance: local and CI visual gates are deterministic and use only fixture data.
    - Rollback: keep live-provider smoke as explicit opt-in only.
+
+Current limitation: `hiking-terrain` currently records terrain variance but does not block on nonzero relief, because scene precision profile work belongs to the later Delta/profile batch.
+
+Next Beta work:
+
+- Calibrate water coverage and bridge continuity against additional river/bridge fixture shapes.
+- Calibrate the new `routeYellowPixelRatio` ROI metric beyond the initial `>= 0.00008` gate.
+- Extend the new `qa.lod` building near/far gate from `micro-street` to old-street and landmark-pilot fixtures after those fixtures exist.
+- Extend vegetation budget work from per-area density caps to chunking/frustum-culling performance telemetry.
 
 ## P0: 3D Correctness Floor
 
@@ -173,7 +183,7 @@ QA:
 - bridge data present -> bridge deck mesh present
 - no support data -> bridge pier count remains 0
 - no terrain-colored gap where attributable water exists
-- no obvious z-fighting during 30s camera interaction
+- no obvious z-fighting during 30s camera interaction; current `river-bridge` visual stress gate covers route readability and `zFightingRisk <= 0.01`
 - accepted 4s generation sequence remains stable: 1s foundation, 1s terrain/water/roads, 1s building massing, 1s dissolve
 
 ## P3: Building Massing and Dissolve
@@ -194,7 +204,7 @@ Tasks:
 QA:
 
 - building base terrain error P95 <= 0.25m in seeded scenes
-- LOD transition has no visible pop or flicker
+- LOD transition has no visible pop or flicker; current `micro-street` gate already proves near/far detail alpha response, but not full no-pop video review
 - fallback buildings are deterministic across reloads
 - route guidance remains readable above building context
 

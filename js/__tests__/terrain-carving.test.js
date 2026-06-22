@@ -16,6 +16,7 @@ describe('terrain carving', () => {
     ]);
 
     expect(terrain.carving.waterwayCount).toBe(1);
+    expect(terrain.carving.depthP50Meters).toBeGreaterThanOrEqual(0.45);
     expect(terrain.heightAt(5, 0)).toBeLessThan(10);
     expect(terrain.heightAt(5, 100)).toBe(10);
   });
@@ -57,7 +58,8 @@ describe('terrain carving', () => {
 function mockProjection() {
   return {
     toScene: ([lng, lat]) => ({ x: (lng - 116) * 1000, z: (lat - 39) * 1000 }),
-    metersToUnits: value => value
+    metersToUnits: value => value,
+    unitsToMeters: value => value
   };
 }
 

@@ -21,6 +21,9 @@ export function createSceneBuildContext({
 
   return {
     tripId: trip?.id || '',
+    fixtureId: trip?.visualFixture?.id || '',
+    fixtureSeed: trip?.visualFixture?.seed || trip?.visualFixture?.routeHash || '',
+    profile: trip?.visualFixture?.profile || '',
     activeDayId: activeDayId || 'all',
     locationCount: locations.length,
     terrainMode: terrainMode?.id || '',

@@ -45,7 +45,10 @@ window.__threeDebug__ = {
       triangleCount: 0,
       frameTimeP95: 0,
       generationTimeMs: 0,
-      textureMemoryEstimateMB: 0
+      textureMemoryEstimateMB: 0,
+      vegetationAreaCount: 0,
+      vegetationMaxInstancesPerArea: 0,
+      vegetationDensityCap: 0
     },
     provenance: {
       totalRealAssets: 0,
@@ -61,6 +64,12 @@ window.__threeDebug__ = {
       route: { visible: true, count: 0, degraded: false },
       buildings: { visible: true, count: 0, degraded: false },
       vegetation: { visible: false, count: 0, degraded: false }
+    },
+    lod: {
+      buildingEntryCount: 0,
+      buildingDetailRatio: 0,
+      buildingDetailAlphaAverage: 0,
+      buildingDistanceP50: 0
     }
   }
 };
@@ -70,14 +79,17 @@ window.__threeDebug__ = {
 
 These values are starting points and must be calibrated against local fixture evidence before they become hard release gates.
 
-| Metric                        | Initial target                                           | Gate phase   |
-| ----------------------------- | -------------------------------------------------------- | ------------ |
-| `waterCoverageRatio`          | `>= 0.97` for `river-bridge`                             | Sprint Beta  |
-| `bridgeContinuity`            | `>= 0.98` for `river-bridge`                             | Sprint Beta  |
-| `bridgePierCount`             | `0` when no pier/support provenance exists               | Sprint Beta  |
-| `routeGroundClearanceP95`     | visible above terrain/roads without floating unnaturally | Sprint Beta  |
-| `buildingBaseTerrainErrorP95` | `<= 0.25m`                                               | Sprint Gamma |
-| `routeVisiblePixelRatio`      | calibrated after first inspect ROI captures              | Sprint Gamma |
+| Metric                          | Initial target                                           | Gate phase   |
+| ------------------------------- | -------------------------------------------------------- | ------------ |
+| `waterCoverageRatio`            | `>= 0.97` for `river-bridge`                             | Sprint Beta  |
+| `bridgeContinuity`              | `>= fixture bridge.minSpanCoverageRatio`                 | Sprint Beta  |
+| `bridgePierCount`               | `0` when no pier/support provenance exists               | Sprint Beta  |
+| `terrainCarvingDepthP50`        | `>= fixture water.minChannelDepthMeters`                 | Sprint Beta  |
+| `routeVisiblePixelRatio`        | `>= 0.90` for the first `river-bridge` ROI gate          | Sprint Beta  |
+| `routeGroundClearanceP95`       | visible above terrain/roads without floating unnaturally | Sprint Beta  |
+| `buildingBaseTerrainErrorP95`   | `<= 0.25m`                                               | Sprint Gamma |
+| `buildingDetailAlphaAverage`    | increases when zooming into `micro-street` inspect view  | Sprint Gamma |
+| `vegetationMaxInstancesPerArea` | `<= vegetationDensityCap` for licensed landcover         | Sprint Beta  |
 
 ## Rules
 
@@ -86,3 +98,13 @@ These values are starting points and must be calibrated against local fixture ev
 - Real-world asset provenance failures block real-world rendering, not synthetic planning context.
 - Synthetic fallback buildings must remain marked as synthetic and must not be labelled as true exterior reconstructions.
 - `qa.version` must be present on every visual baseline capture.
+
+## Implemented Fields
+
+The Alpha implementation currently emits the v1 geometry, budget, provenance, and layer fields through `window.__threeDebug__.qa` and mirrors the most important clipped values onto `#map-3d.dataset.qa*`.
+
+Current deliberately non-blocking field:
+
+- `terrainHeightVariance` for `hiking-terrain`; this remains telemetry until scene precision profiles are implemented.
+- `routeYellowPixelRatio`; it is currently a Playwright ROI metric with an initial `>= 0.00008` threshold and should be recalibrated after more route-focus fixtures exist.
+- `qa.lod.*`; current gates prove near/far building detail response, while module split and video-style no-pop review remain future P3 work.

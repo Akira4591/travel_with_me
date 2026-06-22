@@ -1,7 +1,7 @@
 export function applyTerrainCarving(terrainModel, proj, waterways = []) {
   const masks = buildWaterCarveMasks(proj, waterways);
   if (!masks.length) {
-    terrainModel.carving = { waterwayCount: 0, maxDepth: 0 };
+    terrainModel.carving = { waterwayCount: 0, maxDepth: 0, depthP50Meters: 0 };
     return terrainModel;
   }
 
@@ -22,7 +22,11 @@ export function applyTerrainCarving(terrainModel, proj, waterways = []) {
   terrainModel.foundationAt = (x, z) => baseFoundationAt(x, z);
   terrainModel.carving = {
     waterwayCount: masks.length,
-    maxDepth: Math.max(...masks.map(mask => mask.depth))
+    maxDepth: Math.max(...masks.map(mask => mask.depth)),
+    depthP50Meters: percentile(
+      masks.map(mask => unitsToMeters(proj, mask.depth)),
+      0.5
+    )
   };
   return terrainModel;
 }
@@ -106,4 +110,15 @@ function smoothstep(edge0, edge1, value) {
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, Number(value) || 0));
+}
+
+function percentile(values, ratio) {
+  const sorted = values.filter(Number.isFinite).sort((a, b) => a - b);
+  if (!sorted.length) return 0;
+  const index = Math.min(sorted.length - 1, Math.ceil(sorted.length * ratio) - 1);
+  return Number(sorted[index].toFixed(3));
+}
+
+function unitsToMeters(proj, value) {
+  return typeof proj?.unitsToMeters === 'function' ? proj.unitsToMeters(value) : value;
 }

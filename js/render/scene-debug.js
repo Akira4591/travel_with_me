@@ -67,7 +67,25 @@ export function createDioramaDebugSnapshot(diorama, sceneContext) {
       ),
       buildingBaseTerrainErrorMaxMeters: Number(
         diorama.buildingGroup?.userData?.baseTerrainErrorMaxMeters || 0
-      )
+      ),
+      terrainCarvingDepthP50Meters: Number(diorama.terrainModel?.carving?.depthP50Meters || 0),
+      waterCoverageRatio: Number(diorama.waterGroup?.userData?.coverageRatio || 0),
+      bridgeContinuity: Number(diorama.bridgeGroup?.userData?.continuityRatio || 0),
+      zFightingRisk: 0,
+      routeVisiblePixelRatio: 1
+    },
+    vegetationMetrics: {
+      areaCount: Number(diorama.vegetationGroup?.userData?.areaCount || 0),
+      maxInstancesPerArea: Number(diorama.vegetationGroup?.userData?.maxInstancesPerArea || 0),
+      densityCap: Number(diorama.vegetationGroup?.userData?.densityCap || 0)
+    },
+    lodMetrics: {
+      detailRatio: Number(diorama.buildingGroup?.userData?.lodMetrics?.detailRatio || 0),
+      detailAlphaAverage: Number(
+        diorama.buildingGroup?.userData?.lodMetrics?.detailAlphaAverage || 0
+      ),
+      distanceP50: Number(diorama.buildingGroup?.userData?.lodMetrics?.distanceP50 || 0),
+      entryCount: Number(diorama.buildingGroup?.userData?.lodMetrics?.entryCount || 0)
     },
     geoAssetCounts: {
       buildings: layerCounts.buildings || 0,
@@ -103,6 +121,12 @@ export function createDioramaDebugSnapshot(diorama, sceneContext) {
     provenanceSources: manifestSources
   };
   const gateResult = evaluateSceneQuality(debug);
+  debug.fixture = {
+    id: sceneContext?.fixtureId || '',
+    profile: sceneContext?.profile || sceneContext?.terrainMode || '',
+    seed: sceneContext?.fixtureSeed || '',
+    routeHash: debug.routeHashes?.[0] || ''
+  };
   debug.quality = {
     ...debug.quality,
     passed: gateResult.passed,
@@ -157,6 +181,16 @@ function syncDebugDataset(container, debug) {
   dataset.qaBuildingBaseErrorP95 = String(debug.qa?.geometry?.buildingBaseTerrainErrorP95 || 0);
   dataset.qaWaterCoverageRatio = String(debug.qa?.geometry?.waterCoverageRatio || 0);
   dataset.qaBridgeContinuity = String(debug.qa?.geometry?.bridgeContinuity || 0);
+  dataset.qaVersion = String(debug.qa?.version || 0);
+  dataset.qaZFightingRisk = String(debug.qa?.geometry?.zFightingRisk || 0);
+  dataset.qaRouteVisiblePixelRatio = String(debug.qa?.geometry?.routeVisiblePixelRatio || 0);
+  dataset.qaBridgePierCount = String(debug.qa?.geometry?.bridgePierCount || 0);
+  dataset.qaBuildingDetailRatio = String(debug.qa?.lod?.buildingDetailRatio || 0);
+  dataset.qaBuildingDetailAlphaAverage = String(debug.qa?.lod?.buildingDetailAlphaAverage || 0);
+  dataset.qaVegetationMaxInstancesPerArea = String(
+    debug.qa?.budgets?.vegetationMaxInstancesPerArea || 0
+  );
+  dataset.qaVegetationDensityCap = String(debug.qa?.budgets?.vegetationDensityCap || 0);
   dataset.qaWarningCount = String(debug.quality?.warnings?.length || 0);
   dataset.qaErrorCount = String(debug.quality?.errors?.length || 0);
 }

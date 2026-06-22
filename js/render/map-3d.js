@@ -199,6 +199,9 @@ export async function initDiorama({ container }) {
       updateThreeDebug(instance);
     }
     updateBuildingLod(instance);
+    if (instance && didBuildingLodSignatureChange(instance)) {
+      updateThreeDebug(instance);
+    }
     renderer.render(scene, camera);
   }
   animate();
@@ -794,12 +797,16 @@ function updateBuildingLod(diorama) {
   const buildingReveal = clamp(diorama.buildingRevealProgress ?? 1, 0, 1);
   const buildingDissolve = clamp(diorama.buildingDissolveProgress ?? 1, 0, 1);
   let detailCount = 0;
+  let detailAlphaTotal = 0;
+  const distances = [];
   for (const entry of diorama.buildingLodEntries) {
     const distance = diorama.camera.position.distanceTo(entry.center);
+    distances.push(distance);
     const target = getBuildingDetailAlpha(distance) * buildingDissolve;
     entry.detailAlpha += (target - entry.detailAlpha) * 0.14;
     const detailAlpha = clamp(entry.detailAlpha, 0, 1);
     const lowAlpha = 1 - detailAlpha * 0.72;
+    detailAlphaTotal += detailAlpha;
 
     entry.lowMaterial.opacity = lowAlpha * buildingReveal;
     entry.lowMaterial.depthWrite = lowAlpha * buildingReveal > 0.98;
@@ -813,7 +820,34 @@ function updateBuildingLod(diorama) {
     });
   }
   diorama.buildingDetailCount = detailCount;
+  const total = diorama.buildingLodEntries.length;
+  diorama.buildingGroup.userData.lodMetrics = {
+    detailRatio: roundMetric(total > 0 ? detailCount / total : 0),
+    detailAlphaAverage: roundMetric(total > 0 ? detailAlphaTotal / total : 0),
+    distanceP50: roundMetric(percentile(distances, 0.5)),
+    entryCount: total
+  };
   diorama.container.dataset.buildingDetailCount = String(detailCount);
+  diorama.container.dataset.buildingDetailRatio = String(
+    diorama.buildingGroup.userData.lodMetrics.detailRatio
+  );
+}
+
+function didBuildingLodSignatureChange(diorama) {
+  const metrics = diorama?.buildingGroup?.userData?.lodMetrics;
+  if (!metrics) return false;
+  const signature = [
+    diorama.buildingDetailCount,
+    metrics.detailRatio,
+    metrics.detailAlphaAverage,
+    metrics.distanceP50
+  ].join(':');
+  if (signature === diorama._lastPublishedBuildingLodSignature) return false;
+  const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  if (now - (diorama._lastPublishedBuildingLodAt || 0) < 120) return false;
+  diorama._lastPublishedBuildingLodSignature = signature;
+  diorama._lastPublishedBuildingLodAt = now;
+  return true;
 }
 
 export function getBuildingDetailAlpha(distance) {
@@ -892,9 +926,18 @@ function buildVegetationGroup(proj, terrainModel, vegetationAreas) {
       })
   );
   let count = 0;
+  const areaBudgets = [];
   for (const area of areas) {
     if (!area || area.licensed !== true || !Array.isArray(area.polygon)) continue;
-    for (const point of createVegetationPoints(area, proj)) {
+    const points = createVegetationPoints(area, proj);
+    const densityCap = vegetationDensityForCover(area.cover);
+    areaBudgets.push({
+      id: area.id || '',
+      cover: area.cover || '',
+      densityCap,
+      instances: points.length
+    });
+    for (const point of points) {
       const template =
         templates[
           Math.abs(Math.floor(seededUnit(`${area.id}:${point.x}:${point.z}`) * templates.length)) %
@@ -916,6 +959,10 @@ function buildVegetationGroup(proj, terrainModel, vegetationAreas) {
     }
   }
   group.userData.templateCount = count;
+  group.userData.areaBudgets = areaBudgets;
+  group.userData.maxInstancesPerArea = Math.max(0, ...areaBudgets.map(area => area.instances));
+  group.userData.densityCap = Math.max(0, ...areaBudgets.map(area => area.densityCap));
+  group.userData.areaCount = areaBudgets.length;
   group.userData.requiresLicensedLandcover = true;
   return group;
 }
@@ -929,7 +976,7 @@ function createVegetationPoints(area, proj) {
     maxX = Math.max(...xs),
     minZ = Math.min(...zs),
     maxZ = Math.max(...zs);
-  const density = area.cover === 'forest' ? 12 : area.cover === 'scrub' ? 8 : 5;
+  const density = vegetationDensityForCover(area.cover);
   const points = [];
   for (let index = 0; index < density; index += 1) {
     const point = {
@@ -939,6 +986,10 @@ function createVegetationPoints(area, proj) {
     if (pointInPolygon(point, polygon)) points.push(point);
   }
   return points;
+}
+
+function vegetationDensityForCover(cover) {
+  return cover === 'forest' ? 12 : cover === 'scrub' ? 8 : 5;
 }
 
 function pointInPolygon(point, polygon) {

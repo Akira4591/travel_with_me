@@ -21,6 +21,7 @@ describe('geo asset renderer', () => {
     ]);
 
     expect(group.userData.count).toBe(1);
+    expect(group.userData.coverageRatio).toBe(1);
     expect(group.userData.revealTargets).toHaveLength(1);
     expect(group.children[0].userData.surfaceReveal.restY).toBeGreaterThan(0);
   });
@@ -37,6 +38,7 @@ describe('geo asset renderer', () => {
     ]);
 
     expect(group.userData.count).toBe(0);
+    expect(group.userData.coverageRatio).toBe(0);
     expect(group.children).toHaveLength(0);
   });
 
@@ -56,6 +58,7 @@ describe('geo asset renderer', () => {
     expect(group.userData.count).toBe(1);
     expect(group.userData.deckCount).toBe(1);
     expect(group.userData.pierCount).toBe(0);
+    expect(group.userData.continuityRatio).toBe(1);
     expect(group.children).toHaveLength(1);
     expect(group.userData.revealMaterials[0].restOpacity).toBeCloseTo(0.92);
   });

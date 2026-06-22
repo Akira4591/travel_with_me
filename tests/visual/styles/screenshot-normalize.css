@@ -1,0 +1,17 @@
+* {
+  caret-color: transparent !important;
+}
+
+.terrain-insight-panel,
+.status-panel,
+.toast,
+.loading,
+.map-provider-badge {
+  animation: none !important;
+  transition: none !important;
+}
+
+#map-3d,
+#map-3d canvas {
+  font-synthesis: none !important;
+}
