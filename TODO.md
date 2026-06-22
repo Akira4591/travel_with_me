@@ -30,7 +30,7 @@ Latest verified baseline from 2026-06-23. Detailed gate accounting is maintained
 | `npm.cmd run check:architecture`  | Passed: 37 render files scanned                                                                                                      |
 | `npm.cmd run check:provenance`    | Passed: 42 scene fixture files scanned                                                                                               |
 | `npm.cmd run check:landmarks`     | Passed: 1 landmark record scanned                                                                                                    |
-| Targeted desktop 3D smoke         | Passed: 12 desktop tests, 1 mobile-only test skipped                                                                                 |
+| Targeted desktop 3D smoke         | Passed: 15 Chromium desktop tests, 13 mobile/desktop-scope skips                                                                     |
 | Tracked-source secret scan        | Passed: no known real AMap/DeepSeek key patterns found                                                                               |
 | In-app browser 2D/3D visual check | Passed: 2D marker selection enters bounded 3D; QA passed; route gray outline is 0; initial/loading/idle view uses one overview orbit |
 | Manual 3D visual review           | Pending after VQ0 implementation; previous screenshot scored 1/10 before bounded work-area and route-layer repair                    |
@@ -57,6 +57,8 @@ VQ0 local visual reset implemented in code:
 - Vegetation frustum telemetry now uses landcover chunk bounds so licensed vegetation areas remain measurable during camera stress.
 - Empty 2D selections that fall outside available trip/route data now snap to the nearest POI/location
   anchor before 3D generation, preventing a technically valid but visually blank work area.
+- The off-route anchoring path is now covered by desktop E2E smoke so blank-slab regressions fail
+  before manual visual review.
 - Micro-street and citywalk overview camera presets are closer/lower so the initial and idle-orbit view
   remains continuous while giving route, roads, and nearby context more first-screen presence.
 - The visible-text encoding gate now catches broader GBK/UTF-8 mojibake fragments; core utility and 3D

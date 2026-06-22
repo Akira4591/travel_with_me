@@ -827,6 +827,48 @@ test('desktop can enter and exit nonblank 3D map view', async ({ page, isMobile 
   await expect(page.locator('#map-3d')).toBeHidden({ timeout: 15_000 });
 });
 
+test('desktop 3D anchors empty off-route selections to location context', async ({
+  page,
+  isMobile
+}) => {
+  test.setTimeout(60_000);
+  await openSeededDesktop(page, isMobile);
+
+  await enter3DFrom2DSelection(page, [116.6, 39.9]);
+
+  await expect(page.locator('#map-3d canvas')).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('#map-3d')).toHaveAttribute(
+    'data-work-area-source',
+    'selected-2d-point'
+  );
+  await expect(page.locator('#map-3d')).toHaveAttribute('data-work-area-anchor-adjusted', 'true');
+  await expect(page.locator('#map-3d')).toHaveAttribute('data-work-area-anchor-type', 'location');
+  await expect(page.locator('#map-3d')).toHaveAttribute(
+    'data-work-area-anchor-distance-meters',
+    /^[1-9]\d*$/
+  );
+  await expect
+    .poll(async () =>
+      page.evaluate(() => ({
+        phase: window.__threeDebug__?.phase,
+        passed: window.__threeDebug__?.quality?.passed,
+        anchorAdjusted: window.__threeDebug__?.workArea?.anchorAdjusted,
+        anchorType: window.__threeDebug__?.workArea?.anchorType,
+        routeSegments: window.__threeDebug__?.counts?.routeSegments || 0,
+        buildingMassings: window.__threeDebug__?.counts?.buildingMassings || 0
+      }))
+    )
+    .toMatchObject({
+      phase: 'steady',
+      passed: true,
+      anchorAdjusted: true,
+      anchorType: 'location'
+    });
+
+  const debug = await page.evaluate(() => window.__threeDebug__ || {});
+  expect(debug.counts?.buildingMassings || 0).toBeGreaterThan(0);
+});
+
 test('desktop 3D renders attributable water, roads, and deck-first bridges', async ({
   page,
   isMobile
