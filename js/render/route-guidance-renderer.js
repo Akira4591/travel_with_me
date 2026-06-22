@@ -10,11 +10,6 @@ import {
   registerGroundRevealMesh
 } from './terrain-surface.js';
 
-const ROUTE_COLORS = {
-  bed: ROUTE_GUIDANCE.roadBed,
-  outline: '#625C51'
-};
-
 export function buildRouteGroup(
   proj,
   trip,
@@ -30,6 +25,7 @@ export function buildRouteGroup(
   group.userData.routeDiagnostics = [];
   group.userData.routeLengthMeters = 0;
   group.userData.routeClearancesMeters = [];
+  group.userData.grayOutlineMeshCount = 0;
   let realGeometryCount = 0;
 
   const day = activeDayId === 'all' ? null : trip.days.find(d => d.id === activeDayId);
@@ -157,40 +153,36 @@ function createRouteGuidance(points, halfWidth, { isActive = false, isEstimated 
   if (isEstimated) {
     return createEstimatedRouteDashes(points, Math.max(halfWidth * 0.23, 0.22), lineColor);
   }
-  const bedWidth = Math.max(halfWidth * 1.55, halfWidth + 0.9);
-  const outlineWidth = Math.max(halfWidth * 0.68, 0.52);
-  const stripeWidth = Math.max(halfWidth * 0.42, 0.6);
+  const stripeWidth = Math.max(halfWidth * 0.82, 1.08);
   const meshes = [
-    createRouteRibbon(points, bedWidth, {
-      color: ROUTE_COLORS.bed,
-      opacity: isActive ? 1 : 0.98,
-      roughness: 0.84,
-      verticalOffset: 0.06,
-      guidanceRole: 'bed'
-    }),
-    createRouteRibbon(points, outlineWidth, {
-      color: ROUTE_COLORS.outline,
-      opacity: 0.94,
-      roughness: 0.72,
-      verticalOffset: 0.04,
-      guidanceRole: 'edge'
-    }),
     createRouteRibbon(points, stripeWidth, {
       color: lineColor,
       opacity: 1,
       roughness: 0.62,
-      verticalOffset: 0.075,
+      verticalOffset: 0.035,
       guidanceRole: 'line',
       emissive: lineColor,
-      emissiveIntensity: 0.18
+      emissiveIntensity: 0.18,
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -8,
+      side: THREE.DoubleSide,
+      renderOrder: 30
     })
   ];
-  const halo = createRouteRibbon(points, bedWidth * 1.18, {
+  const halo = createRouteRibbon(points, stripeWidth * 2.15, {
     color: lineColor,
-    opacity: ROUTE_GUIDANCE.halo.strokeOpacity,
+    opacity: Math.min(0.22, ROUTE_GUIDANCE.halo.strokeOpacity),
     roughness: 0.9,
-    verticalOffset: 0.005,
-    guidanceRole: 'halo'
+    verticalOffset: 0.03,
+    guidanceRole: 'halo',
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -4,
+    side: THREE.DoubleSide,
+    renderOrder: 29
   });
   halo.visible = isActive;
   meshes.unshift(halo);
@@ -206,10 +198,16 @@ function createEstimatedRouteDashes(points, halfWidth, color) {
         color,
         opacity: 0.86,
         roughness: 0.7,
-        verticalOffset: 0.075,
+        verticalOffset: 0.035,
         guidanceRole: 'line',
         emissive: color,
-        emissiveIntensity: 0.14
+        emissiveIntensity: 0.14,
+        depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: -2,
+        polygonOffsetUnits: -8,
+        side: THREE.DoubleSide,
+        renderOrder: 30
       })
     );
   }

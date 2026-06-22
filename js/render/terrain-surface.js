@@ -98,9 +98,15 @@ export function createRouteRibbon(points, halfWidth, style = {}) {
       metalness: style.metalness ?? 0,
       emissive: new THREE.Color(style.emissive || '#000000'),
       emissiveIntensity: style.emissiveIntensity ?? 0,
-      side: THREE.DoubleSide
+      side: style.side ?? THREE.DoubleSide,
+      depthWrite: style.depthWrite ?? true,
+      depthTest: style.depthTest ?? true,
+      polygonOffset: Boolean(style.polygonOffset),
+      polygonOffsetFactor: style.polygonOffsetFactor ?? 0,
+      polygonOffsetUnits: style.polygonOffsetUnits ?? 0
     })
   );
+  mesh.renderOrder = style.renderOrder ?? 0;
   mesh.userData.guidanceRole = style.guidanceRole || null;
   mesh.userData.restOpacity = style.opacity ?? 0.38;
   return mesh;

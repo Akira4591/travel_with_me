@@ -22,8 +22,11 @@ VQ0 and Delta are stable.
 ## VQ0 Local Visual Reset
 
 The manual screenshot review from 2026-06-22 overrides the previous "all green" automated status:
-the current rendered 3D view can still look like an unbounded white board with gray route artifacts.
+the rendered 3D view could still look like an unbounded white board with gray route artifacts.
 VQ0 is therefore a blocking visual-quality reset.
+
+Implementation status on 2026-06-23: VQ0 is implemented at code level and the targeted visual
+subset passes. Final promotion still requires manual review of the new bounded output.
 
 Required VQ0 evidence:
 
@@ -38,11 +41,11 @@ Required VQ0 evidence:
 - The 3D route does not render a gray outline or thick gray bed as route guidance.
 - The yellow route remains stable during drag, WASD, and wheel interaction.
 
-Current VQ0 blocking metrics to add:
+Current VQ0 blocking metrics:
 
 | Metric                           | Initial target                                                                  |
 | -------------------------------- | ------------------------------------------------------------------------------- |
-| `routeGrayOutlinePixelRatio`     | `<= 0.00002` after calibration; start as warning if fixture variance is high.   |
+| `routeGrayOutlinePixelRatio`     | `0` for route guidance mesh roles; gray road context is allowed as road layer.  |
 | `routeYellowPixelRatio`          | Remains above the fixture-specific readable threshold.                          |
 | `routePixelVarianceDuringStress` | Does not spike during camera stress sampling.                                   |
 | `workArea.spanMeters`            | `<= 2000`.                                                                      |
@@ -157,7 +160,7 @@ Current blocking `river-bridge` metrics:
 - `terrainCarvingDepthP50 >= expectations.water.minChannelDepthMeters`;
 - `routeVisiblePixelRatio >= 0.90`;
 - `routeYellowPixelRatio >= 0.00008`;
-- `routeGrayOutlinePixelRatio` below the VQ0 calibrated threshold once implemented;
+- `routeGrayOutlinePixelRatio === 0` for route guidance mesh roles;
 - `waterBluePixelRatio >= 0.00008`;
 - `bridgePierCount === 0`;
 - `zFightingRisk <= 0.01`.

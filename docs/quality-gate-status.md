@@ -1,6 +1,6 @@
 # Quality Gate Status
 
-Last verified: 2026-06-22
+Last verified: 2026-06-23
 
 This document is the current status ledger for engineering, 2D map, 3D generation, data provenance, visual, and release quality gates. Source gates are consolidated from:
 
@@ -13,30 +13,31 @@ This document is the current status ledger for engineering, 2D map, 3D generatio
 
 ## Verification Evidence
 
-Commands run on 2026-06-22:
+Commands run on 2026-06-23:
 
-| Check                                                                | Result                                                                                                                     |
-| -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `npm.cmd run check`                                                  | Passed                                                                                                                     |
-| `npm.cmd test`                                                       | Passed: 28 files, 138 tests                                                                                                |
-| `npm.cmd run check:encoding`                                         | Passed: 300 visible source/doc/test files scanned                                                                          |
-| `npm.cmd run check:architecture`                                     | Passed: 35 render files scanned; renderer/provider boundary enforced                                                       |
-| `npm.cmd run check:provenance`                                       | Passed: 36 scene fixture files scanned                                                                                     |
-| `npm.cmd run check:landmarks`                                        | Passed: 1 landmark record scanned with allowlist, integrity, LOD, and budget validation                                    |
-| `npx.cmd playwright test tests/e2e/smoke.spec.js --project=chromium` | Passed: 12 desktop tests, 1 mobile-only test skipped in Chromium                                                           |
-| `npx.cmd playwright test tests/e2e/live-provider.spec.js`            | Passed by skip: live provider smoke is explicit opt-in only                                                                |
-| `npm.cmd run test:e2e:visual`                                        | Passed: 19 local ROI fixture captures/interactions with QA JSON and screenshots                                            |
-| targeted 3D/2D gate E2E                                              | Passed: nonblank 3D, geo assets, WASD camera, geometry P95, 2D fallback, 60s no-auto-exit                                  |
-| tracked-source secret scan for known AMap/DeepSeek patterns          | Passed: no matches in tracked source                                                                                       |
-| in-app browser 2D/3D visual check                                    | Passed: 2D AMap provider loaded, 3D enters, canvas visible, 3D DOM metrics populated                                       |
-| manual 3D screenshot review                                          | Failed: current 3D view is not product-quality; unbounded white-board scene, gray route artifacts, and route jitter remain |
+| Check                                                                | Result                                                                                                            |
+| -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `npm.cmd run check`                                                  | Passed                                                                                                            |
+| `npm.cmd test`                                                       | Passed: 29 files, 139 tests                                                                                       |
+| `npm.cmd run check:encoding`                                         | Passed: 301 visible source/doc/test files scanned                                                                 |
+| `npm.cmd run check:architecture`                                     | Passed: 35 render files scanned; renderer/provider boundary enforced                                              |
+| `npm.cmd run check:provenance`                                       | Passed: 36 scene fixture files scanned                                                                            |
+| `npm.cmd run check:landmarks`                                        | Passed: 1 landmark record scanned with allowlist, integrity, LOD, and budget validation                           |
+| `npx.cmd playwright test tests/e2e/smoke.spec.js --project=chromium` | Passed: 12 desktop tests, 1 mobile-only test skipped in Chromium                                                  |
+| `npx.cmd playwright test tests/e2e/live-provider.spec.js`            | Passed by skip: live provider smoke is explicit opt-in only                                                       |
+| VQ0 targeted visual subset                                           | Passed: river-bridge, micro-street, hiking-terrain ROI evidence plus short camera interaction                     |
+| targeted 3D/2D gate E2E                                              | Passed: nonblank 3D, geo assets, WASD camera, geometry P95, 2D fallback, 60s no-auto-exit                         |
+| tracked-source secret scan for known AMap/DeepSeek patterns          | Passed: no matches in tracked source                                                                              |
+| in-app browser 2D/3D visual check                                    | Partial: exposed an empty-workspace stale 3D state; VQ0 now throws/recover instead of silently entering stale 3D  |
+| manual 3D screenshot review                                          | Pending after VQ0 implementation; previous screenshot scored 1/10 before bounded work-area and route-layer repair |
 
 ## Manual Visual Override
 
 The automated gates above prove structural presence and deterministic fixture behavior. They do
 not yet prove that the current live 3D composition is acceptable. The 2026-06-22 manual screenshot
-review reopens the visual-quality gate and blocks P4 DEM tiles, P5 landmark restoration, and
-additional decorative detail work until VQ0 is complete.
+review reopened the visual-quality gate. VQ0 is now implemented at code level, but P4 DEM tiles,
+P5 landmark restoration, and additional decorative detail work remain blocked until the user
+accepts the new bounded 3D visual output.
 
 VQ0 target state:
 
@@ -50,12 +51,12 @@ VQ0 target state:
 
 ## Summary
 
-| Status       | Count | Meaning                                                                                               |
-| ------------ | ----: | ----------------------------------------------------------------------------------------------------- |
-| Complete     |    46 | Implemented and covered by automated evidence or current browser verification                         |
-| Partial      |     0 | Implemented or directionally present, but missing a dedicated gate, full scenario, or visual baseline |
-| Not complete |     1 | Contradicted by current manual visual evidence                                                        |
-| Total        |    47 | Current tracked quality gates                                                                         |
+| Status       | Count | Meaning                                                                                             |
+| ------------ | ----: | --------------------------------------------------------------------------------------------------- |
+| Complete     |    46 | Implemented and covered by automated evidence or current browser verification                       |
+| Partial      |     1 | Implemented or directionally present, but missing final manual acceptance or full repeated baseline |
+| Not complete |     0 | Contradicted by current manual visual evidence                                                      |
+| Total        |    47 | Current tracked quality gates                                                                       |
 
 ## Completed Gates
 
@@ -110,26 +111,22 @@ VQ0 target state:
 
 ## Partial Gates
 
-No partial gates remain in the current ledger. New gaps should enter this section only when an implementation exists but lacks full scenario evidence.
+|   # | Gate                                                                 | Evidence                                                                                                                                        | Required fix                                                                                  |
+| --: | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+|  47 | Live 3D composition reaches product-quality bounded diorama standard | VQ0 code path implemented and targeted visual subset passed; final manual screenshot review has not yet accepted the new bounded 3D composition | Run manual visual review on the new VQ0 output, then promote the gate to complete if accepted |
 
 ## Not Complete Gates
 
-|   # | Gate                                                                 | Evidence                                                                                                                                    | Required fix                                                                                                              |
-| --: | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-|  47 | Live 3D composition reaches product-quality bounded diorama standard | Manual screenshot review scored current view 1/10; gray route artifacts, route jitter, and unbounded white-board composition remain visible | Complete VQ0: route de-gray, 2D red-pin selection, bounded square work area, outside dimming, and bounded-scene visual QA |
+No not-complete gates remain in the current ledger. Gate 47 remains partial until manual review accepts the new bounded composition.
 
 Real landmark model rendering still remains a future P5 feature, but the release gate that prevents unsafe or unlicensed landmark assets from entering the renderer is now implemented.
 
 ## Immediate Fix Order
 
-1. Complete VQ0 local visual reset: **blocking**
-   - remove gray 3D route outline/bed;
-   - keep yellow guidance as the only primary route layer;
-   - add 2D red-pin work-area selection;
-   - build 3D from a fixed square selected work area;
-   - keep the first selected-plane lift uniform-height;
-   - dim/simplify outside context;
-   - add no-gray-route, route-stability, work-area-cap, selected-square, and outside-dimming QA.
+1. Complete VQ0 manual acceptance: **blocking**
+   - review the new bounded 3D output after route de-gray, red-pin selection, fixed square work area, outside dimming, and VQ0 QA fields;
+   - if accepted, promote gate 47 to complete;
+   - if rejected, use the screenshot as the next visual-defect source of truth.
 2. Add deterministic visual proof infrastructure before more visual fixes: **first Alpha subset implemented**
    - ROI screenshots for `river-bridge`, `micro-street`, and `hiking-terrain`;
    - fixed camera presets;

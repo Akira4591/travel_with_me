@@ -107,7 +107,7 @@ These values are starting points and must be calibrated against local fixture ev
 | Metric                           | Initial target                                           | Gate phase   |
 | -------------------------------- | -------------------------------------------------------- | ------------ |
 | `workArea.spanMeters`            | `<= 2000m`                                               | VQ0          |
-| `routeGrayOutlinePixelRatio`     | below calibrated threshold; target no visible gray route | VQ0          |
+| `routeGrayOutlinePixelRatio`     | `0` for route guidance mesh roles                        | VQ0          |
 | `routePixelVarianceDuringStress` | stable during drag/WASD/wheel camera stress              | VQ0          |
 | `workAreaRaisedPixelRatio`       | selected square is visibly raised                        | VQ0          |
 | `slabRiseTopHeightVariance`      | `<= 0.01m` before terrain refine                         | VQ0          |
@@ -130,7 +130,8 @@ These values are starting points and must be calibrated against local fixture ev
   user-entered 3D mode.
 - `slab-rise` exposes a uniform selected-plane lift. Any DEM relief or water/road deformation
   before `terrain-refine` is a phase-ordering bug.
-- Route guidance must not use gray outline/bed geometry as the primary route visual.
+- Route guidance must not use gray outline/bed geometry as the primary route visual. Muted gray road
+  context remains allowed as a separate road layer.
 - Metrics that are not calibrated should start as warnings, not blocking errors.
 - Real-world asset provenance failures block real-world rendering, not synthetic planning context.
 - Synthetic fallback buildings must remain marked as synthetic and must not be labelled as true exterior reconstructions.
@@ -144,5 +145,7 @@ Current deliberately non-blocking field:
 
 - `terrainHeightVariance` for `hiking-terrain`; this remains telemetry until scene precision profiles are implemented.
 - `routeYellowPixelRatio`; it is currently a Playwright ROI metric with an initial `>= 0.00008` threshold and should be recalibrated after more route-focus fixtures exist.
+- `routeGrayOutlinePixelRatio`, `workAreaRaisedPixelRatio`, and `outsideDimmedPixelRatio`; these
+  are emitted by VQ0 and mirrored to `#map-3d.dataset.qa*`.
 - `qa.lod.*`; current gates prove near/far building detail response, while module split and video-style no-pop review remain future P3 work.
 - `qa.provenance.landmarkAllowlisted`, `landmarkOptimized`, and `landmarkIntegrityCount`; these are now blocking release-gate evidence for landmark records, even though remote landmark model rendering remains disabled.

@@ -84,6 +84,9 @@ const BUILDING_MASSING_END = (EMERGE_PHASE_MS * 3) / EMERGE_DURATION;
 const EXIT_DURATION = 900;
 const CLICK_MOVE_TOLERANCE = 6;
 const FIRST_SLAB_ELEVATION_BUDGET_MS = 1200;
+const DEFAULT_WORK_AREA_SPAN_METERS = 800;
+const MIN_WORK_AREA_SPAN_METERS = 300;
+const WORK_AREA_HARD_CAP_METERS = 2000;
 
 let instance = null;
 
@@ -234,6 +237,8 @@ export async function initDiorama({ container }) {
     markerGroup: null,
     annotationGroup: null,
     routeGroup: null,
+    contextGround: null,
+    workArea: null,
     activeRouteSegmentId: null,
     sliceEdge: null,
     terrainModel: null,
@@ -278,7 +283,7 @@ function withTimeout(promise, ms, fallbackValue) {
  */
 export async function enter3DMode(
   diorama,
-  { trip, activeDayId, onAnnotationRequest = null, loadElevationGrid = null }
+  { trip, activeDayId, onAnnotationRequest = null, loadElevationGrid = null, workArea = null }
 ) {
   const enterStartedAt = performance.now();
   const { dioramaGroup, camera, controls, renderer, container, scene } = diorama;
@@ -291,14 +296,16 @@ export async function enter3DMode(
   const lnglats = locations.map(loc => loc.lnglat);
   if (!lnglats.length) {
     log.warn('No valid coordinates; cannot enter 3D mode');
-    return;
+    throw new Error('No valid coordinates; cannot enter 3D mode');
   }
 
   // 2. Compute projection and scene span.
-  const center = computeCenter(lnglats);
+  const selectedWorkArea = normalizeWorkArea(workArea, lnglats);
+  const center = selectedWorkArea.center;
   const proj = createGeoProjection({ center, scale: 0.5 }); // 1 scene unit ~= 2m
   diorama.proj = proj;
-  const span = computeSpan(lnglats);
+  diorama.workArea = selectedWorkArea;
+  const span = selectedWorkArea.spanMeters;
   const terrainMode = chooseTerrainMode({
     span,
     poiCount: locations.length,
@@ -348,9 +355,21 @@ export async function enter3DMode(
   container.dataset.terrainMode = terrainMode.id;
   container.dataset.terrainConfidence = terrainModel.terrainConfidence;
   container.dataset.elevationRange = String(Math.round(terrainModel.metrics.range || 0));
+  container.dataset.workAreaSource = selectedWorkArea.source;
+  container.dataset.workAreaSpanMeters = String(selectedWorkArea.spanMeters);
+  container.dataset.workAreaHardCapMeters = String(selectedWorkArea.hardCapMeters);
+  container.dataset.workAreaCenter = selectedWorkArea.center
+    .map(value => value.toFixed(6))
+    .join(',');
   container.dataset.provenanceSourceCount = String(sceneContext.provenanceManifest.sources.length);
   container.dataset.waterCarveCount = String(terrainModel.carving?.waterwayCount || 0);
   renderTerrainInsight(container, terrainMode, terrainModel, locations.length);
+
+  if (diorama.contextGround) {
+    dioramaGroup.remove(diorama.contextGround);
+  }
+  diorama.contextGround = buildContextGround(terrainModel);
+  dioramaGroup.add(diorama.contextGround);
 
   if (diorama.terrainMesh) {
     dioramaGroup.remove(diorama.terrainMesh);
@@ -512,6 +531,7 @@ export async function exit3DMode(diorama) {
     diorama.markerGroup,
     diorama.annotationGroup,
     diorama.routeGroup,
+    diorama.contextGround,
     diorama.sliceEdge
   ].forEach(obj => {
     if (!obj) return;
@@ -520,6 +540,8 @@ export async function exit3DMode(diorama) {
   });
   diorama.terrainModel = null;
   diorama.sceneBuildContext = null;
+  diorama.workArea = null;
+  diorama.contextGround = null;
   diorama.annotationGroup = null;
   diorama.sliceEdge = null;
   delete container.dataset.annotationCount;
@@ -535,6 +557,10 @@ export async function exit3DMode(diorama) {
   delete container.dataset.routeHash;
   delete container.dataset.routeLengthMeters;
   delete container.dataset.routeEndpointKey;
+  delete container.dataset.workAreaSource;
+  delete container.dataset.workAreaSpanMeters;
+  delete container.dataset.workAreaHardCapMeters;
+  delete container.dataset.workAreaCenter;
   delete container.dataset.firstSlabMs;
   delete container.dataset.provenanceSourceCount;
   container.querySelector('.terrain-insight-panel')?.remove();
@@ -567,17 +593,6 @@ function getTerrainClickPoint(raycaster, diorama) {
   const point = ray.origin.clone().addScaledVector(ray.direction, t);
   const bounds = diorama.terrainModel?.bounds;
   if (!bounds) return null;
-
-  const span = getBoundsSpan(bounds);
-  const margin = span * 0.18;
-  if (
-    point.x < bounds.minX - margin ||
-    point.x > bounds.maxX + margin ||
-    point.z < bounds.minZ - margin ||
-    point.z > bounds.maxZ + margin
-  ) {
-    return null;
-  }
 
   point.x = clamp(point.x, bounds.minX, bounds.maxX);
   point.z = clamp(point.z, bounds.minZ, bounds.maxZ);
@@ -621,6 +636,29 @@ function buildTerrainMesh(terrainModel) {
     { length: positions.count },
     () => terrainModel.foundationHeight
   );
+  return mesh;
+}
+
+function buildContextGround(terrainModel) {
+  const { bounds } = terrainModel;
+  const span = getBoundsSpan(bounds);
+  const geometry = new THREE.PlaneGeometry(span * 3, span * 3, 1, 1);
+  geometry.rotateX(-Math.PI / 2);
+  const material = new THREE.MeshBasicMaterial({
+    color: new THREE.Color('#F0ECE3'),
+    transparent: true,
+    opacity: 0.82,
+    toneMapped: false,
+    depthWrite: false
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.set(
+    (bounds.minX + bounds.maxX) / 2,
+    terrainModel.foundationHeight - 0.08,
+    (bounds.minZ + bounds.maxZ) / 2
+  );
+  mesh.renderOrder = -10;
+  mesh.userData.contextGround = true;
   return mesh;
 }
 
@@ -1672,22 +1710,40 @@ function computeCenter(lnglats) {
   return [sumLng / lnglats.length, sumLat / lnglats.length];
 }
 
-function computeSpan(lnglats) {
-  if (lnglats.length <= 1) return 600;
-  let minLng = Infinity,
-    maxLng = -Infinity,
-    minLat = Infinity,
-    maxLat = -Infinity;
-  for (const [lng, lat] of lnglats) {
-    if (lng < minLng) minLng = lng;
-    if (lng > maxLng) maxLng = lng;
-    if (lat < minLat) minLat = lat;
-    if (lat > maxLat) maxLat = lat;
-  }
-  const dLng = (maxLng - minLng) * 111320 * Math.cos((((minLat + maxLat) / 2) * Math.PI) / 180);
-  const dLat = (maxLat - minLat) * 111320;
-  const raw = Math.max(dLng, dLat) * 1.3;
-  return Math.max(600, Math.min(8000, Math.round(raw)));
+function normalizeWorkArea(workArea, fallbackLnglats) {
+  const fallbackCenter = computeCenter(fallbackLnglats);
+  const hardCapMeters = clamp(
+    Number(workArea?.hardCapMeters) || WORK_AREA_HARD_CAP_METERS,
+    MIN_WORK_AREA_SPAN_METERS,
+    WORK_AREA_HARD_CAP_METERS
+  );
+  const requestedSpan = Number(workArea?.spanMeters);
+  const spanMeters = clamp(
+    Number.isFinite(requestedSpan) ? requestedSpan : DEFAULT_WORK_AREA_SPAN_METERS,
+    MIN_WORK_AREA_SPAN_METERS,
+    hardCapMeters
+  );
+  const center = isValidLngLat(workArea?.center) ? workArea.center.map(Number) : fallbackCenter;
+  return {
+    source: workArea?.source || 'fallback-trip-center',
+    center,
+    spanMeters: Math.round(spanMeters),
+    hardCapMeters: Math.round(hardCapMeters),
+    profile: workArea?.profile || 'default',
+    bounds: squareBounds(center, spanMeters)
+  };
+}
+
+function squareBounds(center, spanMeters) {
+  const half = spanMeters / 2;
+  const latDelta = half / 111320;
+  const lngDelta = half / (111320 * Math.cos((center[1] * Math.PI) / 180));
+  return {
+    minLng: center[0] - lngDelta,
+    maxLng: center[0] + lngDelta,
+    minLat: center[1] - latDelta,
+    maxLat: center[1] + latDelta
+  };
 }
 
 function isValidLngLat(v) {

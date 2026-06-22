@@ -43,7 +43,7 @@ export async function openVisualFixture(page, fixture, { freezeEmergence = false
   await expect(page.locator('#trip-title-text')).toHaveText(fixture.trip.title, {
     timeout: 15_000
   });
-  await page.locator('#map-3d-toggle').click();
+  await enter3DFrom2DSelection(page, getFixtureWorkAreaCenter(fixture));
   await expect(page.locator('#map-3d canvas')).toBeVisible({ timeout: 30_000 });
   if (freezeEmergence) {
     await expect
@@ -57,6 +57,63 @@ export async function openVisualFixture(page, fixture, { freezeEmergence = false
   await page.evaluate(expectations => {
     window.__visualFixtureExpectations = expectations;
   }, fixture.expectations);
+}
+
+export async function enter3DFrom2DSelection(page, lnglat = null) {
+  await page.locator('#map-3d-toggle').click();
+  await expect(page.locator('.map-3d-selection-pin')).toBeVisible({ timeout: 5_000 });
+  if (lnglat) {
+    await page.evaluate(center => {
+      const toLngLat = () => ({
+        lng: center[0],
+        lat: center[1],
+        getLng: () => center[0],
+        getLat: () => center[1]
+      });
+      const patchMap = map => {
+        if (!map) return;
+        map.setCenter?.(center);
+        map.containerToLngLat = toLngLat;
+        map.unproject = () => center;
+      };
+      const map = document.querySelector('#map')?.__mapInstance;
+      patchMap(map);
+      patchMap(window.__mockAMapLastMap);
+      (window.__mockAMapMaps || []).forEach(patchMap);
+    }, lnglat);
+  }
+  const map = page.locator('#map');
+  const box = await map.boundingBox();
+  const x = Math.round((box?.x || 0) + (box?.width || 800) / 2);
+  const y = Math.round((box?.y || 0) + (box?.height || 600) / 2);
+  await page.mouse.click(x, y);
+}
+
+function getFixtureWorkAreaCenter(fixture) {
+  const routePaths = fixture.route?.paths || fixture.route?.geometry?.paths || [];
+  const routePoints = [
+    ...(Array.isArray(fixture.route?.points) ? fixture.route.points : []),
+    ...routePaths.flat()
+  ].filter(isLngLat);
+  if (routePoints.length) return averageLngLat(routePoints);
+  const locationPoints = Object.values(fixture.trip?.locations || {})
+    .map(location => location.lnglat)
+    .filter(isLngLat);
+  return locationPoints.length ? averageLngLat(locationPoints) : null;
+}
+
+function averageLngLat(points) {
+  const sum = points.reduce(
+    (total, point) => [total[0] + Number(point[0]), total[1] + Number(point[1])],
+    [0, 0]
+  );
+  return [sum[0] / points.length, sum[1] / points.length];
+}
+
+function isLngLat(point) {
+  return (
+    Array.isArray(point) && Number.isFinite(Number(point[0])) && Number.isFinite(Number(point[1]))
+  );
 }
 
 export async function setEmergenceProgress(page, progress) {
@@ -353,9 +410,13 @@ async function installMockAMap(page) {
     class MockMap {
       constructor(id, options = {}) {
         this.id = id;
+        this.container = typeof id === 'string' ? document.getElementById(id) : id;
         this.zoom = options.zoom || 16;
         this.center = options.center || [116.397, 39.908];
         this.handlers = new Map();
+        this.bounds = null;
+        window.__mockAMapMaps = [...(window.__mockAMapMaps || []), this];
+        window.__mockAMapLastMap = this;
       }
       addControl() {}
       add() {}
@@ -364,19 +425,55 @@ async function installMockAMap(page) {
       on(event, handler) {
         this.handlers.set(event, handler);
       }
-      setFitView() {}
+      off(event, handler) {
+        if (this.handlers.get(event) === handler) this.handlers.delete(event);
+      }
+      setFitView(markers = []) {
+        const points = markers.map(marker => toPair(marker.getPosition?.())).filter(Boolean);
+        if (!points.length) return;
+        const lngs = points.map(point => point[0]);
+        const lats = points.map(point => point[1]);
+        this.bounds = {
+          minLng: Math.min(...lngs),
+          maxLng: Math.max(...lngs),
+          minLat: Math.min(...lats),
+          maxLat: Math.max(...lats)
+        };
+        this.center = [
+          (this.bounds.minLng + this.bounds.maxLng) / 2,
+          (this.bounds.minLat + this.bounds.maxLat) / 2
+        ];
+      }
       setCenter(center) {
         this.center = center;
+        this.bounds = null;
       }
       setZoomAndCenter(zoom, center) {
         this.zoom = zoom;
         this.center = center;
+        this.bounds = null;
       }
       getZoom() {
         return this.zoom;
       }
       getCenter() {
         const [lng, lat] = toPair(this.center);
+        return new MockLngLat(lng, lat);
+      }
+      containerToLngLat(pixel) {
+        const rect = this.container?.getBoundingClientRect?.() || { width: 900, height: 600 };
+        const x = Number(pixel?.x ?? pixel?.[0] ?? rect.width / 2);
+        const y = Number(pixel?.y ?? pixel?.[1] ?? rect.height / 2);
+        const bounds = this.bounds || {
+          minLng: this.center[0] - 0.01,
+          maxLng: this.center[0] + 0.01,
+          minLat: this.center[1] - 0.01,
+          maxLat: this.center[1] + 0.01
+        };
+        const lngSpan = Math.max(0.002, bounds.maxLng - bounds.minLng);
+        const latSpan = Math.max(0.002, bounds.maxLat - bounds.minLat);
+        const lng = bounds.minLng + (x / Math.max(1, rect.width)) * lngSpan;
+        const lat = bounds.maxLat - (y / Math.max(1, rect.height)) * latSpan;
         return new MockLngLat(lng, lat);
       }
       destroy() {}
@@ -390,6 +487,10 @@ async function installMockAMap(page) {
       setMap() {}
       setPosition(position) {
         this.options.position = position;
+      }
+      getPosition() {
+        const [lng, lat] = toPair(this.options.position);
+        return new MockLngLat(lng, lat);
       }
     }
 

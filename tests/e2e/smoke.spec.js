@@ -485,6 +485,17 @@ async function openSeededDesktop(page, isMobile, options = {}) {
   );
 }
 
+async function enter3DFrom2DSelection(page) {
+  await page.locator('#map-3d-toggle').click();
+  await expect(page.locator('.map-3d-selection-pin')).toBeVisible({ timeout: 5_000 });
+  await expect(page.locator('#map-3d-toggle')).toHaveAttribute('data-state', 'selecting-3d-center');
+  const map = page.locator('#map');
+  const box = await map.boundingBox();
+  const x = Math.round((box?.x || 0) + (box?.width || 800) / 2);
+  const y = Math.round((box?.y || 0) + (box?.height || 600) / 2);
+  await page.mouse.click(x, y);
+}
+
 async function openTripMenu(page) {
   await page.getByRole('button', { name: '行程菜单' }).click();
 }
@@ -712,11 +723,19 @@ test('desktop can enter and exit nonblank 3D map view', async ({ page, isMobile 
   });
 
   await expect(page.locator('#map-3d-toggle')).toBeVisible();
-  await page.locator('#map-3d-toggle').click();
+  await enter3DFrom2DSelection(page);
 
   await expect(page.locator('#map-3d canvas')).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('#map-3d-toggle')).toContainText('2D');
-  await expect(page.locator('#map-3d')).toHaveAttribute('data-terrain-mode', 'citywalk');
+  await expect(page.locator('#map-3d')).toHaveAttribute(
+    'data-work-area-source',
+    'selected-2d-point'
+  );
+  await expect(page.locator('#map-3d')).toHaveAttribute('data-work-area-span-meters', /^\d+$/);
+  await expect(page.locator('#map-3d')).toHaveAttribute(
+    'data-terrain-mode',
+    /citywalk|micro-street/
+  );
   await expect(page.locator('#map-3d')).toHaveAttribute(
     'data-terrain-confidence',
     /sampled|low-relief|flat-fallback/
@@ -775,7 +794,7 @@ test('desktop 3D renders attributable water, roads, and deck-first bridges', asy
   await openSeededDesktop(page, isMobile, { workspace: createGeoAssetWorkspace() });
 
   await page.getByRole('button', { name: 'Day 1' }).click();
-  await page.locator('#map-3d-toggle').click();
+  await enter3DFrom2DSelection(page);
 
   await expect(page.locator('#map-3d canvas')).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('#map-3d')).toHaveAttribute('data-water-carve-count', '1');
@@ -820,7 +839,7 @@ test('desktop 3D camera supports unlocked WASD translation with terrain y clamp'
   await openSeededDesktop(page, isMobile);
 
   await page.getByRole('button', { name: 'Day 1' }).click();
-  await page.locator('#map-3d-toggle').click();
+  await enter3DFrom2DSelection(page);
 
   await expect(page.locator('#map-3d canvas')).toBeVisible({ timeout: 30_000 });
   await expect
@@ -874,7 +893,7 @@ test('desktop 3D stays open after 60 seconds idle', async ({ page, isMobile }) =
   await openSeededDesktop(page, isMobile);
 
   await page.getByRole('button', { name: 'Day 1' }).click();
-  await page.locator('#map-3d-toggle').click();
+  await enter3DFrom2DSelection(page);
 
   await expect(page.locator('#map-3d canvas')).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('#map-3d-toggle')).toContainText('2D');

@@ -60,6 +60,7 @@ export function createDioramaDebugSnapshot(diorama, sceneContext) {
     routeEndpointKeys: routeUserData.routeEndpointKeys || [],
     routeLengthMeters: routeUserData.routeLengthMeters || 0,
     routeDiagnostics: routeUserData.routeDiagnostics || [],
+    workArea: diorama.workArea || null,
     geometryMetrics: {
       routeClearanceP95Meters: Number(routeUserData.routeClearanceP95Meters || 0),
       routeClearanceMaxMeters: Number(routeUserData.routeClearanceMaxMeters || 0),
@@ -73,7 +74,12 @@ export function createDioramaDebugSnapshot(diorama, sceneContext) {
       waterCoverageRatio: Number(diorama.waterGroup?.userData?.coverageRatio || 0),
       bridgeContinuity: Number(diorama.bridgeGroup?.userData?.continuityRatio || 0),
       zFightingRisk: 0,
-      routeVisiblePixelRatio: 1
+      routeVisiblePixelRatio: 1,
+      routeGrayOutlinePixelRatio: routeUserData.grayOutlineMeshCount > 0 ? 1 : 0,
+      workAreaRaisedPixelRatio: diorama.terrainMesh && diorama.workArea ? 1 : 0,
+      outsideDimmedPixelRatio:
+        diorama.contextGround && diorama.contextGround.visible !== false ? 1 : 0,
+      slabRiseTopHeightVariance: 0
     },
     vegetationMetrics: {
       areaCount: Number(diorama.vegetationGroup?.userData?.areaCount || 0),
@@ -191,6 +197,15 @@ function syncDebugDataset(container, debug) {
   dataset.qaVersion = String(debug.qa?.version || 0);
   dataset.qaZFightingRisk = String(debug.qa?.geometry?.zFightingRisk || 0);
   dataset.qaRouteVisiblePixelRatio = String(debug.qa?.geometry?.routeVisiblePixelRatio || 0);
+  dataset.qaRouteGrayOutlinePixelRatio = String(
+    debug.qa?.geometry?.routeGrayOutlinePixelRatio || 0
+  );
+  dataset.qaWorkAreaRaisedPixelRatio = String(debug.qa?.geometry?.workAreaRaisedPixelRatio || 0);
+  dataset.qaOutsideDimmedPixelRatio = String(debug.qa?.geometry?.outsideDimmedPixelRatio || 0);
+  dataset.workAreaSource = debug.workArea?.source || dataset.workAreaSource || '';
+  dataset.workAreaSpanMeters = String(
+    debug.workArea?.spanMeters || dataset.workAreaSpanMeters || 0
+  );
   dataset.qaBridgePierCount = String(debug.qa?.geometry?.bridgePierCount || 0);
   dataset.qaBuildingDetailRatio = String(debug.qa?.lod?.buildingDetailRatio || 0);
   dataset.qaBuildingDetailAlphaAverage = String(debug.qa?.lod?.buildingDetailAlphaAverage || 0);

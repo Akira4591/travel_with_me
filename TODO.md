@@ -1,6 +1,6 @@
 # Travel With Me Roadmap
 
-Last updated: 2026-06-22
+Last updated: 2026-06-23
 
 This file is the active backlog only. Product direction and data boundaries are owned by `docs/product-architecture-blueprint.md`. The latest 3D technical route is owned by `docs/3d-deep-research-integration.md` and executed through `docs/3d-top-down-execution-roadmap.md`.
 
@@ -12,46 +12,50 @@ The project is now in:
 S1 desktop private-test baseline closed
   -> S2 differentiation validation closed at code level
   -> 3D structural gates closed
-  -> VQ0 local visual-quality reset reopened by manual screenshot review
+  -> VQ0 local visual-quality reset implemented at code level; final manual visual acceptance pending
 ```
 
 Desktop Web is the only active product surface. Mobile Web remains a compatibility guard only. Native Android is deferred as a separate Kotlin product after the desktop Web value and data model stabilize.
 
 ## Latest Verification Baseline
 
-Latest verified baseline from 2026-06-22. Detailed gate accounting is maintained in `docs/quality-gate-status.md`.
+Latest verified baseline from 2026-06-23. Detailed gate accounting is maintained in `docs/quality-gate-status.md`.
 
-| Gate                                                                 | Result                                                                                                                 |
-| -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `npm.cmd run check`                                                  | Passed                                                                                                                 |
-| `npm.cmd test`                                                       | Passed: 28 files, 138 tests                                                                                            |
-| `npm.cmd run check:encoding`                                         | Passed: 300 visible source/doc/test files scanned                                                                      |
-| `npm.cmd run test:e2e:visual`                                        | Passed: 19 local ROI fixture captures/interactions with QA JSON and screenshots                                        |
-| `npm.cmd run check:architecture`                                     | Passed: 35 render files scanned                                                                                        |
-| `npm.cmd run check:provenance`                                       | Passed: 36 scene fixture files scanned                                                                                 |
-| `npm.cmd run check:landmarks`                                        | Passed: 1 landmark record scanned                                                                                      |
-| `npx.cmd playwright test tests/e2e/smoke.spec.js --project=chromium` | Passed: 12 desktop tests, 1 mobile-only test skipped in Chromium                                                       |
-| Tracked-source secret scan                                           | Passed: no known real AMap/DeepSeek key patterns found                                                                 |
-| In-app browser 2D/3D visual check                                    | Passed: 2D AMap provider loaded, 3D enters, canvas visible, DOM metrics present                                        |
-| Manual 3D visual review                                              | Failed: current user screenshot scored 1/10 due to unbounded white-board scene, gray route artifacts, and route jitter |
+| Gate                              | Result                                                                                                            |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `npm.cmd run check`               | Passed                                                                                                            |
+| `npm.cmd test`                    | Passed: 29 files, 139 tests                                                                                       |
+| `npm.cmd run check:encoding`      | Passed: 301 visible source/doc/test files scanned                                                                 |
+| VQ0 targeted visual subset        | Passed: river-bridge, micro-street, hiking-terrain ROI evidence plus short camera interaction                     |
+| `npm.cmd run check:architecture`  | Passed: 35 render files scanned                                                                                   |
+| `npm.cmd run check:provenance`    | Passed: 36 scene fixture files scanned                                                                            |
+| `npm.cmd run check:landmarks`     | Passed: 1 landmark record scanned                                                                                 |
+| Targeted desktop 3D smoke         | Passed: 3D enter/exit, water/roads/bridges, WASD camera, 60s no-auto-exit                                         |
+| Tracked-source secret scan        | Passed: no known real AMap/DeepSeek key patterns found                                                            |
+| In-app browser 2D/3D visual check | Partial: exposed empty-workspace 3D rollback bug; code now throws/recover instead of entering stale 3D state      |
+| Manual 3D visual review           | Pending after VQ0 implementation; previous screenshot scored 1/10 before bounded work-area and route-layer repair |
 
 Quality gate count from `docs/quality-gate-status.md`:
 
 | Status       | Count |
 | ------------ | ----: |
 | Complete     |    46 |
-| Partial      |     0 |
-| Not complete |     1 |
+| Partial      |     1 |
+| Not complete |     0 |
 | Total        |    47 |
 
-Current blocking visual-quality reset:
+VQ0 local visual reset implemented in code:
 
-- Remove the gray 3D route outline/bed and keep yellow guidance as the only primary route layer.
-- Add 2D red-pin selection before 3D generation.
-- Build 3D from a fixed square work area centered on the selected 2D point.
-- Default work area to 800m, use 600m/1000m/2000m for urban/scenic/hiking profiles, and hard-cap at 2000m.
-- Raise only the selected square as a uniform-height plane, then dim/simplify outside context.
-- Add visual QA for no gray route outline, route stability, bounded span, selected-square visibility, and outside dimming.
+- The 3D button now enters `selecting-3d-center` and shows a red pin before generation.
+- 3D builds from a fixed square `workArea` centered on the selected 2D point instead of full route/all-point bounds.
+- Default work area is 800m, with 600m/1000m/2000m profile sizing and a V1 hard cap of 2000m.
+- The selected square is raised as the primary bone-white work slab and outside context is dimmed.
+- Route guidance no longer creates gray `bed`/`edge` route meshes; yellow guidance is the only primary route layer.
+- QA now exposes `routeGrayOutlinePixelRatio`, `workAreaRaisedPixelRatio`, `outsideDimmedPixelRatio`, and work-area dataset fields.
+
+Remaining VQ0 acceptance item:
+
+- Complete a fresh manual visual review against the new bounded diorama output and, if accepted, move gate 47 from partial to complete.
 
 Known remaining non-blocking follow-ups after VQ0:
 
@@ -81,12 +85,13 @@ the testing foundation.
 
 Tasks:
 
-0. Complete VQ0 local visual reset. **Blocking.**
+0. Complete VQ0 local visual reset. **Code-level implemented; manual visual acceptance pending.**
    - Modules: 2D/3D entry controller, route guidance renderer, scene envelope/work-area builder,
      outside context renderer, visual QA.
    - Acceptance: user selects a 2D point with red pin, 3D builds only the bounded square, outside
      context is dimmed, the first selected-plane lift is uniform-height, gray route outline is gone,
-     yellow route no longer jitters, VQ0 QA passes.
+     yellow route remains readable, VQ0 targeted QA passes, and manual visual review accepts the
+     new bounded composition.
    - Rollback: keep 3D disabled with a reason when no work-area center is selected.
 
 1. Build ROI visual baseline harness for `river-bridge`, `micro-street`, and `hiking-terrain`. **Implemented.**

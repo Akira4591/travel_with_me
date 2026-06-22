@@ -34,6 +34,17 @@ describe('route guidance renderer', () => {
     expect(group.userData.routeClearanceP95Meters).toBeLessThanOrEqual(0.3);
     expect(group.children[0].userData.clearanceMetrics.p95Meters).toBeLessThanOrEqual(0.3);
     expect(group.children[0].userData.directionMarkers.children.length).toBeGreaterThan(0);
+    expect(group.userData.grayOutlineMeshCount).toBe(0);
+    expect(
+      group.children[0].userData.guidanceMeshes.some(mesh =>
+        ['bed', 'edge'].includes(mesh.userData.guidanceRole)
+      )
+    ).toBe(false);
+    const lineMesh = group.children[0].userData.guidanceMeshes.find(
+      mesh => mesh.userData.guidanceRole === 'line'
+    );
+    expect(lineMesh.material.depthWrite).toBe(false);
+    expect(lineMesh.material.polygonOffset).toBe(true);
     expect(group.children[0].userData.isEstimated).toBe(false);
   });
 

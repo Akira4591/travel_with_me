@@ -1,6 +1,7 @@
 const ROUTE_CLEARANCE_P95_MAX_METERS = 0.3;
 const BUILDING_BASE_ERROR_P95_MAX_METERS = 0.25;
 const FIRST_SLAB_MAX_MS = 1500;
+const WORK_AREA_HARD_CAP_METERS = 2000;
 
 export function evaluateSceneQuality(debug = {}) {
   const geometry = normalizeGeometryMetrics(debug);
@@ -13,6 +14,18 @@ export function evaluateSceneQuality(debug = {}) {
 
   if (debug.firstSlabMs > FIRST_SLAB_MAX_MS) {
     errors.push(`FIRST_SLAB_SLOW:${debug.firstSlabMs}`);
+  }
+  if (debug.workArea?.spanMeters > WORK_AREA_HARD_CAP_METERS) {
+    errors.push(`WORK_AREA_SPAN_EXCEEDS_CAP:${debug.workArea.spanMeters}`);
+  }
+  if (debug.workArea && geometry.workAreaRaisedPixelRatio < 1) {
+    errors.push(`WORK_AREA_NOT_RAISED:${geometry.workAreaRaisedPixelRatio}`);
+  }
+  if (debug.workArea && geometry.outsideDimmedPixelRatio < 1) {
+    errors.push(`OUTSIDE_CONTEXT_NOT_DIMMED:${geometry.outsideDimmedPixelRatio}`);
+  }
+  if (geometry.routeGrayOutlinePixelRatio > 0) {
+    errors.push(`ROUTE_GRAY_OUTLINE_VISIBLE:${geometry.routeGrayOutlinePixelRatio}`);
   }
   if (geometry.routeGroundClearanceP95 > ROUTE_CLEARANCE_P95_MAX_METERS) {
     errors.push(`ROUTE_CLEARANCE_P95_HIGH:${geometry.routeGroundClearanceP95}`);
@@ -64,6 +77,7 @@ export function evaluateSceneQuality(debug = {}) {
     lod,
     thresholds: {
       firstSlabMaxMs: FIRST_SLAB_MAX_MS,
+      workAreaHardCapMeters: WORK_AREA_HARD_CAP_METERS,
       routeClearanceP95MaxMeters: ROUTE_CLEARANCE_P95_MAX_METERS,
       buildingBaseErrorP95MaxMeters: BUILDING_BASE_ERROR_P95_MAX_METERS
     }
@@ -106,6 +120,10 @@ function normalizeGeometryMetrics(debug) {
     bridgeContinuity,
     zFightingRisk: toFixedNumber(metrics.zFightingRisk),
     routeVisiblePixelRatio: toFixedNumber(metrics.routeVisiblePixelRatio || 1),
+    routeGrayOutlinePixelRatio: toFixedNumber(metrics.routeGrayOutlinePixelRatio),
+    workAreaRaisedPixelRatio: toFixedNumber(metrics.workAreaRaisedPixelRatio),
+    outsideDimmedPixelRatio: toFixedNumber(metrics.outsideDimmedPixelRatio),
+    slabRiseTopHeightVariance: toFixedNumber(metrics.slabRiseTopHeightVariance),
     bridgePierCount: Number(counts.bridgePiers || 0),
     bridgeCount: Number(counts.bridgeDecks || 0),
     buildingFloatingCount: 0,
