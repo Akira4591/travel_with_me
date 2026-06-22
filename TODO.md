@@ -24,7 +24,7 @@ Latest verified baseline from 2026-06-23. Detailed gate accounting is maintained
 | Gate                              | Result                                                                                                                               |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `npm.cmd run check`               | Passed                                                                                                                               |
-| `npm.cmd test`                    | Passed: 31 files, 151 tests                                                                                                          |
+| `npm.cmd test`                    | Passed: 31 files, 153 tests                                                                                                          |
 | `npm.cmd run check:encoding`      | Passed: 315 visible source/doc/test files scanned                                                                                    |
 | Full visual baseline suite        | Passed: 24 local ROI fixture captures/interactions with QA JSON and screenshots in 13.0m                                             |
 | `npm.cmd run check:architecture`  | Passed: 37 render files scanned                                                                                                      |
@@ -53,7 +53,7 @@ VQ0 local visual reset implemented in code:
 - The selected square is raised as the primary bone-white work slab and outside context is dimmed.
 - Route guidance no longer creates gray `bed`/`edge` route meshes; yellow guidance is the only primary route layer.
 - QA now exposes `routeGrayOutlinePixelRatio`, `workAreaRaisedPixelRatio`, `outsideDimmedPixelRatio`, and work-area dataset fields.
-- Overview camera starts on the same high-angle orbit used by idle auto-rotate before terrain data loads, during entry, and after steady state; x/z remain unlocked for drag and WASD movement.
+- Overview camera starts on the same scene-profile orbit used by idle auto-rotate before terrain data loads, during entry, and after steady state; x/z remain unlocked for drag and WASD movement.
 - 3D route guidance is narrowed back to a 2D-style yellow navigation line instead of a thick road-surface band.
 - Vegetation frustum telemetry now uses landcover chunk bounds so licensed vegetation areas remain measurable during camera stress.
 - Empty 2D selections that fall outside available trip/route data now snap to the nearest POI/location

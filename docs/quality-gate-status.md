@@ -18,7 +18,7 @@ Commands run on 2026-06-23:
 | Check                                                       | Result                                                                                                                                 |
 | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm.cmd run check`                                         | Passed                                                                                                                                 |
-| `npm.cmd test`                                              | Passed: 31 files, 151 tests                                                                                                            |
+| `npm.cmd test`                                              | Passed: 31 files, 153 tests                                                                                                            |
 | `npm.cmd run check:encoding`                                | Passed: 315 visible source/doc/test files scanned                                                                                      |
 | `npm.cmd run check:architecture`                            | Passed: 37 render files scanned; renderer/provider boundary enforced                                                                   |
 | `npm.cmd run check:provenance`                              | Passed: 42 scene fixture files scanned                                                                                                 |
@@ -53,7 +53,7 @@ VQ0 target state:
 - Selected square raises first as a uniform-height plane; outside context is dimmed or simplified.
 - 3D route guidance has no gray outline/bed and keeps yellow as the only primary route layer.
 - 3D yellow guidance is a narrow 2D-style navigation line, not a thick road-surface band.
-- Initial camera pose is the same high-angle overview orbit before terrain data loads, during entry, and after idle auto-rotate starts.
+- Initial camera pose is the same scene-profile overview orbit before terrain data loads, during entry, and after idle auto-rotate starts.
 - Empty 2D selections outside available route/location coverage are snapped to the nearest location
   anchor before 3D generation so the bounded work area does not open as a blank slab.
 - Micro-street/citywalk overview camera presets use closer, lower first-screen framing while preserving
@@ -74,7 +74,7 @@ VQ0 target state:
 |   # | Gate                                                                                                                | Evidence                                                                       |
 | --: | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
 |   1 | Format, lint, and source style pass                                                                                 | `npm.cmd run check`                                                            |
-|   2 | Unit tests pass                                                                                                     | `npm.cmd test`: 31 files, 151 tests                                            |
+|   2 | Unit tests pass                                                                                                     | `npm.cmd test`: 31 files, 153 tests                                            |
 |   3 | Desktop browser smoke tests pass                                                                                    | Smoke runner: 15 Chromium desktop tests passed, 13 scoped skips                |
 |   4 | Tracked source does not contain known real API keys                                                                 | `git grep` secret scan returned no matches                                     |
 |   5 | 2D AMap mode renders real map content after CSP fixes                                                               | Browser and E2E map flow                                                       |
@@ -147,7 +147,7 @@ Self-audit on 2026-06-23 after `codex/next-beta-visual-calibration`:
 - Repeated fallback low-poly building massing now uses `InstancedMesh`; direct renderer tests prove deterministic fallback rebuilds, authoritative footprint extrusion, and synthetic fallback for rejected unlocated footprints.
 - Licensed vegetation now reports density, chunk count, visible chunk count, and frustum-culled chunk count through `qa.budgets`.
 - Vegetation frustum telemetry now uses landcover chunk bounds, keeping camera-stress telemetry aligned with actual licensed vegetation areas.
-- The live 3D entry now starts on the same high-angle overview orbit before terrain data loads, during entry, and after idle auto-rotate starts; it renders the 3D route as a narrow yellow guidance line.
+- The live 3D entry now starts on the same scene-profile overview orbit before terrain data loads, during entry, and after idle auto-rotate starts; it renders the 3D route as a narrow yellow guidance line.
 - The live off-route selection path now snaps to a location anchor instead of a bare long-route point,
   preventing a blank selected slab when the user clicks a map area without usable 3D context.
 - The off-route location-anchor behavior is now a blocking desktop smoke test, not only a manual

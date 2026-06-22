@@ -43,7 +43,7 @@ Required VQ0 evidence:
 - The 3D route uses the same visual intent as the 2D guidance: a narrow industrial-yellow
   navigation line, not a road-surface band.
 - The yellow route remains stable during drag, WASD, and wheel interaction.
-- The first 3D frame starts on the same high-angle overview orbit used by idle auto-rotate; there
+- The first 3D frame starts on the same scene-profile overview orbit used by idle auto-rotate; there
   is no separate initial camera angle that later snaps into orbit.
 
 Current VQ0 blocking metrics:

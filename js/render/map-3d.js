@@ -1594,9 +1594,7 @@ export function getOverviewCameraPose(bounds, { terrainModel = null, terrainMode
     inspectDistance * OVERVIEW_CAMERA_ORBIT.minInspectDistanceScale
   );
   const modePitch = Number(terrainMode?.cameraPitchDeg ?? getOverviewPitchDeg(terrainMode));
-  const pitchDeg = Number.isFinite(modePitch)
-    ? Math.max(modePitch, OVERVIEW_CAMERA_ORBIT.pitchDeg)
-    : OVERVIEW_CAMERA_ORBIT.pitchDeg;
+  const pitchDeg = Number.isFinite(modePitch) ? modePitch : OVERVIEW_CAMERA_ORBIT.pitchDeg;
   const pitch = THREE.MathUtils.degToRad(THREE.MathUtils.clamp(pitchDeg, 58, 74));
   const heading = THREE.MathUtils.degToRad(OVERVIEW_CAMERA_ORBIT.headingDeg);
   const horizontalDistance = distance * Math.cos(pitch);
