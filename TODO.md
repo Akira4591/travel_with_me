@@ -36,8 +36,8 @@ Quality gate count from `docs/quality-gate-status.md`:
 
 | Status       | Count |
 | ------------ | ----: |
-| Complete     |    38 |
-| Partial      |     3 |
+| Complete     |    40 |
+| Partial      |     1 |
 | Not complete |     4 |
 | Total        |    45 |
 

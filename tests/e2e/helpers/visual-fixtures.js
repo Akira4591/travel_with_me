@@ -52,8 +52,9 @@ export async function openVisualFixture(page, fixture) {
 
 export async function exportVisualQa(page, fixture, capturePoint) {
   const visual = await measureRouteVisualMetrics(page);
+  const waterVisual = await measureWaterVisualMetrics(page);
   const qa = await page.evaluate(
-    ({ fixtureId, point, visualMetrics }) => {
+    ({ fixtureId, point, visualMetrics, waterMetrics }) => {
       const debug = window.__threeDebug__ || {};
       return {
         capturePoint: point,
@@ -68,10 +69,11 @@ export async function exportVisualQa(page, fixture, capturePoint) {
         routeEndpointKeys: debug.routeEndpointKeys || [],
         provenanceSourceCount: debug.provenanceSourceCount || 0,
         expectations: window.__visualFixtureExpectations || {},
-        visual: visualMetrics
+        visual: visualMetrics,
+        waterVisual: waterMetrics
       };
     },
-    { fixtureId: fixture.id, point: capturePoint, visualMetrics: visual }
+    { fixtureId: fixture.id, point: capturePoint, visualMetrics: visual, waterMetrics: waterVisual }
   );
   return qa;
 }
@@ -126,6 +128,74 @@ export async function measureRouteVisualMetrics(page) {
       opaquePixelRatio: ratio(opaquePixels, sampledPixels),
       routeYellowPixelRatio: ratio(yellowPixels, sampledPixels),
       yellowPixelCount: yellowPixels
+    };
+  });
+}
+
+export async function measureWaterVisualMetrics(page) {
+  return page.evaluate(() => {
+    function isWaterBlue(pixel) {
+      const [r, g, b, a] = pixel;
+      return (
+        a > 10 &&
+        r >= 95 &&
+        r <= 205 &&
+        g >= 105 &&
+        g <= 215 &&
+        b >= 115 &&
+        b <= 230 &&
+        b >= r * 0.9 &&
+        b >= g * 0.95
+      );
+    }
+    function isBoneWhite(pixel) {
+      const [r, g, b, a] = pixel;
+      return a > 10 && r >= 232 && g >= 228 && b >= 218;
+    }
+    function ratio(numerator, denominator) {
+      const bottom = Number(denominator) || 0;
+      if (bottom <= 0) return 0;
+      return Number(((Number(numerator) || 0) / bottom).toFixed(5));
+    }
+
+    const canvas = document.querySelector('#map-3d canvas');
+    const gl = canvas?.getContext('webgl2') || canvas?.getContext('webgl');
+    if (!canvas || !gl) {
+      return {
+        readable: false,
+        sampledPixels: 0,
+        waterBluePixelRatio: 0,
+        waterBluePixelCount: 0,
+        terrainBlankPixelRatio: 0
+      };
+    }
+    const width = gl.drawingBufferWidth;
+    const height = gl.drawingBufferHeight;
+    const xMin = Math.floor(width * 0.18);
+    const xMax = Math.floor(width * 0.92);
+    const yMin = Math.floor(height * 0.12);
+    const yMax = Math.floor(height * 0.88);
+    const stride = Math.max(3, Math.floor(Math.min(width, height) / 180));
+    const pixel = new Uint8Array(4);
+    let sampledPixels = 0;
+    let waterPixels = 0;
+    let terrainBlankPixels = 0;
+
+    for (let y = yMin; y < yMax; y += stride) {
+      for (let x = xMin; x < xMax; x += stride) {
+        gl.readPixels(x, height - y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+        sampledPixels += 1;
+        if (isWaterBlue(pixel)) waterPixels += 1;
+        else if (isBoneWhite(pixel)) terrainBlankPixels += 1;
+      }
+    }
+
+    return {
+      readable: waterPixels > 0,
+      sampledPixels,
+      waterBluePixelRatio: ratio(waterPixels, sampledPixels),
+      waterBluePixelCount: waterPixels,
+      terrainBlankPixelRatio: ratio(terrainBlankPixels, sampledPixels)
     };
   });
 }

@@ -151,3 +151,5 @@ The following Beta stability expansion adds 30-second `river-bridge`, `micro-str
 The vegetation budget gate records per-landcover-area template counts and fails if generated instances exceed the declared density cap. This is an immediate guardrail for route readability; future chunking and frustum culling remain separate performance work.
 
 The inspect-view gate validates the close-camera state directly: `micro-street` must enter `camera.mode === "inspect"`, keep terrain-relative camera clearance inside profile bounds, keep route and building context visible together, and retain the industrial safety-yellow route signal. This closes the first deterministic inspect-state visual review without requiring committed golden screenshots.
+
+The water-pixel gate validates `river-bridge` as a rendered image, not only as mesh counts. It samples the WebGL ROI for a blue-grey water signal and combines that with the carved-channel depth metric. This blocks regressions where attributable water data exists but the screen falls back to terrain-colored blank space.

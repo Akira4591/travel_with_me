@@ -11,6 +11,7 @@ import {
 
 const ASSERT_SCREENSHOTS = process.env.VISUAL_BASELINE_ASSERT === '1';
 const ROUTE_YELLOW_PIXEL_RATIO_MIN = 0.00008;
+const WATER_BLUE_PIXEL_RATIO_MIN = 0.00008;
 const STRESS_DURATION_MS = 30_000;
 const STRESS_SAMPLE_INTERVAL_MS = 5_000;
 const STRESS_TEST_TIMEOUT_MS = 150_000;
@@ -29,6 +30,8 @@ const CAPTURES = [
       expect(qa.qa.geometry.routeVisiblePixelRatio).toBeGreaterThanOrEqual(0.9);
       expect(qa.visual.readable).toBe(true);
       expect(qa.visual.routeYellowPixelRatio).toBeGreaterThanOrEqual(ROUTE_YELLOW_PIXEL_RATIO_MIN);
+      expect(qa.waterVisual.readable).toBe(true);
+      expect(qa.waterVisual.waterBluePixelRatio).toBeGreaterThanOrEqual(WATER_BLUE_PIXEL_RATIO_MIN);
       expect(qa.qa.geometry.bridgePierCount).toBe(0);
       expect(qa.qa.geometry.zFightingRisk).toBeLessThanOrEqual(0.01);
       expect(qa.counts.waterMeshes).toBeGreaterThan(0);

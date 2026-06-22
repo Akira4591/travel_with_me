@@ -96,6 +96,7 @@ Default behavior:
 - loads `river-bridge`, `micro-street`, and `hiking-terrain` from local fixtures;
 - attaches ROI screenshots plus fixture, camera, and QA JSON evidence;
 - asserts `river-bridge` P2 water/bridge/route metrics;
+- asserts `river-bridge` water ROI blue-pixel signal so attributable water cannot regress to terrain-colored blank space;
 - asserts `micro-street` near/far building LOD response through `qa.lod` metrics;
 - asserts `micro-street` inspect view readability with close-camera y clamp, route visibility, and building context;
 - runs a 30-second `river-bridge` camera stress subset and samples route readability plus z-fighting risk;
@@ -114,8 +115,15 @@ Current blocking `river-bridge` metrics:
 - `terrainCarvingDepthP50 >= expectations.water.minChannelDepthMeters`;
 - `routeVisiblePixelRatio >= 0.90`;
 - `routeYellowPixelRatio >= 0.00008`;
+- `waterBluePixelRatio >= 0.00008`;
 - `bridgePierCount === 0`;
 - `zFightingRisk <= 0.01`.
+
+Current blocking `river-bridge` water-pixel metrics:
+
+- `waterVisual.readable === true`;
+- `waterVisual.waterBluePixelRatio >= 0.00008`;
+- `terrainCarvingDepthP50 >= expectations.water.minChannelDepthMeters`.
 
 Current blocking `river-bridge` camera stress metrics:
 

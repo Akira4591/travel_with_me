@@ -33,8 +33,8 @@ Commands run on 2026-06-22:
 
 | Status       | Count | Meaning                                                                                               |
 | ------------ | ----: | ----------------------------------------------------------------------------------------------------- |
-| Complete     |    38 | Implemented and covered by automated evidence or current browser verification                         |
-| Partial      |     3 | Implemented or directionally present, but missing a dedicated gate, full scenario, or visual baseline |
+| Complete     |    40 | Implemented and covered by automated evidence or current browser verification                         |
+| Partial      |     1 | Implemented or directionally present, but missing a dedicated gate, full scenario, or visual baseline |
 | Not complete |     4 | Not implemented, not verified, or contradicted by current evidence                                    |
 | Total        |    45 | Current tracked quality gates                                                                         |
 
@@ -80,15 +80,15 @@ Commands run on 2026-06-22:
 |  36 | Hiking-terrain 30s terrain stress preserves route readability                    | `hiking-terrain route remains readable during 30s terrain...`       |
 |  37 | Vegetation per-area template density is capped and QA-gated                      | `VEGETATION_DENSITY_CAP_EXCEEDED` unit gate and hiking visual E2E   |
 |  38 | Micro-street inspect close view is readable with terrain-relative y clamp        | `micro-street inspect view remains readable...` visual E2E          |
+|  39 | Waterways visibly carve downward or sit in a depressed channel                   | `terrainCarvingDepthP50` visual E2E gate                            |
+|  40 | Attributable water renders blue-grey water pixels instead of blank terrain       | `waterBluePixelRatio` visual E2E gate                               |
 
 ## Partial Gates
 
-|   # | Gate                                                                     | Current status                                                     | Missing work                                                        |
-| --: | ------------------------------------------------------------------------ | ------------------------------------------------------------------ | ------------------------------------------------------------------- |
-|  33 | Waterways visibly carve downward or sit in a depressed channel           | `terrain-carving.js` exists and water renderer uses terrain reveal | Add visual/pixel gate for depressed channels                        |
-|  34 | No terrain-colored blank gap where attributable water exists             | Water mesh render is tested                                        | Add targeted screenshot or geometry assertion for water gap absence |
-|  35 | Close view building dissolve has no popping                              | LOD response gate exists                                           | Add close-view screenshot/video no-pop gate                         |
-|  36 | Route guidance remains readable above all geographic and building layers | Dense building stress gate exists for `micro-street`               | Extend occlusion/readability gates to old-street and landmark cases |
+|   # | Gate                                                                     | Current status                                       | Missing work                                                        |
+| --: | ------------------------------------------------------------------------ | ---------------------------------------------------- | ------------------------------------------------------------------- |
+|  35 | Close view building dissolve has no popping                              | LOD response gate exists                             | Add close-view screenshot/video no-pop gate                         |
+|  36 | Route guidance remains readable above all geographic and building layers | Dense building stress gate exists for `micro-street` | Extend occlusion/readability gates to old-street and landmark cases |
 
 ## Not Complete Gates
 
