@@ -6,7 +6,8 @@ export function parseGate50ReviewOptions(rawArgs = []) {
     skipVisual: args.has('--skip-visual'),
     includeStability: args.has('--include-stability'),
     stabilityRuns: optionValue(rawArgs, '--stability-runs') || '5',
-    stabilityPreset: optionValue(rawArgs, '--stability-preset') || ''
+    stabilityPreset: optionValue(rawArgs, '--stability-preset') || '',
+    evidenceJson: optionValue(rawArgs, '--evidence-json') || ''
   };
 }
 

@@ -21,6 +21,12 @@ For command wiring checks only:
 npm.cmd run gate50:review -- --dry-run
 ```
 
+To persist a machine-readable evidence summary:
+
+```powershell
+npm.cmd run gate50:review -- --evidence-json=output/gate50/evidence.json
+```
+
 Useful scoped reruns:
 
 ```powershell
@@ -51,6 +57,9 @@ The full command runs:
 
 The optional stability step is explicit because the full five-run visual baseline is intentionally
 expensive. It strengthens evidence but still does not replace the human Gate 50 visual decision.
+
+Evidence JSON is a local artifact. Keep it under ignored `output/` unless a release-review record is
+explicitly requested.
 
 ## Manual Review Steps
 

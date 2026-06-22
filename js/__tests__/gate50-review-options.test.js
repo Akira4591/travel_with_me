@@ -20,7 +20,8 @@ describe('gate50 review options', () => {
       skipVisual: false,
       includeStability: false,
       stabilityRuns: '5',
-      stabilityPreset: ''
+      stabilityPreset: '',
+      evidenceJson: ''
     });
     expect(steps.map(([label]) => label)).toEqual([
       'Static quality gates',
@@ -68,5 +69,11 @@ describe('gate50 review options', () => {
       'Unit tests',
       'Visible text encoding gate'
     ]);
+  });
+
+  it('parses an optional evidence JSON output path', () => {
+    const options = parseGate50ReviewOptions(['--evidence-json', 'output/gate50/evidence.json']);
+
+    expect(options.evidenceJson).toBe('output/gate50/evidence.json');
   });
 });

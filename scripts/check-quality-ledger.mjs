@@ -4,8 +4,10 @@ const FILES = ['TODO.md', 'docs/quality-gate-status.md'];
 const STALE_PATTERNS = [
   { name: 'old unit-test count', regex: /30 files,\s*146 tests/u },
   { name: 'old unit-test count', regex: /3[12] files,\s*15[1-9] tests/u },
+  { name: 'old unit-test count', regex: /33 files,\s*162 tests/u },
   { name: 'old encoding count', regex: /31[02] visible source\/doc\/test files scanned/u },
   { name: 'old encoding count', regex: /31[568] (?:visible source\/doc\/test )?files scanned/u },
+  { name: 'old encoding count', regex: /320 (?:visible source\/doc\/test )?files scanned/u },
   { name: 'old smoke count', regex: /12 desktop tests,\s*1 mobile-only test skipped/u },
   { name: 'old chromium smoke count', regex: /12 passed,\s*1 mobile-only skipped/u }
 ];
