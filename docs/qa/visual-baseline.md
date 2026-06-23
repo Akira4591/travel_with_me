@@ -132,6 +132,8 @@ Current collected repeatability evidence:
   scenic-park scenic precision, and hiking-terrain mountain precision gates.
 - `camera-stress` passed 5/5 local runs on 2026-06-23, covering river-bridge,
   micro-street, and hiking-terrain 30-second route-readability stress gates.
+- `timeline` passed 5/5 local runs on 2026-06-23, covering the river-bridge staged generation
+  sequence from foundation rise through route focus.
 
 Passing the full command is required before capture-only ROI evidence is promoted to maintained
 golden screenshots. Presets are for diagnosis and scoped calibration; they do not replace the full

@@ -37,6 +37,7 @@ Latest verified baseline from 2026-06-23. Detailed gate accounting is maintained
 | Overview/inspect stability        | Passed: `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=overview-inspect`, 5/5 runs, 15/15 scene checks                  |
 | Precision stability               | Passed: `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=precision`, 5/5 runs, 15/15 scene checks                         |
 | Camera-stress stability           | Passed: `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=camera-stress`, 5/5 runs, 15/15 stress checks                    |
+| Timeline stability                | Passed: `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=timeline`, 5/5 generation timeline checks                        |
 | Tracked-source secret scan        | Passed: no known real AMap/DeepSeek key patterns found                                                                               |
 | In-app browser 2D/3D visual check | Passed: 2D marker selection enters bounded 3D; QA passed; route gray outline is 0; initial/loading/idle view uses one overview orbit |
 | Manual 3D visual review           | Pending after VQ0 implementation; previous screenshot scored 1/10 before bounded work-area and route-layer repair                    |
@@ -109,6 +110,9 @@ Known remaining non-blocking follow-ups after VQ0:
 - Keep 30-second route readability and z-fighting stress stable across repeated runs.
   **Evidence collected:** `camera-stress` passed 5/5 local runs across river-bridge,
   micro-street, and hiking-terrain 30-second camera stress gates.
+- Keep the generation timeline screenshot gate stable across repeated runs.
+  **Evidence collected:** `timeline` passed 5/5 local runs for the river-bridge staged generation
+  sequence from foundation to route focus.
 - Keep real landmark model rendering disabled until an actual licensed model package passes the release gate.
 
 Next-stage deep-research decision:
