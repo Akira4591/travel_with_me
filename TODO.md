@@ -34,6 +34,7 @@ Latest verified baseline from 2026-06-23. Detailed gate accounting is maintained
 | Targeted desktop 3D smoke         | Passed: 16 Chromium desktop tests, 14 mobile/desktop-scope skips                                                                     |
 | `npm.cmd run gate50:review`       | Passed: full automated Gate 50 package with static gates, unit tests, encoding, desktop smoke, and 24 Chromium 3D visual baselines   |
 | `npm.cmd run gate50:live-review`  | Passed: generated six local review screenshots plus per-view QA JSON for hiking, old-street, and landmark review scenes              |
+| Overview/inspect stability        | Passed: `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=overview-inspect`, 5/5 runs, 15/15 scene checks                  |
 | Tracked-source secret scan        | Passed: no known real AMap/DeepSeek key patterns found                                                                               |
 | In-app browser 2D/3D visual check | Passed: 2D marker selection enters bounded 3D; QA passed; route gray outline is 0; initial/loading/idle view uses one overview orbit |
 | Manual 3D visual review           | Pending after VQ0 implementation; previous screenshot scored 1/10 before bounded work-area and route-layer repair                    |
@@ -96,6 +97,8 @@ Known remaining non-blocking follow-ups after VQ0:
 - Promote maintained golden screenshot assertions after the current stage screenshot capture gate is stable across repeated local runs.
   **Prepared:** `npm.cmd run test:e2e:visual:stability -- --runs=5` is now the repeatability command
   for collecting five-run local evidence before turning on committed golden assertions.
+  **Evidence collected:** `overview-inspect` passed 5/5 local runs across hiking-terrain,
+  old-street, and landmark-pilot.
 - Promote city/scenic/hiking precision gates from fixture coverage to repeated-run baseline once thresholds stabilize.
   **Prepared:** `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=precision` now scopes
   repeated scenario checks without hand-writing a grep.

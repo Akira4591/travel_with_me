@@ -124,6 +124,11 @@ npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=camera-stress
 npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=timeline
 ```
 
+Current collected repeatability evidence:
+
+- `overview-inspect` passed 5/5 local runs on 2026-06-23, covering `hiking-terrain`,
+  `old-street`, and `landmark-pilot` overview/inspect review gates.
+
 Passing the full command is required before capture-only ROI evidence is promoted to maintained
 golden screenshots. Presets are for diagnosis and scoped calibration; they do not replace the full
 five-run gate.
