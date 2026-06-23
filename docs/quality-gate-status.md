@@ -38,6 +38,7 @@ Commands run on 2026-06-23:
 | `npm.cmd run gate50:live-review`                                                                      | Passed: generated six local review screenshots plus per-view QA JSON for hiking, old-street, and landmark review scenes                                    |
 | `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=overview-inspect`                         | Passed: five consecutive overview/inspect runs, 15/15 scene checks across hiking-terrain, old-street, and landmark-pilot                                   |
 | `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=precision`                                | Passed: five consecutive terrain precision runs, 15/15 scene checks across old-street, scenic-park, and hiking-terrain                                     |
+| `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=camera-stress`                            | Passed: five consecutive 30-second camera-stress runs, 15/15 stress checks across river-bridge, micro-street, and hiking-terrain                           |
 | `npm.cmd run gate50:review -- --skip-visual --skip-smoke`                                             | Passed: validates gate 50 review command wiring, static gates, unit tests, and encoding gate                                                               |
 | `npm.cmd run gate50:review -- --dry-run --include-stability --stability-preset=precision`             | Passed: validates optional Gate 50 visual-stability evidence wiring                                                                                        |
 | `npm.cmd run gate50:review -- --dry-run --evidence-json=output/gate50/dry-run.json`                   | Passed: validates local machine-readable evidence summary output                                                                                           |
@@ -184,6 +185,8 @@ Self-audit on 2026-06-23 after `codex/next-beta-visual-calibration`:
   same three Gate 50 review scene families.
 - The `precision` visual stability preset now has five consecutive local passes covering city,
   scenic, and hiking terrain precision gates.
+- The `camera-stress` visual stability preset now has five consecutive local passes covering
+  30-second route readability and z-fighting stress gates.
 - The encoding gate now catches broader mojibake fragments; `utils`, 3D toggle text, and affected tests
   use clean UTF-8 strings.
 - Remaining partial item is not an automated gap: the live bounded 3D composition still needs manual product-quality acceptance before gate 50 can close.

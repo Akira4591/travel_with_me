@@ -130,6 +130,8 @@ Current collected repeatability evidence:
   `old-street`, and `landmark-pilot` overview/inspect review gates.
 - `precision` passed 5/5 local runs on 2026-06-23, covering old-street city precision,
   scenic-park scenic precision, and hiking-terrain mountain precision gates.
+- `camera-stress` passed 5/5 local runs on 2026-06-23, covering river-bridge,
+  micro-street, and hiking-terrain 30-second route-readability stress gates.
 
 Passing the full command is required before capture-only ROI evidence is promoted to maintained
 golden screenshots. Presets are for diagnosis and scoped calibration; they do not replace the full

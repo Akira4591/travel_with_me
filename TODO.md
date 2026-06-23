@@ -36,6 +36,7 @@ Latest verified baseline from 2026-06-23. Detailed gate accounting is maintained
 | `npm.cmd run gate50:live-review`  | Passed: generated six local review screenshots plus per-view QA JSON for hiking, old-street, and landmark review scenes              |
 | Overview/inspect stability        | Passed: `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=overview-inspect`, 5/5 runs, 15/15 scene checks                  |
 | Precision stability               | Passed: `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=precision`, 5/5 runs, 15/15 scene checks                         |
+| Camera-stress stability           | Passed: `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=camera-stress`, 5/5 runs, 15/15 stress checks                    |
 | Tracked-source secret scan        | Passed: no known real AMap/DeepSeek key patterns found                                                                               |
 | In-app browser 2D/3D visual check | Passed: 2D marker selection enters bounded 3D; QA passed; route gray outline is 0; initial/loading/idle view uses one overview orbit |
 | Manual 3D visual review           | Pending after VQ0 implementation; previous screenshot scored 1/10 before bounded work-area and route-layer repair                    |
@@ -105,6 +106,9 @@ Known remaining non-blocking follow-ups after VQ0:
   repeated scenario checks without hand-writing a grep.
   **Evidence collected:** `precision` passed 5/5 local runs across old-street city precision,
   scenic-park scenic precision, and hiking-terrain mountain precision.
+- Keep 30-second route readability and z-fighting stress stable across repeated runs.
+  **Evidence collected:** `camera-stress` passed 5/5 local runs across river-bridge,
+  micro-street, and hiking-terrain 30-second camera stress gates.
 - Keep real landmark model rendering disabled until an actual licensed model package passes the release gate.
 
 Next-stage deep-research decision:
