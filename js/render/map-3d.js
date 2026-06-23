@@ -45,7 +45,7 @@ const C = {
   water: '#A8B8C8',
   shadow: '#9E9685',
   contour: '#D9D2C5',
-  building: '#D8D2C6',
+  building: '#EDE7DC',
   routeBed: ROUTE_GUIDANCE.roadBed,
   routeOutline: '#625C51',
   routeLine: ROUTE_GUIDANCE.line,
@@ -61,10 +61,12 @@ const C = {
 
 // Render constants.
 
-const MARKER_STEM_HEIGHT = 15;
-const MARKER_HEAD_RADIUS = 2.8;
-const ANNOTATION_STEM_HEIGHT = 11;
-const ANNOTATION_HEAD_RADIUS = 2.2;
+const MARKER_STEM_HEIGHT = 8;
+const MARKER_HEAD_RADIUS = 1.45;
+const MARKER_RING_RADIUS = 2.7;
+const MARKER_RING_TUBE_RADIUS = 0.16;
+const ANNOTATION_STEM_HEIGHT = 7;
+const ANNOTATION_HEAD_RADIUS = 1.45;
 const DIORAMA_SLICE_THICKNESS = 20;
 const PARTICLE_COUNT = 0;
 
@@ -662,6 +664,20 @@ function buildTerrainMesh(terrainModel) {
   });
 
   const mesh = new THREE.Mesh(geom, mat);
+  const wire = new THREE.Mesh(
+    geom,
+    new THREE.MeshBasicMaterial({
+      color: new THREE.Color('#E3DCCF'),
+      transparent: true,
+      opacity: 0.24,
+      wireframe: true,
+      depthWrite: false,
+      toneMapped: false
+    })
+  );
+  wire.renderOrder = 4;
+  wire.userData.terrainFacetOverlay = true;
+  mesh.add(wire);
   mesh.receiveShadow = false;
   mesh.castShadow = false;
   mesh.userData.restHeights = Float32Array.from({ length: positions.count }, (_, index) =>
@@ -918,7 +934,7 @@ function buildMarkerGroup(proj, trip, activeDayId, terrainModel) {
       const markerGroup = new THREE.Group();
 
       // Stem.
-      const stemGeom = new THREE.CylinderGeometry(0.4, 0.5, MARKER_STEM_HEIGHT, 8);
+      const stemGeom = new THREE.CylinderGeometry(0.22, 0.3, MARKER_STEM_HEIGHT, 8);
       const stem = new THREE.Mesh(stemGeom, stemMat);
       stem.position.y = MARKER_STEM_HEIGHT / 2;
       markerGroup.add(stem);
@@ -930,7 +946,7 @@ function buildMarkerGroup(proj, trip, activeDayId, terrainModel) {
       head.castShadow = true;
       markerGroup.add(head);
 
-      const ringGeom = new THREE.TorusGeometry(5, 0.3, 8, 24);
+      const ringGeom = new THREE.TorusGeometry(MARKER_RING_RADIUS, MARKER_RING_TUBE_RADIUS, 8, 24);
       const ring = new THREE.Mesh(ringGeom, ringMat);
       ring.rotation.x = -Math.PI / 2;
       ring.position.y = 0.1;
@@ -1637,7 +1653,7 @@ function applyOverviewCameraPose(diorama, bounds) {
 }
 
 function getDefaultOverviewBounds() {
-  const span = DEFAULT_WORK_AREA_SPAN_METERS * 0.5;
+  const span = DEFAULT_WORK_AREA_SPAN_METERS;
   const half = span / 2;
   return { minX: -half, maxX: half, minZ: -half, maxZ: half };
 }

@@ -97,6 +97,8 @@ describe('geo asset renderer', () => {
     expect(group.userData.count).toBe(1);
     expect(group.userData.revealTargets).toHaveLength(1);
     expect(group.children[0].userData.surfaceReveal.restHeights.length).toBeGreaterThan(0);
+    expect(group.children[0].material.opacity).toBeLessThanOrEqual(0.16);
+    expect(group.children[0].material.color.getHexString()).toBe('eee8dc');
   });
 
   it('creates a finite fallback ribbon polygon from a centerline', () => {

@@ -42,6 +42,10 @@ Required VQ0 evidence:
 - The 3D route does not render a gray outline or thick gray bed as route guidance.
 - The 3D route uses the same visual intent as the 2D guidance: a narrow industrial-yellow
   navigation line, not a road-surface band.
+- Muted 3D road ribbons may exist as terrain context, but their opacity must stay low enough that
+  they cannot be read as route outline.
+- Building LOD must preserve opaque low-poly massing while adding near-camera detail; it must not
+  use full-building transparency as the primary dissolve cue.
 - The yellow route remains stable during drag, WASD, and wheel interaction.
 - The first 3D frame starts on the same scene-profile overview orbit used by idle auto-rotate; there
   is no separate initial camera angle that later snaps into orbit.

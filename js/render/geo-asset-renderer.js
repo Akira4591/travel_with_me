@@ -9,8 +9,10 @@ import {
 const GEO_COLORS = {
   water: '#A8B8C8',
   bridge: '#9E9685',
-  road: { major: '#B4AA98', local: '#C5BDAD', path: '#D6D0C3' }
+  road: { major: '#E6DED1', local: '#EEE8DC', path: '#F4EFE6' }
 };
+
+const ROAD_OPACITY = { major: 0.22, local: 0.16, path: 0.12 };
 
 export function buildWaterGroup(proj, terrainModel, waterways) {
   const group = new THREE.Group();
@@ -120,7 +122,7 @@ export function buildRoadGroup(proj, terrainModel, roads) {
     if (points.length < 2) continue;
     const ribbon = createRouteRibbon(points, proj.metersToUnits(road.widthMeters) / 2, {
       color: GEO_COLORS.road[road.kind] || GEO_COLORS.road.local,
-      opacity: road.kind === 'path' ? 0.46 : 0.64
+      opacity: ROAD_OPACITY[road.kind] || ROAD_OPACITY.local
     });
     registerGroundRevealMesh(ribbon, terrainModel, 0.08);
     group.userData.revealTargets.push(ribbon);

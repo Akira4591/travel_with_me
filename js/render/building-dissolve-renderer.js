@@ -19,7 +19,7 @@ export function updateBuildingLod(diorama) {
       getBuildingDetailAlphaWithHysteresis(distance, entry.detailAlpha) * buildingDissolve;
     entry.detailAlpha += (target - entry.detailAlpha) * 0.14;
     const detailAlpha = clamp(entry.detailAlpha, 0, 1);
-    const lowAlpha = 1 - detailAlpha * 0.72;
+    const lowAlpha = 1;
     detailAlphaTotal += detailAlpha;
 
     if (entry.lowInstanced) {

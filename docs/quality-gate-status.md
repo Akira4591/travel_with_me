@@ -63,10 +63,14 @@ VQ0 target state:
 - 3D route guidance has no gray outline/bed and keeps yellow as the only primary route layer.
 - 3D yellow guidance is a narrow 2D-style navigation line, not a thick road-surface band.
 - Initial camera pose is the same scene-profile overview orbit before terrain data loads, during entry, and after idle auto-rotate starts.
+- The unloaded initial camera uses the same 800m default work-area scale as the bounded 3D scene, so idle orbit does not begin from a mismatched pre-load distance.
 - Empty 2D selections outside available route/location coverage are snapped to the nearest location
   anchor before 3D generation so the bounded work area does not open as a blank slab.
 - Micro-street/citywalk overview camera presets use closer, lower first-screen framing while preserving
   the same initial/idle auto-orbit camera model.
+- 3D road ribbons are muted as terrain context instead of acting as a gray route outline.
+- Building LOD keeps low-poly massing opaque while near-camera detail dissolves in, preventing the
+  close-view transparent-building defect seen in manual review screenshots.
 - Route pixels remain stable during drag, WASD, and wheel camera stress.
 
 ## Summary

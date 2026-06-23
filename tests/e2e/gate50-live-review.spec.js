@@ -8,8 +8,7 @@ import {
   focusFrozenRoute,
   loadSceneFixture,
   openVisualFixture,
-  setVisualCameraPreset,
-  visualRoiFor
+  setVisualCameraPreset
 } from './helpers/visual-fixtures.js';
 
 const OUTPUT_DIR = 'output/gate50/live-review';
@@ -55,16 +54,8 @@ test.describe('@gate50-live-review manual visual packet capture', () => {
       await page.addStyleTag({ path: 'tests/visual/styles/screenshot-normalize.css' });
       await focusFrozenRoute(page, reviewScene.routeSegmentId);
 
-      captures.push(
-        await captureView(page, fixture, reviewScene, 'overview', {
-          clip: visualRoiFor('route-focus')
-        })
-      );
-      captures.push(
-        await captureView(page, fixture, reviewScene, 'inspect', {
-          clip: visualRoiFor('inspect')
-        })
-      );
+      captures.push(await captureView(page, fixture, reviewScene, 'overview'));
+      captures.push(await captureView(page, fixture, reviewScene, 'inspect'));
     }
 
     const manifest = {
@@ -81,7 +72,7 @@ test.describe('@gate50-live-review manual visual packet capture', () => {
   });
 });
 
-async function captureView(page, fixture, reviewScene, view, { clip }) {
+async function captureView(page, fixture, reviewScene, view) {
   await setVisualCameraPreset(page, view, fixture.cameraPresets[view]);
   await expect
     .poll(async () => page.evaluate(() => window.__threeDebug__?.camera?.mode || ''), {
@@ -96,12 +87,11 @@ async function captureView(page, fixture, reviewScene, view, { clip }) {
 
   const screenshotPath = join(OUTPUT_DIR, `${capturePoint}.png`);
   const qaPath = join(OUTPUT_DIR, `${capturePoint}.qa.json`);
-  await page.screenshot({
+  await page.locator('#map-3d canvas').screenshot({
     path: screenshotPath,
     animations: 'disabled',
     caret: 'hide',
-    scale: 'css',
-    clip
+    scale: 'css'
   });
   writeFileSync(qaPath, `${JSON.stringify(qa, null, 2)}\n`);
 

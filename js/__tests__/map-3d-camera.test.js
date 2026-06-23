@@ -27,7 +27,7 @@ describe('3D map overview camera pose', () => {
   it('uses the overview orbit even before terrain data has loaded', () => {
     const initialPose = getInitialOverviewCameraPose();
     const defaultWorkAreaPose = getOverviewCameraPose(
-      { minX: -200, maxX: 200, minZ: -200, maxZ: 200 },
+      { minX: -400, maxX: 400, minZ: -400, maxZ: 400 },
       { terrainMode: 'citywalk' }
     );
 

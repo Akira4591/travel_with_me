@@ -56,7 +56,10 @@ VQ0 local visual reset implemented in code:
 - Route guidance no longer creates gray `bed`/`edge` route meshes; yellow guidance is the only primary route layer.
 - QA now exposes `routeGrayOutlinePixelRatio`, `workAreaRaisedPixelRatio`, `outsideDimmedPixelRatio`, and work-area dataset fields.
 - Overview camera starts on the same scene-profile orbit used by idle auto-rotate before terrain data loads, during entry, and after steady state; x/z remain unlocked for drag and WASD movement.
+- The unloaded initial 3D camera now uses the same 800m default work-area scale as the bounded 3D scene, avoiding a separate pre-load angle before idle orbit starts.
 - 3D route guidance is narrowed back to a 2D-style yellow navigation line instead of a thick road-surface band.
+- Muted 3D road ribbons remain available as terrain context but are no longer strong enough to read as a gray route outline.
+- Building LOD keeps low-poly massing opaque while near-camera detail dissolves in, so close views change face/detail level without turning buildings into transparent slabs.
 - Vegetation frustum telemetry now uses landcover chunk bounds so licensed vegetation areas remain measurable during camera stress.
 - Empty 2D selections that fall outside available trip/route data now snap to the nearest POI/location
   anchor before 3D generation, preventing a technically valid but visually blank work area.
@@ -76,6 +79,8 @@ Remaining VQ0 acceptance item:
   Capture the local screenshot review inputs with `npm.cmd run gate50:live-review`.
   The latest run generated `output/gate50/live-review/manifest.md` with six passing overview/inspect
   capture rows for hiking, old-street, and landmark-pilot scenes.
+  Engineering pre-review now shows route outline and transparent-building defects reduced, but the
+  live composition remains intentionally pending manual product-quality acceptance.
   For a stronger pre-review evidence packet, run
   `npm.cmd run gate50:review -- --include-stability --stability-runs=5`.
   Use `--evidence-json=output/gate50/evidence.json` when a machine-readable local evidence record is

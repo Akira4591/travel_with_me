@@ -4,7 +4,7 @@ import { chooseBuildingTemplate } from './building-templates.js';
 
 const BUILDING_MIN_HEIGHT = 3;
 const BUILDING_MAX_HEIGHT = 14;
-const DEFAULT_BUILDING_COLOR = '#D8D2C6';
+const DEFAULT_BUILDING_COLOR = '#EDE7DC';
 
 export function buildBuildingGroup(
   proj,
@@ -97,7 +97,7 @@ export function buildBuildingGroup(
 
 function addFallbackMassingInstances(group, lodEntries, fallbackMassings, buildingColor) {
   if (!fallbackMassings.length) return;
-  const material = createBuildingMaterial(buildingColor, 0.9);
+  const material = createBuildingMaterial(buildingColor, 1);
   const geometry = new THREE.BoxGeometry(1, 1, 1);
   const mesh = new THREE.InstancedMesh(geometry, material, fallbackMassings.length);
   mesh.castShadow = true;
@@ -119,7 +119,7 @@ function addFallbackMassingInstances(group, lodEntries, fallbackMassings, buildi
       low: mesh,
       lowMaterial: material,
       lowInstanced: true,
-      lowAlpha: 0.9,
+      lowAlpha: 1,
       instanceIndex: index,
       detail: massing.detail,
       detailMaterials: massing.detail.userData.materials,
@@ -176,7 +176,7 @@ function createAuthoritativeBuildingLod(asset, proj, terrainModel, buildingColor
   );
   if (percentile(baseTerrainErrorsMeters, 0.95) > 0.25) return null;
   const height = proj.metersToUnits(asset.heightMeters);
-  const lowMaterial = createBuildingMaterial(buildingColor, 0.9);
+  const lowMaterial = createBuildingMaterial(buildingColor, 1);
   const low = new THREE.Mesh(
     new THREE.ExtrudeGeometry(shape, { depth: height, bevelEnabled: false }),
     lowMaterial
@@ -186,8 +186,8 @@ function createAuthoritativeBuildingLod(asset, proj, terrainModel, buildingColor
   low.castShadow = true;
   low.receiveShadow = true;
 
-  const detailMaterial = createBuildingMaterial('#E9E4DA', 0);
-  const roofMaterial = createBuildingMaterial('#B8AA91', 0);
+  const detailMaterial = createBuildingMaterial('#F2EDE4', 0);
+  const roofMaterial = createBuildingMaterial('#E2D8C7', 0);
   const detail = new THREE.Group();
   const body = new THREE.Mesh(
     new THREE.ExtrudeGeometry(shape, { depth: height, bevelEnabled: false }),
@@ -226,9 +226,9 @@ function createAuthoritativeBuildingLod(asset, proj, terrainModel, buildingColor
 function createDetailedBuilding({ x, z, terrainY, width, height, seed, template }) {
   const group = new THREE.Group();
   const materials = [];
-  const facadeMaterial = createBuildingMaterial('#E9E4DA', 0);
-  const roofMaterial = createBuildingMaterial('#C4BBA8', 0);
-  const accentMaterial = createBuildingMaterial('#B0A590', 0);
+  const facadeMaterial = createBuildingMaterial('#F2EDE4', 0);
+  const roofMaterial = createBuildingMaterial('#E2D8C7', 0);
+  const accentMaterial = createBuildingMaterial('#CFC4B2', 0);
   materials.push(facadeMaterial, roofMaterial, accentMaterial);
 
   const inset = Math.max(0.32, width * (template.id === 'tower' ? 0.24 : 0.12));
