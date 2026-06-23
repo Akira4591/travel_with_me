@@ -126,6 +126,8 @@ npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=timeline
 
 Current collected repeatability evidence:
 
+- Full visual baseline passed 5/5 local runs on 2026-06-23, covering all 24 maintained Chromium
+  visual checks per run.
 - `core` passed 5/5 local runs on 2026-06-23, covering core ROI captures and the
   micro-street inspect-camera readability gate.
 - `overview-inspect` passed 5/5 local runs on 2026-06-23, covering `hiking-terrain`,

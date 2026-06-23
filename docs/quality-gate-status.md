@@ -41,6 +41,7 @@ Commands run on 2026-06-23:
 | `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=precision`                                | Passed: five consecutive terrain precision runs, 15/15 scene checks across old-street, scenic-park, and hiking-terrain                                     |
 | `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=camera-stress`                            | Passed: five consecutive 30-second camera-stress runs, 15/15 stress checks across river-bridge, micro-street, and hiking-terrain                           |
 | `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=timeline`                                 | Passed: five consecutive river-bridge generation timeline checks from foundation to route focus                                                            |
+| `npm.cmd run test:e2e:visual:stability -- --runs=5`                                                   | Passed: five consecutive full visual baseline runs, 120/120 maintained Chromium visual checks                                                              |
 | `npm.cmd run gate50:review -- --skip-visual --skip-smoke`                                             | Passed: validates gate 50 review command wiring, static gates, unit tests, and encoding gate                                                               |
 | `npm.cmd run gate50:review -- --dry-run --include-stability --stability-preset=precision`             | Passed: validates optional Gate 50 visual-stability evidence wiring                                                                                        |
 | `npm.cmd run gate50:review -- --dry-run --evidence-json=output/gate50/dry-run.json`                   | Passed: validates local machine-readable evidence summary output                                                                                           |
@@ -193,6 +194,8 @@ Self-audit on 2026-06-23 after `codex/next-beta-visual-calibration`:
   30-second route readability and z-fighting stress gates.
 - The `timeline` visual stability preset now has five consecutive local passes covering the
   river-bridge staged generation sequence from foundation to route focus.
+- The full visual baseline now has five consecutive local passes covering all 24 maintained
+  Chromium visual checks per run.
 - The encoding gate now catches broader mojibake fragments; `utils`, 3D toggle text, and affected tests
   use clean UTF-8 strings.
 - Remaining partial item is not an automated gap: the live bounded 3D composition still needs manual product-quality acceptance before gate 50 can close.

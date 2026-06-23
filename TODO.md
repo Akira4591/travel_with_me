@@ -39,6 +39,7 @@ Latest verified baseline from 2026-06-23. Detailed gate accounting is maintained
 | Precision stability               | Passed: `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=precision`, 5/5 runs, 15/15 scene checks                         |
 | Camera-stress stability           | Passed: `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=camera-stress`, 5/5 runs, 15/15 stress checks                    |
 | Timeline stability                | Passed: `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=timeline`, 5/5 generation timeline checks                        |
+| Full visual stability             | Passed: `npm.cmd run test:e2e:visual:stability -- --runs=5`, 5/5 runs, 120/120 visual baseline checks                                |
 | Tracked-source secret scan        | Passed: no known real AMap/DeepSeek key patterns found                                                                               |
 | In-app browser 2D/3D visual check | Passed: 2D marker selection enters bounded 3D; QA passed; route gray outline is 0; initial/loading/idle view uses one overview orbit |
 | Manual 3D visual review           | Pending after VQ0 implementation; previous screenshot scored 1/10 before bounded work-area and route-layer repair                    |
@@ -101,6 +102,8 @@ Known remaining non-blocking follow-ups after VQ0:
 - Promote maintained golden screenshot assertions after the current stage screenshot capture gate is stable across repeated local runs.
   **Prepared:** `npm.cmd run test:e2e:visual:stability -- --runs=5` is now the repeatability command
   for collecting five-run local evidence before turning on committed golden assertions.
+  **Evidence collected:** the full visual baseline passed 5/5 local runs, covering all 24 maintained
+  Chromium visual checks per run.
   **Evidence collected:** `core` passed 5/5 local runs across core ROI captures and the
   micro-street inspect-camera readability gate.
   **Evidence collected:** `overview-inspect` passed 5/5 local runs across hiking-terrain,
