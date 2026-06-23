@@ -36,6 +36,7 @@ Commands run on 2026-06-23:
 | `npm.cmd run check:gate50-evidence -- output/gate50/latest-review.json`                               | Passed: validates latest full Gate 50 evidence JSON                                                                                                        |
 | `npm.cmd run gate50:packet -- output/gate50/latest-review.json output/gate50/latest-manual-review.md` | Passed: creates the local full manual review packet from validated evidence                                                                                |
 | `npm.cmd run gate50:live-review`                                                                      | Passed: generated six local review screenshots plus per-view QA JSON for hiking, old-street, and landmark review scenes                                    |
+| `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=core`                                     | Passed: five consecutive core visual runs, 25/25 checks across core ROI captures and micro-street inspect readability                                      |
 | `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=overview-inspect`                         | Passed: five consecutive overview/inspect runs, 15/15 scene checks across hiking-terrain, old-street, and landmark-pilot                                   |
 | `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=precision`                                | Passed: five consecutive terrain precision runs, 15/15 scene checks across old-street, scenic-park, and hiking-terrain                                     |
 | `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=camera-stress`                            | Passed: five consecutive 30-second camera-stress runs, 15/15 stress checks across river-bridge, micro-street, and hiking-terrain                           |
@@ -182,6 +183,8 @@ Self-audit on 2026-06-23 after `codex/next-beta-visual-calibration`:
   ignored `output/gate50/` artifacts.
 - Gate 50 live review capture now produces six local overview/inspect screenshots plus QA JSON for
   the hiking, old-street, and landmark-pilot review scenes.
+- The `core` visual stability preset now has five consecutive local passes covering core ROI
+  captures and micro-street inspect readability.
 - The `overview-inspect` visual stability preset now has five consecutive local passes covering the
   same three Gate 50 review scene families.
 - The `precision` visual stability preset now has five consecutive local passes covering city,

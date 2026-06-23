@@ -126,6 +126,8 @@ npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=timeline
 
 Current collected repeatability evidence:
 
+- `core` passed 5/5 local runs on 2026-06-23, covering core ROI captures and the
+  micro-street inspect-camera readability gate.
 - `overview-inspect` passed 5/5 local runs on 2026-06-23, covering `hiking-terrain`,
   `old-street`, and `landmark-pilot` overview/inspect review gates.
 - `precision` passed 5/5 local runs on 2026-06-23, covering old-street city precision,
