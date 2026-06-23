@@ -225,6 +225,27 @@ Boundary:
   until gate 50 manual visual acceptance closes or a new user screenshot defines the next visual
   defect source of truth.
 
+## Full Stability Self-Audit
+
+Self-audit after the full five-run visual stability stage:
+
+- Automated evidence is no longer the limiting factor for Gate 50: static checks, unit tests,
+  desktop smoke, full visual baseline, evidence JSON validation, live review capture, all named
+  visual stability presets, and the full visual baseline five-run gate have passed.
+- The full repeated visual suite covered 5 runs x 24 maintained Chromium visual checks, for 120
+  successful visual checks without a failure.
+- Scoped repeated gates also passed for `core`, `overview-inspect`, `precision`, `camera-stress`,
+  and `timeline`; this covers bounded-scene composition, scenario precision, 30-second camera
+  interaction, and staged generation order.
+- No current documented item justifies starting P4 DEM tiles, P5 landmark restoration, or commercial
+  provider routing before the manual Gate 50 decision. Starting those now would violate the active
+  roadmap boundary.
+- The next development branch should be created only after one of two events:
+  - the user accepts Gate 50, then create the next branch for post-VQ0 work such as golden
+    screenshot promotion or the next planned 3D stage;
+  - the user rejects Gate 50 with a new screenshot/defect, then create a targeted defect branch from
+    that new source of truth.
+
 ## Immediate Fix Order
 
 1. Complete VQ0 manual acceptance: **blocking**
