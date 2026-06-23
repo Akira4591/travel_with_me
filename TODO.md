@@ -25,13 +25,13 @@ Latest verified baseline from 2026-06-23. Detailed gate accounting is maintained
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `npm.cmd run check`               | Passed                                                                                                                               |
 | `npm.cmd test`                    | Passed: 34 files, 170 tests                                                                                                          |
-| `npm.cmd run check:encoding`      | Passed: 339 visible source/doc/test files scanned                                                                                    |
-| Full visual baseline suite        | Passed: 24 local ROI fixture captures/interactions with QA JSON and screenshots in 13.0m                                             |
+| `npm.cmd run check:encoding`      | Passed: 341 visible source/doc/test files scanned                                                                                    |
+| Full visual baseline suite        | Passed: 24 local ROI fixture captures/interactions with QA JSON and screenshots in 12.4m                                             |
 | `npm.cmd run check:architecture`  | Passed: 37 render files scanned                                                                                                      |
 | `npm.cmd run check:provenance`    | Passed: 42 scene fixture files scanned                                                                                               |
 | `npm.cmd run check:landmarks`     | Passed: 1 landmark record scanned                                                                                                    |
 | `npm.cmd run check:ledger`        | Passed: active backlog and quality-gate ledger counts are internally consistent                                                      |
-| Targeted desktop 3D smoke         | Passed: 15 Chromium desktop tests, 13 mobile/desktop-scope skips                                                                     |
+| Targeted desktop 3D smoke         | Passed: 16 Chromium desktop tests, 14 mobile/desktop-scope skips                                                                     |
 | `npm.cmd run gate50:review`       | Passed: full automated Gate 50 package with static gates, unit tests, encoding, desktop smoke, and 24 Chromium 3D visual baselines   |
 | `npm.cmd run gate50:live-review`  | Passed: generated six local review screenshots plus per-view QA JSON for hiking, old-street, and landmark review scenes              |
 | Tracked-source secret scan        | Passed: no known real AMap/DeepSeek key patterns found                                                                               |
@@ -58,6 +58,7 @@ VQ0 local visual reset implemented in code:
 - Overview camera starts on the same scene-profile orbit used by idle auto-rotate before terrain data loads, during entry, and after steady state; x/z remain unlocked for drag and WASD movement.
 - The unloaded initial 3D camera now uses the same 800m default work-area scale as the bounded 3D scene, avoiding a separate pre-load angle before idle orbit starts.
 - 3D route guidance is narrowed back to a 2D-style yellow navigation line instead of a thick road-surface band.
+- 3D route guidance now uses a flat unlit yellow material so route readability does not collapse under shallow camera/terrain lighting.
 - Muted 3D road ribbons remain available as terrain context but are no longer strong enough to read as a gray route outline.
 - Building LOD keeps low-poly massing opaque while near-camera detail dissolves in, so close views change face/detail level without turning buildings into transparent slabs.
 - Vegetation frustum telemetry now uses landcover chunk bounds so licensed vegetation areas remain measurable during camera stress.
@@ -74,11 +75,12 @@ Remaining VQ0 acceptance item:
 
 - Run `npm.cmd run gate50:review`, complete `docs/qa/gate50-manual-review.md` against the new bounded diorama output, and if accepted move gate 50 from partial to complete.
   The latest full automated Gate 50 package passed and produced validated local evidence at
-  `output/gate50/full-review.json` plus `output/gate50/full-manual-review.md`, but final
+  `output/gate50/latest-review.json` plus `output/gate50/latest-manual-review.md`, but final
   product-quality acceptance is still manual.
   Capture the local screenshot review inputs with `npm.cmd run gate50:live-review`.
   The latest run generated `output/gate50/live-review/manifest.md` with six passing overview/inspect
-  capture rows for hiking, old-street, and landmark-pilot scenes.
+  capture rows for hiking, old-street, and landmark-pilot scenes. Route-yellow ratios ranged from
+  `0.0011` in the hiking overview to `0.02693` in the old-street inspect view.
   Engineering pre-review now shows route outline and transparent-building defects reduced, but the
   live composition remains intentionally pending manual product-quality acceptance.
   For a stronger pre-review evidence packet, run

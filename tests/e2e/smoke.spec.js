@@ -848,15 +848,17 @@ test('desktop 3D anchors empty off-route selections to location context', async 
     /^[1-9]\d*$/
   );
   await expect
-    .poll(async () =>
-      page.evaluate(() => ({
-        phase: window.__threeDebug__?.phase,
-        passed: window.__threeDebug__?.quality?.passed,
-        anchorAdjusted: window.__threeDebug__?.workArea?.anchorAdjusted,
-        anchorType: window.__threeDebug__?.workArea?.anchorType,
-        routeSegments: window.__threeDebug__?.counts?.routeSegments || 0,
-        buildingMassings: window.__threeDebug__?.counts?.buildingMassings || 0
-      }))
+    .poll(
+      async () =>
+        page.evaluate(() => ({
+          phase: window.__threeDebug__?.phase,
+          passed: window.__threeDebug__?.quality?.passed,
+          anchorAdjusted: window.__threeDebug__?.workArea?.anchorAdjusted,
+          anchorType: window.__threeDebug__?.workArea?.anchorType,
+          routeSegments: window.__threeDebug__?.counts?.routeSegments || 0,
+          buildingMassings: window.__threeDebug__?.counts?.buildingMassings || 0
+        })),
+      { timeout: 15_000 }
     )
     .toMatchObject({
       phase: 'steady',

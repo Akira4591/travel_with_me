@@ -88,24 +88,30 @@ export function createRouteRibbon(points, halfWidth, style = {}) {
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
-  const mesh = new THREE.Mesh(
-    geometry,
-    new THREE.MeshStandardMaterial({
-      color: new THREE.Color(style.color || '#9E9685'),
-      transparent: true,
-      opacity: style.opacity ?? 0.38,
-      roughness: style.roughness ?? 0.95,
-      metalness: style.metalness ?? 0,
-      emissive: new THREE.Color(style.emissive || '#000000'),
-      emissiveIntensity: style.emissiveIntensity ?? 0,
-      side: style.side ?? THREE.DoubleSide,
-      depthWrite: style.depthWrite ?? true,
-      depthTest: style.depthTest ?? true,
-      polygonOffset: Boolean(style.polygonOffset),
-      polygonOffsetFactor: style.polygonOffsetFactor ?? 0,
-      polygonOffsetUnits: style.polygonOffsetUnits ?? 0
-    })
-  );
+  const materialOptions = {
+    color: new THREE.Color(style.color || '#9E9685'),
+    transparent: true,
+    opacity: style.opacity ?? 0.38,
+    side: style.side ?? THREE.DoubleSide,
+    depthWrite: style.depthWrite ?? true,
+    depthTest: style.depthTest ?? true,
+    polygonOffset: Boolean(style.polygonOffset),
+    polygonOffsetFactor: style.polygonOffsetFactor ?? 0,
+    polygonOffsetUnits: style.polygonOffsetUnits ?? 0
+  };
+  const material = style.unlit
+    ? new THREE.MeshBasicMaterial({
+        ...materialOptions,
+        toneMapped: false
+      })
+    : new THREE.MeshStandardMaterial({
+        ...materialOptions,
+        roughness: style.roughness ?? 0.95,
+        metalness: style.metalness ?? 0,
+        emissive: new THREE.Color(style.emissive || '#000000'),
+        emissiveIntensity: style.emissiveIntensity ?? 0
+      });
+  const mesh = new THREE.Mesh(geometry, material);
   mesh.renderOrder = style.renderOrder ?? 0;
   mesh.userData.guidanceRole = style.guidanceRole || null;
   mesh.userData.surfaceLift = SURFACE_BASE_LIFT + (style.verticalOffset || 0);

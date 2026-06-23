@@ -43,7 +43,8 @@ const REVIEW_SCENES = [
 test.describe('@gate50-live-review manual visual packet capture', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test('captures live Gate 50 overview and inspect review inputs', async ({ page }) => {
+  test('captures live Gate 50 overview and inspect review inputs', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'Gate 50 live visual review captures are desktop-only.');
     test.setTimeout(220_000);
     mkdirSync(OUTPUT_DIR, { recursive: true });
     const captures = [];

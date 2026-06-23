@@ -157,7 +157,7 @@ function createRouteGuidance(points, halfWidth, { isActive = false, isEstimated 
   if (isEstimated) {
     return createEstimatedRouteDashes(points, Math.max(halfWidth * 0.23, 0.22), lineColor);
   }
-  const stripeWidth = Math.max(halfWidth * 0.75, 0.36);
+  const stripeWidth = Math.max(halfWidth * 1.05, 0.48);
   const meshes = [
     createRouteRibbon(points, stripeWidth, {
       color: lineColor,
@@ -167,6 +167,7 @@ function createRouteGuidance(points, halfWidth, { isActive = false, isEstimated 
       guidanceRole: 'line',
       emissive: lineColor,
       emissiveIntensity: 0.18,
+      unlit: true,
       depthWrite: false,
       polygonOffset: true,
       polygonOffsetFactor: -2,
@@ -206,6 +207,7 @@ function createEstimatedRouteDashes(points, halfWidth, color) {
         guidanceRole: 'line',
         emissive: color,
         emissiveIntensity: 0.14,
+        unlit: true,
         depthWrite: false,
         polygonOffset: true,
         polygonOffsetFactor: -2,

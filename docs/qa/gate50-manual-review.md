@@ -32,9 +32,9 @@ npm.cmd run gate50:packet -- output/gate50/evidence.json output/gate50/manual-re
 The latest full local automated packet was collected with:
 
 ```powershell
-npm.cmd run gate50:review -- --evidence-json=output/gate50/full-review.json
-npm.cmd run check:gate50-evidence -- output/gate50/full-review.json
-npm.cmd run gate50:packet -- output/gate50/full-review.json output/gate50/full-manual-review.md
+npm.cmd run gate50:review -- --evidence-json=output/gate50/latest-review.json
+npm.cmd run check:gate50-evidence -- output/gate50/latest-review.json
+npm.cmd run gate50:packet -- output/gate50/latest-review.json output/gate50/latest-manual-review.md
 ```
 
 To capture deterministic local screenshots and QA JSON for the human visual decision:
