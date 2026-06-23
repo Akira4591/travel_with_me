@@ -13,6 +13,7 @@ const STALE_PATTERNS = [
   { name: 'old encoding count', regex: /322 (?:visible source\/doc\/test )?files scanned/u },
   { name: 'old encoding count', regex: /325 (?:visible source\/doc\/test )?files scanned/u },
   { name: 'old encoding count', regex: /327 (?:visible source\/doc\/test )?files scanned/u },
+  { name: 'old encoding count', regex: /329 (?:visible source\/doc\/test )?files scanned/u },
   { name: 'old smoke count', regex: /12 desktop tests,\s*1 mobile-only test skipped/u },
   { name: 'old chromium smoke count', regex: /12 passed,\s*1 mobile-only skipped/u }
 ];

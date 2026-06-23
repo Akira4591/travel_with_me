@@ -37,6 +37,15 @@ npm.cmd run check:gate50-evidence -- output/gate50/full-review.json
 npm.cmd run gate50:packet -- output/gate50/full-review.json output/gate50/full-manual-review.md
 ```
 
+To capture deterministic local screenshots and QA JSON for the human visual decision:
+
+```powershell
+npm.cmd run gate50:live-review
+```
+
+This writes `manifest.md`, `manifest.json`, screenshots, and per-view QA JSON to
+`output/gate50/live-review/`.
+
 Useful scoped reruns:
 
 ```powershell
