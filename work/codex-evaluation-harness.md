@@ -1,0 +1,49 @@
+# Codex Evaluation Harness
+
+Use this lightweight table for the next 30 real tasks. One row per task is enough. The goal is to detect repeated failure patterns and convert them into tests, scripts, documents, or local rules.
+
+## Metrics
+
+- Task Category: feature, bugfix, refactor, docs, QA, release, research, setup, or other.
+- Completed: yes/no.
+- Rework Count: number of implementation correction loops.
+- User Correction Count: number of times the user corrected missed requirements or wrong direction.
+- Invalid Command Count: commands that failed because of preventable path, shell, environment, or assumption mistakes.
+- Ended Unverified: yes/no.
+- High-Risk Action Intercepted: yes/no.
+- External / Tool Anomaly Found: yes/no.
+
+## Task Log
+
+| #   | Date       | Task Category | Completed | Rework Count | User Correction Count | Invalid Command Count | Ended Unverified | High-Risk Action Intercepted | External / Tool Anomaly Found | Notes                                                          |
+| --- | ---------- | ------------- | --------- | -----------: | --------------------: | --------------------: | ---------------- | ---------------------------- | ----------------------------- | -------------------------------------------------------------- |
+| 1   | 2026-06-24 | setup         | yes       |            0 |                     0 |                     0 | no               | no                           | no                            | Initialized repository-local Codex SAPIEN-Lite workflow files. |
+| 2   |            |               |           |              |                       |                       |                  |                              |                               |                                                                |
+| 3   |            |               |           |              |                       |                       |                  |                              |                               |                                                                |
+| 4   |            |               |           |              |                       |                       |                  |                              |                               |                                                                |
+| 5   |            |               |           |              |                       |                       |                  |                              |                               |                                                                |
+| 6   |            |               |           |              |                       |                       |                  |                              |                               |                                                                |
+| 7   |            |               |           |              |                       |                       |                  |                              |                               |                                                                |
+| 8   |            |               |           |              |                       |                       |                  |                              |                               |                                                                |
+| 9   |            |               |           |              |                       |                       |                  |                              |                               |                                                                |
+| 10  |            |               |           |              |                       |                       |                  |                              |                               |                                                                |
+| 11  |            |               |           |              |                       |                       |                  |                              |                               |                                                                |
+| 12  |            |               |           |              |                       |                       |                  |                              |                               |                                                                |
+| 13  |            |               |           |              |                       |                       |                  |                              |                               |                                                                |
+| 14  |            |               |           |              |                       |                       |                  |                              |                               |                                                                |
+| 15  |            |               |           |              |                       |                       |                  |                              |                               |                                                                |
+| 16  |            |               |           |              |                       |                       |                  |                              |                               |                                                                |
+| 17  |            |               |           |              |                       |                       |                  |                              |                               |                                                                |
+| 18  |            |               |           |              |                       |                       |                  |                              |                               |                                                                |
+| 19  |            |               |           |              |                       |                       |                  |                              |                               |                                                                |
+| 20  |            |               |           |              |                       |                       |                  |                              |                               |                                                                |
+| 21  |            |               |           |              |                       |                       |                  |                              |                               |                                                                |
+| 22  |            |               |           |              |                       |                       |                  |                              |                               |                                                                |
+| 23  |            |               |           |              |                       |                       |                  |                              |                               |                                                                |
+| 24  |            |               |           |              |                       |                       |                  |                              |                               |                                                                |
+| 25  |            |               |           |              |                       |                       |                  |                              |                               |                                                                |
+| 26  |            |               |           |              |                       |                       |                  |                              |                               |                                                                |
+| 27  |            |               |           |              |                       |                       |                  |                              |                               |                                                                |
+| 28  |            |               |           |              |                       |                       |                  |                              |                               |                                                                |
+| 29  |            |               |           |              |                       |                       |                  |                              |                               |                                                                |
+| 30  |            |               |           |              |                       |                       |                  |                              |                               |                                                                |
