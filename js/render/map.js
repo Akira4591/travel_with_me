@@ -115,6 +115,9 @@ export function createOrUpdateMarker(locationId, lnglat) {
 
   const content = document.createElement('div');
   content.className = 'custom-marker';
+  content.dataset.locationId = locationId;
+  content.dataset.lng = String(Number(lnglat[0]));
+  content.dataset.lat = String(Number(lnglat[1]));
   content.innerHTML = '<span></span>';
 
   const marker = new state.AMap.Marker({
@@ -124,12 +127,26 @@ export function createOrUpdateMarker(locationId, lnglat) {
   });
   // 缓存 content 元素，方便后续给 marker 加 CSS 动画 class（脉冲效果）
   marker._contentEl = content;
-  marker.on('click', () => openInfoWindow(locationId));
+  marker.on('click', () => {
+    if (handle3DMarkerSelection(lnglat)) return;
+    openInfoWindow(locationId);
+  });
 
   state.markers.set(locationId, marker);
   state.markerList.push(marker);
   state.map.add(marker);
   return marker;
+}
+
+function handle3DMarkerSelection(lnglat) {
+  const mapElement = document.getElementById('map');
+  if (!mapElement?.classList?.contains('selecting-3d-center')) return false;
+  mapElement.dispatchEvent(
+    new CustomEvent('travel:marker-3d-select', {
+      detail: { lnglat: [Number(lnglat[0]), Number(lnglat[1])] }
+    })
+  );
+  return true;
 }
 
 export function removeMarker(locationId) {

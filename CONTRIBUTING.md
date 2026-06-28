@@ -17,6 +17,25 @@ npm run dev
 # http://localhost:8080
 ```
 
+## 3D Visual QA Documents
+
+Any change that affects 3D visual output, camera behavior, terrain, water, roads, bridges, buildings, or scene profiles must check these documents before implementation:
+
+- `docs/qa/visual-baseline.md`
+- `docs/qa/debug-contract.md`
+- `docs/3d-visual-baseline-spec.md`
+
+The next active development order is:
+
+```text
+Alpha visual proof infrastructure
+  -> Beta P2 water / road / bridge visual correctness
+  -> Gamma P3 building massing / dissolve
+  -> Delta inspect camera and scene precision profiles
+```
+
+Live provider calls are not part of default visual QA. Visual gates must use deterministic local fixtures first.
+
 ## 代码规范
 
 ### 格式化

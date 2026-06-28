@@ -1,0 +1,29 @@
+{
+  "scene": "old-street",
+  "scenario": "city",
+  "terrain": {
+    "expectedMode": "micro-street",
+    "minHeightRangeMeters": 1,
+    "maxHeightRangeMeters": 12,
+    "requiresSlopeCue": false,
+    "requiresLandcover": false
+  },
+  "route": {
+    "hash": "fixture-old-street-route-v1",
+    "maxOccludedRatio": 0.25,
+    "minYellowPixelRatio": 0.00008
+  },
+  "water": {
+    "requiresCoverage": false,
+    "maxBlankPixelRatio": 0
+  },
+  "bridge": {
+    "requiresDeckContinuity": false,
+    "minSpanCoverageRatio": 1
+  },
+  "building": {
+    "maxPopDeltaPixels": 18,
+    "minContextBuildings": 4,
+    "minLodEntries": 3
+  }
+}

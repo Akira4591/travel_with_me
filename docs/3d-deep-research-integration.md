@@ -17,16 +17,25 @@ Do not move the project to Cesium, Mapbox, Babylon, or OSMBuildings as the prima
 
 ## 1.1 Map Module Repair Report Integration
 
-The latest map-module repair research narrows the next implementation order to constraint work before new effects:
+The latest next-stage iteration research narrows the immediate implementation order to deterministic proof before new visual complexity:
 
 ```text
-P0: quality gates, renderer/provider boundary, stable QA observation
-P1: scenario fixtures and water/road/bridge geometry gates
-P2: building LOD/template registry and landmark allowlist pipeline
-P3: commercial provenance, live-provider opt-in smoke, and release observability
+Sprint Alpha: deterministic visual proof infrastructure
+  ROI screenshots, fixed camera presets, screenshot normalization, QA schema v1, failure attachments
+
+Sprint Beta: P2 water / road / bridge visual correctness
+  waterCoverageRatio, bridgeContinuity, route clearance, z-fighting risk, deck-first bridge proof
+
+Sprint Gamma: P3 building massing / dissolve modularization
+  split massing and dissolve renderers, synthetic massing metadata, no-pop LOD gates
+
+Sprint Delta: inspect camera and scene precision profiles
+  overview / route-focus / inspect state machine, profile budgets, graceful degradation
 ```
 
-The current codebase now enforces the first P0 boundary: `js/render/**` must not import provider/API or server modules directly. Elevation loading is injected by the application orchestration layer and checked by `npm run check:architecture`.
+P0/P1/P2 code-level correctness is already far enough that the next risk is silent visual regression across scenes. Do not expand into P4 DEM tiles, P5 landmark restoration, or commercial 3D providers before the Alpha/Beta visual gates are stable.
+
+The current codebase now enforces the first architecture boundary: `js/render/**` must not import provider/API or server modules directly. Elevation loading is injected by the application orchestration layer and checked by `npm run check:architecture`.
 
 The current QA observation contract is also split into three channels:
 
@@ -34,7 +43,57 @@ The current QA observation contract is also split into three channels:
 - `#map-3d.dataset.qa*` for clipped browser/container assertions.
 - `three:qa` custom events for phase and gate transitions.
 
-Do not add new 3D effects until the next gate work is done through scenario fixtures and visual baselines. New effect work without a fixture or quality assertion is treated as regression risk.
+Do not add new 3D effects until the next gate work is done through scenario fixtures and visual baselines. New effect work without a fixture, ROI capture, or quality assertion is treated as regression risk.
+
+## 1.2 Bounded Work Area Decision
+
+The latest visual-quality research supersedes any plan that derives the 3D scene extent from the
+full route bounding box or all itinerary points. The project must stop treating 3D as an
+unbounded map mode. The new product contract is:
+
+```text
+2D map
+  -> user clicks the 3D button
+  -> 2D enters selecting-3d-center state
+  -> red pin follows the cursor with a square range preview
+  -> user clicks a 2D map position
+  -> Three.js builds a fixed square 3D work area centered on that position
+  -> content outside the work area is dim context, not full-detail 3D
+```
+
+This is a quality control decision, not a capability downgrade. The current renderer can produce
+nonblank scenes and pass structural tests, but user screenshots show that large unbounded scenes
+collapse into a low-detail white board with unstable route layering. The fix is to give the 3D
+renderer a finite spatial contract before adding more building, vegetation, DEM, or landmark
+detail.
+
+First-release scope policy:
+
+| Scene profile                  | Default square side | Allowed range | Rule                                                                           |
+| ------------------------------ | ------------------: | ------------: | ------------------------------------------------------------------------------ |
+| Urban old street / small shops |                600m |      500-700m | Prioritize storefront context, route turns, and dense building massing.        |
+| Scenic / park / city walk      |               1000m |     800-1200m | Preserve water, paths, light relief, and POI context without becoming a board. |
+| Hiking / mountain terrain      |               2000m |    1500-2000m | Show slope and route elevation while staying inside the V1 geometry budget.    |
+| Unknown profile                |                800m |          800m | Default to a conservative, readable local diorama.                             |
+| V1 hard cap                    |               2000m |       no more | Above this, ask the user to select a smaller area. Do not silently degrade.    |
+
+The implementation must make `spanMeters` an explicit business parameter. It must not be inferred
+from route length or all trip points. Routes, roads, water, bridges, buildings, and vegetation are
+clipped to the square. If a route leaves the square, render only the in-work-area segment and show a
+low-key boundary direction cue instead of extending the scene.
+
+Immediate visual correction decisions:
+
+- Remove the gray 3D route outline. It currently competes with and visually swallows the yellow
+  guidance line.
+- Keep the itinerary route as the only primary 3D guidance layer, using the same industrial safety
+  yellow identity as 2D.
+- Treat road bed and road context as muted geographic layers, not route-outline layers.
+- Apply strict route render ordering and z-fighting controls: route geometry above terrain/roads,
+  `depthWrite=false`, stable `renderOrder`, controlled `polygonOffset`, higher route sampling, and
+  no unnecessary transparent `DoubleSide` route passes.
+- Add visual QA that can fail the build when a gray outline, route flicker, unbounded span, or
+  missing work-area dimming returns.
 
 ## 2. Fixed Product Sequence
 
@@ -83,15 +142,29 @@ timeline explains the scene
 
 ## 3. Scene Envelope and Foundation Rules
 
-The slab is derived from the currently relevant trip context, not from an arbitrary fixed board:
+The slab is derived from the selected bounded work area, not from the entire trip, route, or all
+itinerary points:
 
 ```text
-sceneBBox = union(routeBBox, selectedPOIsBBox, relevantGeoAssetsBBox)
-pad = max(sceneLongSide * 0.15, 120m)
-slabWidth = sceneBBox.width + 2 * pad
-slabDepth = sceneBBox.depth + 2 * pad
+workArea.center = selectedLngLat
+workArea.spanMeters = profileSpanMeters
+workArea.hardCapMeters = 2000
+sceneBBox = squareBounds(workArea.center, workArea.spanMeters)
+slabWidth = workArea.spanMeters
+slabDepth = workArea.spanMeters
 slabHeight = clamp(max(localRelief * 0.18, 8m), 8m, 120m)
+slabTopY = uniformFoundationHeight
 ```
+
+Route/POI/geoAsset bounds are now used for filtering, clipping, labels, and warnings. They no
+longer decide the 3D scene size.
+
+The `slab-rise` phase must raise the selected square as a uniform plane. Every top-surface vertex
+uses the same `slabTopY`; DEM relief, street-level micro variation, water depression, road
+flattening, and bridge deck offsets are forbidden during this phase. Elevation only becomes visible
+after `terrain-refine`, then water, roads, bridges, route, and buildings resolve in their own named
+phases. This keeps the first user-visible action readable: the local 3D work area rises as one
+coherent piece before it melts into terrain and semantic layers.
 
 Flat terrain is still derived from elevation facts when available. It must not become random decorative noise. For flat cities, preserve weak real variation:
 
@@ -196,7 +269,7 @@ interact
 idle
 ```
 
-Auto-orbit is allowed only in overview or route-focus, and only at low speed. Inspect mode should not auto-rotate because the user is reading local terrain/building relationships. User drag pauses orbit immediately and resumes only after a delay when returning to overview-like states.
+Auto-orbit is allowed only in overview or route-focus, and only at low speed. Inspect mode should not auto-rotate because the user is reading local terrain/building relationships. User drag pauses orbit immediately and resumes only after a delay when returning to overview-like states. The pre-load 3D camera, entry animation camera, and idle overview orbit must share one overview pose model so opening 3D does not show a temporary angle and then snap into auto-orbit.
 
 ## 7. Performance Budgets
 
@@ -238,9 +311,14 @@ Automated gates:
 Visual gates:
 
 - Bottom-right 3D button is visible and aligned with the existing style.
+- Clicking the 3D button from 2D enters a red-pin selection state before building 3D.
+- The selected work area is a bounded square with `spanMeters <= 2000`.
+- The selected square is visually raised and readable; outside context is dimmed or simplified.
 - The transition starts from foundation rise, not instant final-layer reveal.
 - Water channels read as carved/depressed when data exists.
 - Roads are muted; route guidance is industrial safety yellow, not gold.
+- The 3D route has no gray outline or thick gray bed competing with the yellow guidance line.
+- The route remains stable during camera movement with no visible z-fighting or line jitter.
 - Close view shows building detail dissolve without popping or hiding route guidance.
 - Overview ignores unnecessary detail while keeping route, terrain, water, and bridge relationships legible.
 
@@ -258,6 +336,11 @@ The current project should not jump directly into commercial DEM, full Overture 
 8. Continue splitting building massing from building dissolve LOD.
 9. Add Playwright screenshots for foundation, carved geography, building massing, building dissolve, and route focus.
 10. Keep current Overpass/OSM context ingestion labelled as prototype context, not production commercial truth.
+11. Replace full-route scene bounds with explicit 2D-selected bounded work areas.
+12. Add a visible red-pin selection flow before 3D generation.
+13. Remove gray route outline in 3D and keep road context separate from route guidance.
+14. Treat user-reported 1/10 screenshots as a manual visual gate failure even when automated
+    structure gates pass.
 
 Latest code-level repair implications from the deep research report:
 
@@ -294,17 +377,56 @@ P2: terrain and geographic skeleton
 P3: building massing and dissolve
   deterministic massing, footprint extrusion, syntheticMassing labels, continuous dissolve LOD, instancing
 
-P4: safety, performance and visual gates
-  innerHTML audit, screenshot baselines, pixel checks, draw-call budgets, provenance gates
-
-P5: DEM tile precision
+P4: DEM tile precision
   tile decoder, worker, chunk cache, local precision, terrain seams
 
-P6: landmark restoration
+P5: landmark restoration
   licensed model import, validation, LOD outputs, visual QA
 
-P7: commercial provider and compliance layer
+P6: commercial provider and compliance layer
   provider routing, source manifest, attribution gate, operational monitoring
 ```
 
 This order keeps the project commercially defensible: visible behavior becomes correct first, then data provenance becomes enforceable, then precision and landmark restoration can be added without rewiring the renderer.
+
+## 11. Immediate Next-Stage Execution
+
+The immediate execution layer is:
+
+```text
+Alpha visual proof infrastructure
+  -> Beta P2 visual truth
+  -> Gamma P3 building refinement
+  -> Delta inspect camera and scene profiles
+```
+
+Alpha is mandatory before Beta. The first hard evidence set must include:
+
+- ROI screenshots for `river-bridge`, `micro-street`, and `hiking-terrain`;
+- fixed camera presets per capture point;
+- a screenshot normalization stylesheet;
+- `window.__threeDebug__.qa.version === 1`;
+- failure attachments: actual screenshot, diff, fixture JSON, camera JSON, QA JSON, and trace.
+
+Beta then promotes P2 visual metrics from existence checks to correctness checks:
+
+- `waterCoverageRatio`;
+- `bridgeContinuity`;
+- `routeGroundClearanceP95`;
+- `zFightingRisk`;
+- `bridgePierCount === 0` when no pier/support provenance exists.
+
+The latest visual-quality reset inserts a narrower blocking sequence before further P3/P4/P5
+expansion:
+
+```text
+Local Visual Reset
+  -> route de-gray and anti-jitter repair
+  -> 2D red-pin selection state
+  -> fixed square work area contract
+  -> outside-context dimming and boundary treatment
+  -> bounded-scene visual QA gates
+```
+
+This reset must complete before more terrain precision, building dissolve detail, vegetation, or
+landmark work is treated as product-quality progress.

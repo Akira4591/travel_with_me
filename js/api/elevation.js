@@ -41,6 +41,9 @@ const gridCache = new Map();
  */
 export async function fetchElevationGrid({ center, span, resolution = 40 }) {
   if (!Array.isArray(center) || center.length < 2) return null;
+  if (globalThis.__visualFixtureElevationGrid?.heights?.length) {
+    return cloneFixtureElevationGrid(globalThis.__visualFixtureElevationGrid, center);
+  }
 
   const [centerLng, centerLat] = center;
   const spanMeters = Math.max(600, Math.min(8000, Number(span) || 2000));
@@ -115,6 +118,20 @@ export async function fetchElevationGrid({ center, span, resolution = 40 }) {
     log.warn('[elevation] 获取高程数据失败，使用平坦地形:', err.message);
     return null;
   }
+}
+
+function cloneFixtureElevationGrid(grid, center) {
+  return {
+    rows: Number(grid.rows) || grid.heights.length,
+    cols: Number(grid.cols) || grid.heights[0]?.length || 0,
+    heights: grid.heights.map(row => row.map(value => Number(value) || 0)),
+    minLng: Number(grid.minLng),
+    maxLng: Number(grid.maxLng),
+    minLat: Number(grid.minLat),
+    maxLat: Number(grid.maxLat),
+    originLng: Number(grid.originLng ?? center?.[0]),
+    originLat: Number(grid.originLat ?? center?.[1])
+  };
 }
 
 /**

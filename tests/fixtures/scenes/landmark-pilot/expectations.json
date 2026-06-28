@@ -1,0 +1,24 @@
+{
+  "scene": "landmark-pilot",
+  "route": {
+    "hash": "fixture-landmark-pilot-route-v1",
+    "maxOccludedRatio": 0.25,
+    "minYellowPixelRatio": 0.00015
+  },
+  "water": {
+    "requiresCoverage": false,
+    "maxBlankPixelRatio": 0
+  },
+  "bridge": {
+    "requiresDeckContinuity": false,
+    "minSpanCoverageRatio": 1
+  },
+  "building": {
+    "maxPopDeltaPixels": 18,
+    "minContextBuildings": 2,
+    "minLodEntries": 2
+  },
+  "landmark": {
+    "requiresAllowlistedPlaceholder": true
+  }
+}

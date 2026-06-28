@@ -1,0 +1,76 @@
+{
+  "id": "fixture-landmark-pilot",
+  "title": "Landmark Pilot Fixture",
+  "activeDayId": "day-landmark",
+  "locations": {
+    "plaza": {
+      "id": "plaza",
+      "name": "Plaza Entrance",
+      "lnglat": [116.405, 39.918],
+      "resolved": true
+    },
+    "gallery": {
+      "id": "gallery",
+      "name": "Gallery Edge",
+      "lnglat": [116.407, 39.919],
+      "resolved": true
+    },
+    "terrace": {
+      "id": "terrace",
+      "name": "Terrace View",
+      "lnglat": [116.409, 39.9198],
+      "resolved": true
+    }
+  },
+  "days": [
+    {
+      "id": "day-landmark",
+      "title": "Landmark perimeter walk",
+      "events": [
+        {
+          "id": "event-plaza",
+          "title": "Start at plaza",
+          "locationId": "plaza",
+          "routeToNext": {
+            "mode": "walking",
+            "geometry": [
+              [116.405, 39.918],
+              [116.406, 39.91855],
+              [116.407, 39.919]
+            ],
+            "distanceMeters": 260,
+            "durationSeconds": 300,
+            "source": "fixture",
+            "fetchedAt": "2026-06-22T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "event-gallery",
+          "title": "Walk past gallery edge",
+          "locationId": "gallery",
+          "routeToNext": {
+            "mode": "walking",
+            "geometry": [
+              [116.407, 39.919],
+              [116.408, 39.91945],
+              [116.409, 39.9198]
+            ],
+            "distanceMeters": 240,
+            "durationSeconds": 280,
+            "source": "fixture",
+            "fetchedAt": "2026-06-22T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "event-terrace",
+          "title": "Reach terrace view",
+          "locationId": "terrace"
+        }
+      ]
+    }
+  ],
+  "geoAssetStatus": {
+    "status": "ok",
+    "updatedAt": "2026-06-22T00:00:00.000Z"
+  }
+}

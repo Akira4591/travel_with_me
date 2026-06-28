@@ -1,0 +1,76 @@
+{
+  "id": "fixture-wide-river-bridges",
+  "title": "Wide River Bridges Fixture",
+  "activeDayId": "day-wide-river",
+  "locations": {
+    "wide-river-start": {
+      "id": "wide-river-start",
+      "name": "South Riverside",
+      "lnglat": [116.3975, 39.9078],
+      "resolved": true
+    },
+    "wide-river-mid": {
+      "id": "wide-river-mid",
+      "name": "Island Walk",
+      "lnglat": [116.401, 39.91],
+      "resolved": true
+    },
+    "wide-river-end": {
+      "id": "wide-river-end",
+      "name": "North Riverside",
+      "lnglat": [116.4045, 39.9122],
+      "resolved": true
+    }
+  },
+  "days": [
+    {
+      "id": "day-wide-river",
+      "title": "Wide river crossing",
+      "events": [
+        {
+          "id": "event-wide-river-start",
+          "title": "Start south river walk",
+          "locationId": "wide-river-start",
+          "routeToNext": {
+            "mode": "walking",
+            "geometry": [
+              [116.3975, 39.9078],
+              [116.3992, 39.9089],
+              [116.401, 39.91]
+            ],
+            "distanceMeters": 430,
+            "durationSeconds": 360,
+            "source": "fixture",
+            "fetchedAt": "2026-06-23T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "event-wide-river-mid",
+          "title": "Cross island span",
+          "locationId": "wide-river-mid",
+          "routeToNext": {
+            "mode": "walking",
+            "geometry": [
+              [116.401, 39.91],
+              [116.4028, 39.9111],
+              [116.4045, 39.9122]
+            ],
+            "distanceMeters": 430,
+            "durationSeconds": 360,
+            "source": "fixture",
+            "fetchedAt": "2026-06-23T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "event-wide-river-end",
+          "title": "Finish north river walk",
+          "locationId": "wide-river-end"
+        }
+      ]
+    }
+  ],
+  "geoAssetStatus": {
+    "status": "ok",
+    "updatedAt": "2026-06-23T00:00:00.000Z"
+  }
+}

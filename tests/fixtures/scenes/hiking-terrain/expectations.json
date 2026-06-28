@@ -1,12 +1,17 @@
 {
   "scene": "hiking-terrain",
+  "scenario": "hiking",
   "route": {
     "hash": "fixture-hiking-terrain-route-v1",
-    "maxOccludedRatio": 0.3
+    "maxOccludedRatio": 0.3,
+    "minYellowPixelRatio": 0.000035
   },
   "terrain": {
-    "minHeightRangeMeters": 120,
-    "requiresSlopeCue": true
+    "expectedMode": "hiking",
+    "minHeightRangeMeters": 400,
+    "maxHeightRangeMeters": 650,
+    "requiresSlopeCue": true,
+    "requiresLandcover": true
   },
   "water": {
     "requiresCoverage": false,

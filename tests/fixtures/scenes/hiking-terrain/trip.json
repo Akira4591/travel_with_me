@@ -5,14 +5,30 @@
   "locations": {
     "trailhead": {
       "id": "trailhead",
-      "name": "Trailhead",
+      "name": "Mountain Trailhead",
+      "type": "mount trail",
       "lnglat": [116.25, 40.02],
       "resolved": true
     },
     "ridge": {
       "id": "ridge",
-      "name": "Ridge View",
-      "lnglat": [116.255, 40.025],
+      "name": "North Ridge Trail",
+      "type": "mount ridge trail",
+      "lnglat": [116.275, 40.037],
+      "resolved": true
+    },
+    "summit": {
+      "id": "summit",
+      "name": "Summit Viewpoint",
+      "type": "mount viewpoint trail",
+      "lnglat": [116.253, 40.052],
+      "resolved": true
+    },
+    "lookout": {
+      "id": "lookout",
+      "name": "Hill Lookout",
+      "type": "hill trail",
+      "lnglat": [116.282, 40.058],
       "resolved": true
     }
   },
@@ -29,10 +45,10 @@
             "mode": "walking",
             "geometry": [
               [116.25, 40.02],
-              [116.252, 40.022],
-              [116.255, 40.025]
+              [116.262, 40.028],
+              [116.275, 40.037]
             ],
-            "distanceMeters": 760,
+            "distanceMeters": 3100,
             "durationSeconds": 1800,
             "source": "fixture",
             "fetchedAt": "2026-06-22T00:00:00.000Z"
@@ -41,7 +57,41 @@
         {
           "id": "event-ridge",
           "title": "Reach ridge view",
-          "locationId": "ridge"
+          "locationId": "ridge",
+          "routeToNext": {
+            "mode": "walking",
+            "geometry": [
+              [116.275, 40.037],
+              [116.264, 40.044],
+              [116.253, 40.052]
+            ],
+            "distanceMeters": 2600,
+            "durationSeconds": 2100,
+            "source": "fixture",
+            "fetchedAt": "2026-06-22T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "event-summit",
+          "title": "Cross summit trail",
+          "locationId": "summit",
+          "routeToNext": {
+            "mode": "walking",
+            "geometry": [
+              [116.253, 40.052],
+              [116.266, 40.055],
+              [116.282, 40.058]
+            ],
+            "distanceMeters": 2700,
+            "durationSeconds": 2400,
+            "source": "fixture",
+            "fetchedAt": "2026-06-22T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "event-lookout",
+          "title": "Reach hill lookout",
+          "locationId": "lookout"
         }
       ]
     }

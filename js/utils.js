@@ -1,8 +1,5 @@
 // js/utils.js
-// 纯工具函数：不依赖任何 app 状态、不调用任何外部 API
-// 都是可单独单元测试的纯函数，方便复用
-
-// ─── 字符串处理 ──────────────────────────────────────────
+// Pure utility functions: no app state and no external API calls.
 
 export function escapeHTML(value) {
   return String(value == null ? '' : value)
@@ -22,8 +19,6 @@ export function cleanText(value) {
     .trim();
 }
 
-// ─── 数据处理 ──────────────────────────────────────────
-
 export function unique(arr) {
   return Array.from(new Set(arr.map(item => String(item).trim()).filter(Boolean)));
 }
@@ -32,8 +27,6 @@ export function toNumber(value) {
   const num = Number(value);
   return Number.isFinite(num) && num > 0 ? num : 0;
 }
-
-// ─── 距离 / 时间 格式化 ────────────────────────────────
 
 export function formatDistance(meters) {
   const value = toNumber(meters);
@@ -55,9 +48,7 @@ export function formatDuration(seconds) {
   return rest ? `${hours} 小时 ${rest} 分钟` : `${hours} 小时`;
 }
 
-// ─── 地理距离 ──────────────────────────────────────────
-
-// Haversine 距离（米），最后乘 1.25 模拟实际路网绕行
+// Haversine distance in meters, multiplied by 1.25 to approximate road detours.
 export function calculateDistance(a, b) {
   const toRad = deg => (deg * Math.PI) / 180;
   const earthRadius = 6371000;
@@ -69,15 +60,9 @@ export function calculateDistance(a, b) {
   return Math.round(earthRadius * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h)) * 1.25);
 }
 
-// ─── 异步 ──────────────────────────────────────────────
-
 export function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
-
-// ─── 日期 ──────────────────────────────────────────────
-// trip.days[].date 内部统一存 ISO（YYYY-MM-DD），渲染时用 formatDateCN 转中文。
-// 隐藏年份是设计选择：行程列表里同一年的话年份重复噪音；编辑器里仍可调整年份。
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -109,8 +94,6 @@ function toISO(date) {
   return `${y}-${m}-${d}`;
 }
 
-// ─── 交通方式：标签 / 图标 ────────────────────────────────
-
 const TRANSPORT_LABELS = {
   walking: '步行',
   transit: '公共交通',
@@ -120,8 +103,8 @@ const TRANSPORT_LABELS = {
 
 const TRANSPORT_ICONS = {
   walking: '🚶',
-  transit: '🚇',
-  driving: '🚕',
+  transit: '🚌',
+  driving: '🚗',
   riding: '🚲'
 };
 

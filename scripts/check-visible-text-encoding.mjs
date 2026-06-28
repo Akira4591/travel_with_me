@@ -27,6 +27,31 @@ const MOJIBAKE_PATTERNS = [
   { name: 'replacement character', regex: new RegExp('\\uFFFD', 'u') },
   { name: 'gbk mojibake marker', regex: new RegExp('\\u951F', 'u') },
   {
+    name: 'common mojibake fragments',
+    regex: new RegExp(
+      [
+        '\\u9352\\u6D96',
+        '\\u935C\\u677F',
+        '\\u934F\\u51A6',
+        '\\u934F\\u70D8',
+        '\\u59AF\\u2033',
+        '\\u59DD\\u6B65',
+        '\\u5BA5\\u5AC8',
+        '\\u5B85\\u63D2',
+        '\\u7487\\u55D9',
+        '\\u7F02\\u649A',
+        '\\u8930\\u6493',
+        '\\u9422\\u7470',
+        '\\u9410\\u7470',
+        '\\u95AB\\u592B',
+        '\\u951B',
+        '\\u9239',
+        '\\u9983'
+      ].join('|'),
+      'u'
+    )
+  },
+  {
     name: 'common Chinese UTF-8 decoded as GBK',
     regex: new RegExp(
       [

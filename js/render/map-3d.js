@@ -10,20 +10,26 @@ import { createLogger } from '../logger.js';
 import { chooseTerrainMode } from './terrain-mode.js?v=20260621-region-grid-v2';
 import { createTerrainModel } from './terrain-model.js';
 import { getAnnotationType } from '../annotations.js';
-import { chooseBuildingTemplate } from './building-templates.js';
 import { getAppState } from '../state.js';
 import { ROUTE_GUIDANCE } from '../route-guidance.js';
 import { createSceneBuildContext } from './scene-build-context.js';
 import { publishDioramaDebug } from './scene-debug.js';
 import { buildBridgeGroup, buildRoadGroup, buildWaterGroup } from './geo-asset-renderer.js';
 import { buildRouteGroup, set3DRouteHighlight } from './route-guidance-renderer.js';
-import { createCameraController } from './camera-controller.js';
+import { buildBuildingGroup } from './building-massing-renderer.js';
+import {
+  didBuildingLodSignatureChange,
+  getBuildingDetailAlpha,
+  updateBuildingLod
+} from './building-dissolve-renderer.js';
+import { createCameraController, getCameraProfile } from './camera-controller.js';
 import { createGenerationTimeline } from './generation-timeline.js';
 import { GENERATION_TIMING_MS } from './generation-timing.js';
 import { createFoundationMetrics } from './terrain-foundation.js';
 import { applyTerrainCarving } from './terrain-carving.js';
 
 export { set3DRouteHighlight };
+export { getBuildingDetailAlpha };
 
 const log = createLogger('map-3d');
 
@@ -39,7 +45,7 @@ const C = {
   water: '#A8B8C8',
   shadow: '#9E9685',
   contour: '#D9D2C5',
-  building: '#D8D2C6',
+  building: '#EDE7DC',
   routeBed: ROUTE_GUIDANCE.roadBed,
   routeOutline: '#625C51',
   routeLine: ROUTE_GUIDANCE.line,
@@ -55,20 +61,38 @@ const C = {
 
 // Render constants.
 
-const BUILDING_MIN_HEIGHT = 3;
-const BUILDING_MAX_HEIGHT = 14;
-const BUILDING_DETAIL_NEAR_DISTANCE = 260;
-const BUILDING_DETAIL_FAR_DISTANCE = 760;
-const MARKER_STEM_HEIGHT = 15;
-const MARKER_HEAD_RADIUS = 2.8;
-const ANNOTATION_STEM_HEIGHT = 11;
-const ANNOTATION_HEAD_RADIUS = 2.2;
+const MARKER_STEM_HEIGHT = 8;
+const MARKER_HEAD_RADIUS = 1.45;
+const MARKER_RING_RADIUS = 2.7;
+const MARKER_RING_TUBE_RADIUS = 0.16;
+const ANNOTATION_STEM_HEIGHT = 7;
+const ANNOTATION_HEAD_RADIUS = 1.45;
 const DIORAMA_SLICE_THICKNESS = 20;
 const PARTICLE_COUNT = 0;
 
 // Auto orbit resumes after user drag only in overview-like modes.
 const IDLE_RESUME_DELAY = 25000;
 const AUTO_ROTATE_SPEED = 0.5;
+const OVERVIEW_CAMERA_ORBIT = {
+  headingDeg: 38,
+  pitchDeg: 70,
+  distanceScale: 1.35,
+  minInspectDistanceScale: 1.45
+};
+const OVERVIEW_DISTANCE_SCALE_BY_MODE = {
+  'micro-street': 0.62,
+  citywalk: 0.78,
+  'scenic-park': 1.05,
+  hiking: 1.2,
+  'region-overview': 1.35
+};
+const OVERVIEW_PITCH_BY_MODE = {
+  'micro-street': 58,
+  citywalk: 60,
+  'scenic-park': 64,
+  hiking: 68,
+  'region-overview': 70
+};
 
 // Emergence animation constants.
 const EMERGE_DURATION = GENERATION_TIMING_MS.total;
@@ -79,6 +103,9 @@ const BUILDING_MASSING_END = (EMERGE_PHASE_MS * 3) / EMERGE_DURATION;
 const EXIT_DURATION = 900;
 const CLICK_MOVE_TOLERANCE = 6;
 const FIRST_SLAB_ELEVATION_BUDGET_MS = 1200;
+const DEFAULT_WORK_AREA_SPAN_METERS = 800;
+const MIN_WORK_AREA_SPAN_METERS = 300;
+const WORK_AREA_HARD_CAP_METERS = 2000;
 
 let instance = null;
 
@@ -100,7 +127,8 @@ let instance = null;
  */
 
 /**
- * 鍒涘缓 3D diorama 瀹炰緥锛堜笉绔嬪嵆杩涘叆 3D 妯″紡锛? * @param {object} options
+ * Create a 3D diorama instance without entering 3D mode immediately.
+ * @param {object} options
  * @param {HTMLElement} options.container #map-3d container
  * @returns {Promise<DioramaInstance>}
  */
@@ -117,8 +145,9 @@ export async function initDiorama({ container }) {
 
   // Camera
   const camera = new THREE.PerspectiveCamera(50, width / height, 0.5, 2000);
-  camera.position.set(0, 120, 180);
-  camera.lookAt(0, 0, 0);
+  const initialCameraPose = getInitialOverviewCameraPose();
+  camera.position.copy(initialCameraPose.position);
+  camera.lookAt(initialCameraPose.target);
 
   // Renderer
   const renderer = new THREE.WebGLRenderer({
@@ -138,7 +167,7 @@ export async function initDiorama({ container }) {
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
-  controls.target.set(0, 0, 0);
+  controls.target.copy(initialCameraPose.target);
   controls.minDistance = 30;
   controls.maxDistance = 600;
   controls.maxPolarAngle = Math.PI * 0.48;
@@ -163,14 +192,14 @@ export async function initDiorama({ container }) {
     pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     pointer.y = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
     raycaster.setFromCamera(pointer, camera);
-    const [hit] = raycaster.intersectObject(instance.terrainMesh, false);
-    if (!hit) return;
-    const lnglat = instance.proj.toLngLat({ x: hit.point.x, z: hit.point.z });
-    const elevation = instance.terrainModel.elevationAt(hit.point.x, hit.point.z);
+    const hitPoint = getTerrainClickPoint(raycaster, instance);
+    if (!hitPoint) return;
+    const lnglat = instance.proj.toLngLat({ x: hitPoint.x, z: hitPoint.z });
+    const elevation = instance.terrainModel.elevationAt(hitPoint.x, hitPoint.z);
     instance.onAnnotationRequest?.({
       lnglat,
       elevation: Number.isFinite(elevation) ? Math.round(elevation) : null,
-      terrainY: hit.point.y
+      terrainY: hitPoint.y
     });
   });
 
@@ -199,6 +228,9 @@ export async function initDiorama({ container }) {
       updateThreeDebug(instance);
     }
     updateBuildingLod(instance);
+    if (instance && didBuildingLodSignatureChange(instance)) {
+      updateThreeDebug(instance);
+    }
     renderer.render(scene, camera);
   }
   animate();
@@ -226,6 +258,8 @@ export async function initDiorama({ container }) {
     markerGroup: null,
     annotationGroup: null,
     routeGroup: null,
+    contextGround: null,
+    workArea: null,
     activeRouteSegmentId: null,
     sliceEdge: null,
     terrainModel: null,
@@ -270,7 +304,7 @@ function withTimeout(promise, ms, fallbackValue) {
  */
 export async function enter3DMode(
   diorama,
-  { trip, activeDayId, onAnnotationRequest = null, loadElevationGrid = null }
+  { trip, activeDayId, onAnnotationRequest = null, loadElevationGrid = null, workArea = null }
 ) {
   const enterStartedAt = performance.now();
   const { dioramaGroup, camera, controls, renderer, container, scene } = diorama;
@@ -283,14 +317,16 @@ export async function enter3DMode(
   const lnglats = locations.map(loc => loc.lnglat);
   if (!lnglats.length) {
     log.warn('No valid coordinates; cannot enter 3D mode');
-    return;
+    throw new Error('No valid coordinates; cannot enter 3D mode');
   }
 
   // 2. Compute projection and scene span.
-  const center = computeCenter(lnglats);
+  const selectedWorkArea = normalizeWorkArea(workArea, lnglats);
+  const center = selectedWorkArea.center;
   const proj = createGeoProjection({ center, scale: 0.5 }); // 1 scene unit ~= 2m
   diorama.proj = proj;
-  const span = computeSpan(lnglats);
+  diorama.workArea = selectedWorkArea;
+  const span = selectedWorkArea.spanMeters;
   const terrainMode = chooseTerrainMode({
     span,
     poiCount: locations.length,
@@ -340,9 +376,26 @@ export async function enter3DMode(
   container.dataset.terrainMode = terrainMode.id;
   container.dataset.terrainConfidence = terrainModel.terrainConfidence;
   container.dataset.elevationRange = String(Math.round(terrainModel.metrics.range || 0));
+  container.dataset.workAreaSource = selectedWorkArea.source;
+  container.dataset.workAreaSpanMeters = String(selectedWorkArea.spanMeters);
+  container.dataset.workAreaHardCapMeters = String(selectedWorkArea.hardCapMeters);
+  container.dataset.workAreaCenter = selectedWorkArea.center
+    .map(value => value.toFixed(6))
+    .join(',');
+  container.dataset.workAreaAnchorAdjusted = String(Boolean(selectedWorkArea.anchorAdjusted));
+  container.dataset.workAreaAnchorDistanceMeters = String(
+    selectedWorkArea.anchorDistanceMeters || 0
+  );
+  container.dataset.workAreaAnchorType = selectedWorkArea.anchorType || '';
   container.dataset.provenanceSourceCount = String(sceneContext.provenanceManifest.sources.length);
   container.dataset.waterCarveCount = String(terrainModel.carving?.waterwayCount || 0);
   renderTerrainInsight(container, terrainMode, terrainModel, locations.length);
+
+  if (diorama.contextGround) {
+    dioramaGroup.remove(diorama.contextGround);
+  }
+  diorama.contextGround = buildContextGround(terrainModel);
+  dioramaGroup.add(diorama.contextGround);
 
   if (diorama.terrainMesh) {
     dioramaGroup.remove(diorama.terrainMesh);
@@ -389,7 +442,15 @@ export async function enter3DMode(
   if (diorama.buildingGroup) {
     dioramaGroup.remove(diorama.buildingGroup);
   }
-  diorama.buildingGroup = buildBuildingGroup(proj, locations, terrainModel, sceneContext.geoAssets);
+  diorama.buildingGroup = buildBuildingGroup(
+    proj,
+    locations,
+    terrainModel,
+    sceneContext.geoAssets,
+    {
+      buildingColor: C.building
+    }
+  );
   diorama.buildingLodEntries = diorama.buildingGroup.userData.lodEntries || [];
   container.dataset.buildingCount = String(diorama.buildingGroup.userData.count || 0);
   dioramaGroup.add(diorama.buildingGroup);
@@ -435,9 +496,7 @@ export async function enter3DMode(
   container.dataset.firstSlabMs = String(Math.round(performance.now() - enterStartedAt));
   renderer.setSize(container.clientWidth, container.clientHeight);
 
-  // Initialize camera at an oblique planning-diorama angle.
-  const cx = (bounds.minX + bounds.maxX) / 2;
-  const cz = (bounds.minZ + bounds.maxZ) / 2;
+  // Initialize camera on the same orbit used by idle overview mode.
   const sceneSpan = getBoundsSpan(bounds);
   camera.far = Math.max(2000, sceneSpan * 6);
   camera.updateProjectionMatrix();
@@ -445,31 +504,39 @@ export async function enter3DMode(
     scene.fog.near = Math.max(120, sceneSpan * 0.38);
     scene.fog.far = Math.max(900, sceneSpan * 3.6);
   }
-  camera.position.set(cx + sceneSpan * 0.55, sceneSpan * 0.95, cz + sceneSpan * 0.72);
-  controls.target.set(cx, 0, cz);
-  controls.minDistance = Math.max(56, sceneSpan * 0.22);
-  controls.maxDistance = Math.max(controls.minDistance * 4, sceneSpan * 2.1);
+  const cameraDistances = getCameraControlDistances(sceneSpan, terrainMode);
+  controls.minDistance = cameraDistances.minDistance;
+  controls.maxDistance = cameraDistances.maxDistance;
   diorama.cameraController?.setSceneContext({
     terrainModel,
     terrainMode,
     groundOffsetY: 0
   });
-  controls.update();
+  applyOverviewCameraPose(diorama, bounds);
+
+  if (shouldFreezeEmergenceForVisualQa()) {
+    diorama.generationTimeline = createGenerationTimeline();
+    applyEmergenceProgress(diorama, bounds, 0);
+    installVisualDebugControls(diorama, bounds, { allowEmergenceProgress: true });
+    updateThreeDebug(diorama);
+    return;
+  }
 
   // Run emergence animation.
   await animateEmergence(diorama, bounds);
 
-  // Lock orbit target to the lifted terrain after the emergence animation.
-  controls.target.set(cx, dioramaGroup.position.y, cz);
+  // Keep the first steady frame on the same orbit as the entry frame.
+  applyOverviewCameraPose(diorama, bounds);
   diorama.cameraController?.setSceneContext({
     terrainModel,
     terrainMode,
     groundOffsetY: dioramaGroup.position.y
   });
+  diorama.cameraController?.setMode('overview');
   diorama.cameraController?.setPhase('steady');
   diorama.cameraController?.setEnabled(true);
-  diorama.cameraController?.setMode('overview');
   diorama.cameraController?.update(0);
+  installVisualDebugControls(diorama, bounds);
   updateThreeDebug(diorama);
   log.info('3D mode steady');
 }
@@ -487,7 +554,7 @@ export async function exit3DMode(diorama) {
   // Reverse animation: lower the lifted group and hide layers.
   await animateExit(diorama);
 
-  // 娓呯悊
+  // Cleanup scene layers.
   [
     diorama.terrainMesh,
     diorama.waterGroup,
@@ -498,6 +565,7 @@ export async function exit3DMode(diorama) {
     diorama.markerGroup,
     diorama.annotationGroup,
     diorama.routeGroup,
+    diorama.contextGround,
     diorama.sliceEdge
   ].forEach(obj => {
     if (!obj) return;
@@ -506,6 +574,8 @@ export async function exit3DMode(diorama) {
   });
   diorama.terrainModel = null;
   diorama.sceneBuildContext = null;
+  diorama.workArea = null;
+  diorama.contextGround = null;
   diorama.annotationGroup = null;
   diorama.sliceEdge = null;
   delete container.dataset.annotationCount;
@@ -521,6 +591,13 @@ export async function exit3DMode(diorama) {
   delete container.dataset.routeHash;
   delete container.dataset.routeLengthMeters;
   delete container.dataset.routeEndpointKey;
+  delete container.dataset.workAreaSource;
+  delete container.dataset.workAreaSpanMeters;
+  delete container.dataset.workAreaHardCapMeters;
+  delete container.dataset.workAreaCenter;
+  delete container.dataset.workAreaAnchorAdjusted;
+  delete container.dataset.workAreaAnchorDistanceMeters;
+  delete container.dataset.workAreaAnchorType;
   delete container.dataset.firstSlabMs;
   delete container.dataset.provenanceSourceCount;
   container.querySelector('.terrain-insight-panel')?.remove();
@@ -538,6 +615,28 @@ export function refresh3DAnnotations(diorama, { trip }) {
   diorama.dioramaGroup.add(diorama.annotationGroup);
   updateThreeDebug(diorama);
   return diorama.annotationGroup.userData.count || 0;
+}
+
+function getTerrainClickPoint(raycaster, diorama) {
+  const [hit] = raycaster.intersectObject(diorama.terrainMesh, false);
+  if (hit?.point) return hit.point.clone();
+
+  const ray = raycaster.ray;
+  const targetY = Number(diorama.controls?.target?.y);
+  if (!Number.isFinite(targetY) || Math.abs(ray.direction.y) < 0.001) return null;
+  const t = (targetY - ray.origin.y) / ray.direction.y;
+  if (t < 0) return null;
+
+  const point = ray.origin.clone().addScaledVector(ray.direction, t);
+  const bounds = diorama.terrainModel?.bounds;
+  if (!bounds) return null;
+
+  point.x = clamp(point.x, bounds.minX, bounds.maxX);
+  point.z = clamp(point.z, bounds.minZ, bounds.maxZ);
+  point.y =
+    (Number(diorama.terrainModel?.heightAt?.(point.x, point.z)) || 0) +
+    (Number(diorama.dioramaGroup?.position?.y) || 0);
+  return point;
 }
 
 // Terrain geometry.
@@ -565,6 +664,20 @@ function buildTerrainMesh(terrainModel) {
   });
 
   const mesh = new THREE.Mesh(geom, mat);
+  const wire = new THREE.Mesh(
+    geom,
+    new THREE.MeshBasicMaterial({
+      color: new THREE.Color('#E3DCCF'),
+      transparent: true,
+      opacity: 0.24,
+      wireframe: true,
+      depthWrite: false,
+      toneMapped: false
+    })
+  );
+  wire.renderOrder = 4;
+  wire.userData.terrainFacetOverlay = true;
+  mesh.add(wire);
   mesh.receiveShadow = false;
   mesh.castShadow = false;
   mesh.userData.restHeights = Float32Array.from({ length: positions.count }, (_, index) =>
@@ -577,251 +690,27 @@ function buildTerrainMesh(terrainModel) {
   return mesh;
 }
 
-// Building geometry.
-
-/**
- * @param {import('./geo-project.js').GeoProjection} proj
- * @param {Array<[number, number]>} lnglats
- * @param {import('../data/trip.js').Trip} trip
- * @returns {THREE.Group}
- */
-function buildBuildingGroup(proj, locations, terrainModel, geoAssets = {}) {
-  const group = new THREE.Group();
-  const lodEntries = [];
-  const baseTerrainErrorsMeters = [];
-  const featureScale = getOverviewFeatureScale(terrainModel.bounds);
-  const authoritativeBuildings = Array.isArray(geoAssets.buildings) ? geoAssets.buildings : [];
-  const realBuildings = new Map(
-    authoritativeBuildings.filter(asset => asset.locationId).map(asset => [asset.locationId, asset])
-  );
-
-  authoritativeBuildings
-    .filter(asset => !asset.locationId)
-    .forEach(asset => {
-      const entry = createAuthoritativeBuildingLod(asset, proj, terrainModel);
-      if (!entry) return;
-      group.add(entry.low, entry.detail);
-      lodEntries.push(entry);
-      baseTerrainErrorsMeters.push(...entry.baseTerrainErrorsMeters);
-    });
-
-  for (const loc of locations) {
-    const { x, z } = proj.toScene(loc.lnglat);
-    const realBuilding = realBuildings.get(loc.id);
-    if (realBuilding) {
-      const entry = createAuthoritativeBuildingLod(realBuilding, proj, terrainModel);
-      if (entry) {
-        group.add(entry.low, entry.detail);
-        lodEntries.push(entry);
-        baseTerrainErrorsMeters.push(...entry.baseTerrainErrorsMeters);
-        continue;
-      }
-    }
-    const seed = seededUnit(loc.id || loc.name || `${x}:${z}`);
-    const template = chooseBuildingTemplate(loc, seed);
-    const isLarge = ['lodging', 'retail', 'culture', 'transport'].includes(template.scenario);
-    const isSmall = template.scenario === 'food';
-    const h =
-      (isLarge
-        ? BUILDING_MAX_HEIGHT * (0.5 + seed * 0.5)
-        : isSmall
-          ? BUILDING_MIN_HEIGHT * (0.6 + seed * 0.4)
-          : BUILDING_MIN_HEIGHT * (0.8 + seed * 1.2)) * featureScale;
-
-    const w = (isLarge ? 3 + seed * 3 : 1.5 + seed * 2) * featureScale;
-    const terrainY = terrainModel.heightAt(x, z);
-    const lowMaterial = createBuildingMaterial(C.building, 0.9);
-    const low = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), lowMaterial);
-    low.position.set(x, terrainY + h / 2, z);
-    low.castShadow = true;
-    low.receiveShadow = true;
-
-    const detail = createDetailedBuilding({ x, z, terrainY, width: w, height: h, seed, template });
-    detail.visible = false;
-    group.add(low, detail);
-    baseTerrainErrorsMeters.push(0);
-    lodEntries.push({
-      center: new THREE.Vector3(x, terrainY + h / 2, z),
-      low,
-      detail,
-      lowMaterial,
-      detailMaterials: detail.userData.materials,
-      detailAlpha: 0
-    });
-  }
-
-  group.userData.lodEntries = lodEntries;
-  group.userData.authoritativeCount = lodEntries.filter(entry => entry.authoritative).length;
-  group.userData.count = lodEntries.length;
-  group.userData.baseTerrainErrorsMeters = baseTerrainErrorsMeters;
-  group.userData.baseTerrainErrorP95Meters = percentile(baseTerrainErrorsMeters, 0.95);
-  group.userData.baseTerrainErrorMaxMeters = maxMetric(baseTerrainErrorsMeters);
-  return group;
-}
-
-function createAuthoritativeBuildingLod(asset, proj, terrainModel) {
-  const shape = new THREE.Shape();
-  const points = asset.footprint.map(lnglat => proj.toScene(lnglat));
-  shape.moveTo(points[0].x, -points[0].z);
-  points.slice(1).forEach(point => shape.lineTo(point.x, -point.z));
-  shape.closePath();
-  const terrainY =
-    points.reduce((sum, point) => sum + terrainModel.heightAt(point.x, point.z), 0) / points.length;
-  const baseTerrainErrorsMeters = points.map(point =>
-    roundMetric(proj.unitsToMeters(Math.abs(terrainY - terrainModel.heightAt(point.x, point.z))))
-  );
-  if (percentile(baseTerrainErrorsMeters, 0.95) > 0.25) return null;
-  const height = proj.metersToUnits(asset.heightMeters);
-  const lowMaterial = createBuildingMaterial(C.building, 0.9);
-  const low = new THREE.Mesh(
-    new THREE.ExtrudeGeometry(shape, { depth: height, bevelEnabled: false }),
-    lowMaterial
-  );
-  low.rotation.x = -Math.PI / 2;
-  low.position.y = terrainY;
-  low.castShadow = true;
-  low.receiveShadow = true;
-
-  const detailMaterial = createBuildingMaterial('#E9E4DA', 0);
-  const roofMaterial = createBuildingMaterial('#B8AA91', 0);
-  const detail = new THREE.Group();
-  const body = new THREE.Mesh(
-    new THREE.ExtrudeGeometry(shape, { depth: height, bevelEnabled: false }),
-    detailMaterial
-  );
-  body.rotation.x = -Math.PI / 2;
-  body.position.y = terrainY;
-  body.castShadow = true;
-  body.receiveShadow = true;
-  detail.add(body);
-  const roof = new THREE.Mesh(new THREE.ShapeGeometry(shape), roofMaterial);
-  roof.rotation.x = -Math.PI / 2;
-  roof.position.y = terrainY + height + 0.08;
-  roof.castShadow = true;
-  detail.add(roof);
-  detail.visible = false;
-
-  const center = points
-    .reduce(
-      (sum, point) => sum.add(new THREE.Vector3(point.x, terrainY + height / 2, point.z)),
-      new THREE.Vector3()
-    )
-    .multiplyScalar(1 / points.length);
-  return {
-    center,
-    low,
-    detail,
-    lowMaterial,
-    detailMaterials: [detailMaterial, roofMaterial],
-    detailAlpha: 0,
-    authoritative: true,
-    baseTerrainErrorsMeters
-  };
-}
-
-function createDetailedBuilding({ x, z, terrainY, width, height, seed, template }) {
-  const group = new THREE.Group();
-  const materials = [];
-  const facadeMaterial = createBuildingMaterial('#E9E4DA', 0);
-  const roofMaterial = createBuildingMaterial('#C4BBA8', 0);
-  const accentMaterial = createBuildingMaterial('#B0A590', 0);
-  materials.push(facadeMaterial, roofMaterial, accentMaterial);
-
-  const inset = Math.max(0.32, width * (template.id === 'tower' ? 0.24 : 0.12));
-  const bodyHeight = Math.max(BUILDING_MIN_HEIGHT, height * (template.id === 'tower' ? 0.9 : 0.76));
-  const body = new THREE.Mesh(
-    new THREE.BoxGeometry(Math.max(0.8, width - inset), bodyHeight, Math.max(0.8, width - inset)),
-    facadeMaterial
-  );
-  body.position.set(x, terrainY + bodyHeight / 2, z);
-  body.castShadow = true;
-  body.receiveShadow = true;
-  group.add(body);
-
-  const roofHeight = Math.max(
-    0.28,
-    height * (template.id === 'terrace' || template.id === 'box' ? 0.06 : 0.16 + seed * 0.1)
-  );
-  const roof = new THREE.Mesh(
-    template.id === 'terrace' || template.id === 'box' || template.id === 'canopy'
-      ? new THREE.BoxGeometry(width * 0.9, roofHeight, width * 0.9)
-      : new THREE.ConeGeometry(
-          Math.max(0.6, width * 0.58),
-          roofHeight,
-          template.id === 'gable' ? 4 : 6
-        ),
-    roofMaterial
-  );
-  roof.rotation.y = template.id === 'gable' ? Math.PI * 0.25 : 0;
-  roof.position.set(x, terrainY + bodyHeight + roofHeight / 2, z);
-  roof.castShadow = true;
-  group.add(roof);
-
-  const entrance = new THREE.Mesh(
-    new THREE.BoxGeometry(Math.max(0.22, width * 0.2), Math.max(0.4, bodyHeight * 0.28), 0.06),
-    accentMaterial
-  );
-  entrance.position.set(x, terrainY + entrance.geometry.parameters.height / 2, z + width * 0.51);
-  group.add(entrance);
-
-  if (template.id === 'arcade' || template.id === 'canopy') {
-    const awning = new THREE.Mesh(
-      new THREE.BoxGeometry(width * 1.08, 0.16, width * 0.26),
-      accentMaterial
-    );
-    awning.position.set(x, terrainY + bodyHeight * 0.4, z + width * 0.56);
-    group.add(awning);
-  }
-
-  group.userData.materials = materials;
-  group.userData.template = template;
-  return group;
-}
-
-function createBuildingMaterial(color, opacity) {
-  return new THREE.MeshStandardMaterial({
-    color: new THREE.Color(color),
-    roughness: 0.66,
-    metalness: 0,
+function buildContextGround(terrainModel) {
+  const { bounds } = terrainModel;
+  const span = getBoundsSpan(bounds);
+  const geometry = new THREE.PlaneGeometry(span * 3, span * 3, 1, 1);
+  geometry.rotateX(-Math.PI / 2);
+  const material = new THREE.MeshBasicMaterial({
+    color: new THREE.Color('#F0ECE3'),
     transparent: true,
-    opacity,
-    depthWrite: opacity > 0.98
+    opacity: 0.82,
+    toneMapped: false,
+    depthWrite: false
   });
-}
-
-function updateBuildingLod(diorama) {
-  if (!diorama?.buildingLodEntries?.length || !diorama.camera) return;
-  const buildingReveal = clamp(diorama.buildingRevealProgress ?? 1, 0, 1);
-  const buildingDissolve = clamp(diorama.buildingDissolveProgress ?? 1, 0, 1);
-  let detailCount = 0;
-  for (const entry of diorama.buildingLodEntries) {
-    const distance = diorama.camera.position.distanceTo(entry.center);
-    const target = getBuildingDetailAlpha(distance) * buildingDissolve;
-    entry.detailAlpha += (target - entry.detailAlpha) * 0.14;
-    const detailAlpha = clamp(entry.detailAlpha, 0, 1);
-    const lowAlpha = 1 - detailAlpha * 0.72;
-
-    entry.lowMaterial.opacity = lowAlpha * buildingReveal;
-    entry.lowMaterial.depthWrite = lowAlpha * buildingReveal > 0.98;
-    entry.detail.visible = detailAlpha > 0.015 && buildingReveal > 0.015;
-    if (detailAlpha >= 0.5) detailCount += 1;
-    entry.detail.scale.y = 0.74 + detailAlpha * 0.26;
-    entry.detail.position.y = (1 - detailAlpha) * -1.2;
-    entry.detailMaterials.forEach(material => {
-      material.opacity = detailAlpha * buildingReveal;
-      material.depthWrite = detailAlpha * buildingReveal > 0.98;
-    });
-  }
-  diorama.buildingDetailCount = detailCount;
-  diorama.container.dataset.buildingDetailCount = String(detailCount);
-}
-
-export function getBuildingDetailAlpha(distance) {
-  const normalized =
-    (Number(distance) - BUILDING_DETAIL_NEAR_DISTANCE) /
-    (BUILDING_DETAIL_FAR_DISTANCE - BUILDING_DETAIL_NEAR_DISTANCE);
-  const farProgress = smoothstep(clamp(normalized, 0, 1));
-  return 1 - farProgress;
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.set(
+    (bounds.minX + bounds.maxX) / 2,
+    terrainModel.foundationHeight - 0.08,
+    (bounds.minZ + bounds.maxZ) / 2
+  );
+  mesh.renderOrder = -10;
+  mesh.userData.contextGround = true;
+  return mesh;
 }
 
 /**
@@ -892,9 +781,26 @@ function buildVegetationGroup(proj, terrainModel, vegetationAreas) {
       })
   );
   let count = 0;
+  const areaBudgets = [];
+  const chunks = [];
   for (const area of areas) {
     if (!area || area.licensed !== true || !Array.isArray(area.polygon)) continue;
-    for (const point of createVegetationPoints(area, proj)) {
+    const points = createVegetationPoints(area, proj);
+    const densityCap = vegetationDensityForCover(area.cover);
+    const areaGroup = new THREE.Group();
+    areaGroup.userData.vegetationChunk = true;
+    areaGroup.userData.areaId = area.id || '';
+    areaGroup.userData.cover = area.cover || '';
+    areaGroup.userData.densityCap = densityCap;
+    areaGroup.userData.instances = points.length;
+    areaGroup.userData.sceneBounds = createVegetationAreaBounds(area, proj, terrainModel);
+    areaBudgets.push({
+      id: area.id || '',
+      cover: area.cover || '',
+      densityCap,
+      instances: points.length
+    });
+    for (const point of points) {
       const template =
         templates[
           Math.abs(Math.floor(seededUnit(`${area.id}:${point.x}:${point.z}`) * templates.length)) %
@@ -911,11 +817,21 @@ function buildVegetationGroup(proj, terrainModel, vegetationAreas) {
       );
       mesh.castShadow = false;
       mesh.receiveShadow = true;
-      group.add(mesh);
+      areaGroup.add(mesh);
       count += 1;
     }
+    group.add(areaGroup);
+    chunks.push(areaGroup);
   }
   group.userData.templateCount = count;
+  group.userData.areaBudgets = areaBudgets;
+  group.userData.chunks = chunks;
+  group.userData.chunkCount = chunks.length;
+  group.userData.visibleChunkCount = chunks.length;
+  group.userData.culledChunkCount = 0;
+  group.userData.maxInstancesPerArea = Math.max(0, ...areaBudgets.map(area => area.instances));
+  group.userData.densityCap = Math.max(0, ...areaBudgets.map(area => area.densityCap));
+  group.userData.areaCount = areaBudgets.length;
   group.userData.requiresLicensedLandcover = true;
   return group;
 }
@@ -929,7 +845,7 @@ function createVegetationPoints(area, proj) {
     maxX = Math.max(...xs),
     minZ = Math.min(...zs),
     maxZ = Math.max(...zs);
-  const density = area.cover === 'forest' ? 12 : area.cover === 'scrub' ? 8 : 5;
+  const density = vegetationDensityForCover(area.cover);
   const points = [];
   for (let index = 0; index < density; index += 1) {
     const point = {
@@ -939,6 +855,30 @@ function createVegetationPoints(area, proj) {
     if (pointInPolygon(point, polygon)) points.push(point);
   }
   return points;
+}
+
+function createVegetationAreaBounds(area, proj, terrainModel) {
+  const polygon = Array.isArray(area?.polygon)
+    ? area.polygon.map(lnglat => proj.toScene(lnglat))
+    : [];
+  if (polygon.length < 3) return null;
+  const xs = polygon.map(point => point.x);
+  const zs = polygon.map(point => point.z);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minZ = Math.min(...zs);
+  const maxZ = Math.max(...zs);
+  const centerX = (minX + maxX) / 2;
+  const centerZ = (minZ + maxZ) / 2;
+  const baseY = Number(terrainModel.heightAt(centerX, centerZ)) || 0;
+  return {
+    min: { x: minX, y: baseY - 2, z: minZ },
+    max: { x: maxX, y: baseY + 18, z: maxZ }
+  };
+}
+
+function vegetationDensityForCover(cover) {
+  return cover === 'forest' ? 12 : cover === 'scrub' ? 8 : 5;
 }
 
 function pointInPolygon(point, polygon) {
@@ -994,7 +934,7 @@ function buildMarkerGroup(proj, trip, activeDayId, terrainModel) {
       const markerGroup = new THREE.Group();
 
       // Stem.
-      const stemGeom = new THREE.CylinderGeometry(0.4, 0.5, MARKER_STEM_HEIGHT, 8);
+      const stemGeom = new THREE.CylinderGeometry(0.22, 0.3, MARKER_STEM_HEIGHT, 8);
       const stem = new THREE.Mesh(stemGeom, stemMat);
       stem.position.y = MARKER_STEM_HEIGHT / 2;
       markerGroup.add(stem);
@@ -1006,7 +946,7 @@ function buildMarkerGroup(proj, trip, activeDayId, terrainModel) {
       head.castShadow = true;
       markerGroup.add(head);
 
-      const ringGeom = new THREE.TorusGeometry(5, 0.3, 8, 24);
+      const ringGeom = new THREE.TorusGeometry(MARKER_RING_RADIUS, MARKER_RING_TUBE_RADIUS, 8, 24);
       const ring = new THREE.Mesh(ringGeom, ringMat);
       ring.rotation.x = -Math.PI / 2;
       ring.position.y = 0.1;
@@ -1259,13 +1199,37 @@ function setupLighting(scene) {
 // Emergence animation.
 
 function animateEmergence(diorama, bounds) {
-  const { dioramaGroup, camera, controls } = diorama;
-  const { span, liftTarget, centerX: cx, centerZ: cz } = createFoundationMetrics(bounds);
-
   return new Promise(resolve => {
     const startTime = performance.now();
     diorama.generationTimeline = createGenerationTimeline();
-    updateGenerationTimeline(diorama, 0);
+    applyEmergenceProgress(diorama, bounds, 0);
+
+    function step(now) {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / EMERGE_DURATION, 1);
+      applyEmergenceProgress(diorama, bounds, progress);
+
+      if (progress < 1) {
+        requestAnimationFrame(step);
+      } else {
+        updateGenerationTimeline(diorama, 1, true);
+        resolve();
+      }
+    }
+    requestAnimationFrame(step);
+  });
+}
+
+function applyEmergenceProgress(diorama, bounds, rawProgress) {
+  const progress = clamp(rawProgress, 0, 1);
+  const { dioramaGroup } = diorama;
+  const { liftTarget } = createFoundationMetrics(bounds);
+  updateGenerationTimeline(diorama, progress);
+  applyOverviewCameraPose(diorama, bounds);
+
+  if (progress < FOUNDATION_END) {
+    const eased = easeInOutCubic(progress / FOUNDATION_END);
+    dioramaGroup.position.y = eased * liftTarget;
     setTerrainReveal(diorama.terrainMesh, 0);
     setGroundAssetReveal(diorama.waterGroup, 0);
     setGroundAssetReveal(diorama.roadGroup, 0);
@@ -1273,90 +1237,125 @@ function animateEmergence(diorama, bounds) {
     setStaticGroupReveal(diorama.bridgeGroup, 0);
     setBuildingReveal(diorama, 0, 0);
     setOverlayVisibility(diorama, false);
+  } else if (progress < GEOLOGY_END) {
+    dioramaGroup.position.y = liftTarget;
+    const t = (progress - FOUNDATION_END) / (GEOLOGY_END - FOUNDATION_END);
+    const eased = easeOutBack(Math.min(t, 1));
+    setTerrainReveal(diorama.terrainMesh, eased);
+    setGroundAssetReveal(diorama.waterGroup, eased);
+    setGroundAssetReveal(diorama.roadGroup, eased);
+    setGroundAssetReveal(diorama.routeGroup, eased);
+    setStaticGroupReveal(diorama.bridgeGroup, eased);
+    setBuildingReveal(diorama, 0, 0);
+    setOverlayVisibility(diorama, false);
+  } else if (progress < BUILDING_MASSING_END) {
+    const t = (progress - GEOLOGY_END) / (BUILDING_MASSING_END - GEOLOGY_END);
+    const eased = easeInOutCubic(Math.min(t, 1));
+    dioramaGroup.position.y = liftTarget;
+    setTerrainReveal(diorama.terrainMesh, 1);
+    setGroundAssetReveal(diorama.waterGroup, 1);
+    setGroundAssetReveal(diorama.roadGroup, 1);
+    setGroundAssetReveal(diorama.routeGroup, 1);
+    setStaticGroupReveal(diorama.bridgeGroup, 1);
+    setBuildingReveal(diorama, eased, 0);
+    setOverlayVisibility(diorama, false);
+  } else if (progress < 1) {
+    const t = (progress - BUILDING_MASSING_END) / (1 - BUILDING_MASSING_END);
+    const eased = easeInOutCubic(Math.min(t, 1));
+    dioramaGroup.position.y = liftTarget;
+    setTerrainReveal(diorama.terrainMesh, 1);
+    setGroundAssetReveal(diorama.waterGroup, 1);
+    setGroundAssetReveal(diorama.roadGroup, 1);
+    setGroundAssetReveal(diorama.routeGroup, 1);
+    setStaticGroupReveal(diorama.bridgeGroup, 1);
+    setBuildingReveal(diorama, 1, eased);
+    setOverlayVisibility(diorama, eased > 0.72);
+  } else {
+    dioramaGroup.position.y = liftTarget;
+    setTerrainReveal(diorama.terrainMesh, 1);
+    setGroundAssetReveal(diorama.waterGroup, 1);
+    setGroundAssetReveal(diorama.roadGroup, 1);
+    setGroundAssetReveal(diorama.routeGroup, 1);
+    setStaticGroupReveal(diorama.bridgeGroup, 1);
+    setBuildingReveal(diorama, 1, 1);
+    setOverlayVisibility(diorama, true);
+  }
 
-    function step(now) {
-      const elapsed = now - startTime;
-      const progress = Math.min(elapsed / EMERGE_DURATION, 1);
-      updateGenerationTimeline(diorama, progress);
+  updateBuildingLod(diorama);
+  updateThreeDebug(diorama);
+  diorama.renderer.render(diorama.scene, diorama.camera);
+}
 
-      if (progress < FOUNDATION_END) {
-        const eased = easeInOutCubic(progress / FOUNDATION_END);
-        dioramaGroup.position.y = eased * liftTarget;
-        const targetY = liftTarget + span * 0.9;
-        const targetX = cx + span * 0.55;
-        const targetZ = cz + span * 0.72;
-        camera.position.lerp(new THREE.Vector3(targetX, targetY, targetZ), eased * 0.6);
-        controls.target.lerp(new THREE.Vector3(cx, liftTarget / 2, cz), eased);
-        controls.update();
-        // Phase 1: freeze the 2D context while the foundation rises.
-      } else if (progress < GEOLOGY_END) {
-        // Phase 2: reveal terrain, water, roads, bridges, and route.
-        dioramaGroup.position.y = liftTarget;
-        const t = (progress - FOUNDATION_END) / (GEOLOGY_END - FOUNDATION_END);
-        const eased = easeOutBack(Math.min(t, 1));
-        setTerrainReveal(diorama.terrainMesh, eased);
-        setGroundAssetReveal(diorama.waterGroup, eased);
-        setGroundAssetReveal(diorama.roadGroup, eased);
-        setGroundAssetReveal(diorama.routeGroup, eased);
-        setStaticGroupReveal(diorama.bridgeGroup, eased);
-      } else if (progress < BUILDING_MASSING_END) {
-        // Phase 3: reveal building massing.
-        const t = (progress - GEOLOGY_END) / (BUILDING_MASSING_END - GEOLOGY_END);
-        const eased = easeInOutCubic(Math.min(t, 1));
-        dioramaGroup.position.y = liftTarget;
-        setTerrainReveal(diorama.terrainMesh, 1);
-        setGroundAssetReveal(diorama.waterGroup, 1);
-        setGroundAssetReveal(diorama.roadGroup, 1);
-        setGroundAssetReveal(diorama.routeGroup, 1);
-        setStaticGroupReveal(diorama.bridgeGroup, 1);
-        setBuildingReveal(diorama, eased, 0);
-      } else if (progress < 1) {
-        // Phase 4: dissolve building massing into detailed outlines and labels.
-        const t = (progress - BUILDING_MASSING_END) / (1 - BUILDING_MASSING_END);
-        const eased = easeInOutCubic(Math.min(t, 1));
-        dioramaGroup.position.y = liftTarget;
-        const targetY = liftTarget + span * 0.9;
-        const targetX = cx + span * 0.55;
-        const targetZ = cz + span * 0.72;
-        camera.position.lerp(new THREE.Vector3(targetX, targetY, targetZ), eased * 0.6);
-        controls.target.lerp(new THREE.Vector3(cx, liftTarget / 2, cz), eased);
-        controls.update();
-        setTerrainReveal(diorama.terrainMesh, 1);
-        setGroundAssetReveal(diorama.waterGroup, 1);
-        setGroundAssetReveal(diorama.roadGroup, 1);
-        setGroundAssetReveal(diorama.routeGroup, 1);
-        setStaticGroupReveal(diorama.bridgeGroup, 1);
-        setBuildingReveal(diorama, 1, eased);
-        setOverlayVisibility(diorama, eased > 0.72);
-      } else {
-        // Phase 4: final steady state.
-        dioramaGroup.position.y = liftTarget;
-        setTerrainReveal(diorama.terrainMesh, 1);
-        setGroundAssetReveal(diorama.waterGroup, 1);
-        setGroundAssetReveal(diorama.roadGroup, 1);
-        setGroundAssetReveal(diorama.routeGroup, 1);
-        setStaticGroupReveal(diorama.bridgeGroup, 1);
-        setBuildingReveal(diorama, 1, 1);
-        setOverlayVisibility(diorama, true);
-      }
+function shouldFreezeEmergenceForVisualQa() {
+  return Boolean(globalThis.window?.__visualFreezeEmergence);
+}
 
-      if (progress < 1) {
-        requestAnimationFrame(step);
-      } else {
-        dioramaGroup.position.y = liftTarget;
-        setTerrainReveal(diorama.terrainMesh, 1);
-        setGroundAssetReveal(diorama.waterGroup, 1);
-        setGroundAssetReveal(diorama.roadGroup, 1);
-        setGroundAssetReveal(diorama.routeGroup, 1);
-        setStaticGroupReveal(diorama.bridgeGroup, 1);
-        setBuildingReveal(diorama, 1, 1);
-        setOverlayVisibility(diorama, true);
-        updateGenerationTimeline(diorama, 1, true);
-        resolve();
-      }
+function installVisualDebugControls(diorama, bounds, { allowEmergenceProgress = false } = {}) {
+  if (typeof window === 'undefined' || !window.__visualExpose3DControls) return;
+  const controls = {
+    async focusRoute(segmentId) {
+      const focused = await focus3DRoute(diorama, segmentId);
+      updateThreeDebug(diorama);
+      return { focused, debug: window.__threeDebug };
+    },
+    setCameraPreset(name, preset = {}) {
+      const applied = applyVisualCameraPreset(diorama, bounds, name, preset);
+      updateThreeDebug(diorama);
+      return { applied, debug: window.__threeDebug };
     }
-    requestAnimationFrame(step);
-  });
+  };
+  if (allowEmergenceProgress) {
+    controls.setEmergenceProgress = progress => {
+      applyEmergenceProgress(diorama, bounds, progress);
+      return window.__threeDebug;
+    };
+    controls.finishEmergence = () => {
+      applyEmergenceProgress(diorama, bounds, 1);
+      updateGenerationTimeline(diorama, 1, true);
+      updateThreeDebug(diorama);
+      return window.__threeDebug;
+    };
+  }
+  window.__threeDebugControls = controls;
+}
+
+function applyVisualCameraPreset(diorama, bounds, name, preset = {}) {
+  if (!diorama?.camera || !diorama?.controls) return false;
+  const { camera, controls, dioramaGroup, proj } = diorama;
+  const span = getBoundsSpan(bounds);
+  const cx = (bounds.minX + bounds.maxX) / 2;
+  const cz = (bounds.minZ + bounds.maxZ) / 2;
+  const targetY = dioramaGroup.position.y + span * 0.04;
+  const distanceMeters = Number(preset.distanceMeters);
+  const requestedDistance = Number.isFinite(distanceMeters)
+    ? proj.metersToUnits(distanceMeters)
+    : span * (name === 'inspect' ? 0.32 : 0.95);
+  const profile = getCameraProfile(diorama.sceneBuildContext?.terrainMode);
+  const inspectDistance = Number(profile.inspectDistance) || 180;
+  const distance =
+    name === 'inspect'
+      ? Math.min(requestedDistance, inspectDistance * 0.85)
+      : Math.max(requestedDistance, inspectDistance * 1.45);
+  const heading = THREE.MathUtils.degToRad(Number(preset.heading) || 38);
+  const pitch = THREE.MathUtils.degToRad(THREE.MathUtils.clamp(Number(preset.pitch) || 52, 18, 72));
+  const horizontalBase = Math.max(controls.minDistance, distance) * Math.cos(pitch);
+  const horizontal =
+    name === 'inspect' ? horizontalBase : Math.max(horizontalBase, inspectDistance * 1.45);
+  const target = new THREE.Vector3(cx, targetY, cz);
+  const position = new THREE.Vector3(
+    cx + Math.sin(heading) * horizontal,
+    targetY + Math.max(controls.minDistance * 0.35, distance * Math.sin(pitch)),
+    cz + Math.cos(heading) * horizontal
+  );
+
+  camera.position.copy(position);
+  controls.target.copy(target);
+  diorama.cameraController?.setMode(name === 'inspect' ? 'inspect' : 'overview');
+  diorama.cameraController?.update(0);
+  controls.update();
+  updateBuildingLod(diorama);
+  diorama.renderer.render(diorama.scene, camera);
+  return true;
 }
 
 function updateGenerationTimeline(diorama, progress, steady = false) {
@@ -1518,22 +1517,47 @@ function computeCenter(lnglats) {
   return [sumLng / lnglats.length, sumLat / lnglats.length];
 }
 
-function computeSpan(lnglats) {
-  if (lnglats.length <= 1) return 600;
-  let minLng = Infinity,
-    maxLng = -Infinity,
-    minLat = Infinity,
-    maxLat = -Infinity;
-  for (const [lng, lat] of lnglats) {
-    if (lng < minLng) minLng = lng;
-    if (lng > maxLng) maxLng = lng;
-    if (lat < minLat) minLat = lat;
-    if (lat > maxLat) maxLat = lat;
-  }
-  const dLng = (maxLng - minLng) * 111320 * Math.cos((((minLat + maxLat) / 2) * Math.PI) / 180);
-  const dLat = (maxLat - minLat) * 111320;
-  const raw = Math.max(dLng, dLat) * 1.3;
-  return Math.max(600, Math.min(8000, Math.round(raw)));
+function normalizeWorkArea(workArea, fallbackLnglats) {
+  const fallbackCenter = computeCenter(fallbackLnglats);
+  const hardCapMeters = clamp(
+    Number(workArea?.hardCapMeters) || WORK_AREA_HARD_CAP_METERS,
+    MIN_WORK_AREA_SPAN_METERS,
+    WORK_AREA_HARD_CAP_METERS
+  );
+  const requestedSpan = Number(workArea?.spanMeters);
+  const spanMeters = clamp(
+    Number.isFinite(requestedSpan) ? requestedSpan : DEFAULT_WORK_AREA_SPAN_METERS,
+    MIN_WORK_AREA_SPAN_METERS,
+    hardCapMeters
+  );
+  const center = isValidLngLat(workArea?.center) ? workArea.center.map(Number) : fallbackCenter;
+  return {
+    source: workArea?.source || 'fallback-trip-center',
+    center,
+    requestedCenter: isValidLngLat(workArea?.requestedCenter)
+      ? workArea.requestedCenter.map(Number)
+      : null,
+    anchorAdjusted: Boolean(workArea?.anchorAdjusted),
+    anchorReason: workArea?.anchorReason || '',
+    anchorDistanceMeters: Math.round(Number(workArea?.anchorDistanceMeters) || 0),
+    anchorType: workArea?.anchorType || '',
+    spanMeters: Math.round(spanMeters),
+    hardCapMeters: Math.round(hardCapMeters),
+    profile: workArea?.profile || 'default',
+    bounds: squareBounds(center, spanMeters)
+  };
+}
+
+function squareBounds(center, spanMeters) {
+  const half = spanMeters / 2;
+  const latDelta = half / 111320;
+  const lngDelta = half / (111320 * Math.cos((center[1] * Math.PI) / 180));
+  return {
+    minLng: center[0] - lngDelta,
+    maxLng: center[0] + lngDelta,
+    minLat: center[1] - latDelta,
+    maxLat: center[1] + latDelta
+  };
 }
 
 function isValidLngLat(v) {
@@ -1569,13 +1593,79 @@ function getTerrainHeightScale(proj, terrainMode) {
   return proj.metersToUnits(30);
 }
 
-function getOverviewFeatureScale(bounds) {
-  const span = getBoundsSpan(bounds);
-  return THREE.MathUtils.clamp(span / 850, 1, 6);
-}
-
 function getBoundsSpan(bounds) {
   return Math.max(bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ);
+}
+
+export function getOverviewCameraPose(bounds, { terrainModel = null, terrainMode = null } = {}) {
+  const { span, liftTarget, centerX: cx, centerZ: cz } = createFoundationMetrics(bounds);
+  const centerTerrainY = Number(terrainModel?.heightAt?.(cx, cz));
+  const targetY = liftTarget + (Number.isFinite(centerTerrainY) ? centerTerrainY : 0);
+  const target = new THREE.Vector3(cx, targetY, cz);
+  const profile = getCameraProfile(terrainMode);
+  const inspectDistance = Number(profile.inspectDistance) || 180;
+  const distanceScale = getOverviewDistanceScale(terrainMode);
+  const distance = Math.max(
+    span * distanceScale,
+    inspectDistance * OVERVIEW_CAMERA_ORBIT.minInspectDistanceScale
+  );
+  const modePitch = Number(terrainMode?.cameraPitchDeg ?? getOverviewPitchDeg(terrainMode));
+  const pitchDeg = Number.isFinite(modePitch) ? modePitch : OVERVIEW_CAMERA_ORBIT.pitchDeg;
+  const pitch = THREE.MathUtils.degToRad(THREE.MathUtils.clamp(pitchDeg, 58, 74));
+  const heading = THREE.MathUtils.degToRad(OVERVIEW_CAMERA_ORBIT.headingDeg);
+  const horizontalDistance = distance * Math.cos(pitch);
+  const positionX = cx + Math.sin(heading) * horizontalDistance;
+  const positionZ = cz + Math.cos(heading) * horizontalDistance;
+  const desiredY = targetY + distance * Math.sin(pitch);
+  const terrainY = Number(terrainModel?.heightAt?.(positionX, positionZ));
+  const groundY = (Number.isFinite(terrainY) ? terrainY : 0) + liftTarget;
+  const positionY = clamp(desiredY, groundY + profile.minClearance, groundY + profile.maxClearance);
+  return {
+    position: new THREE.Vector3(positionX, positionY, positionZ),
+    target
+  };
+}
+
+function getOverviewDistanceScale(terrainMode) {
+  const id = typeof terrainMode === 'string' ? terrainMode : terrainMode?.id;
+  return OVERVIEW_DISTANCE_SCALE_BY_MODE[id] || OVERVIEW_CAMERA_ORBIT.distanceScale;
+}
+
+function getOverviewPitchDeg(terrainMode) {
+  const id = typeof terrainMode === 'string' ? terrainMode : terrainMode?.id;
+  return OVERVIEW_PITCH_BY_MODE[id] || OVERVIEW_CAMERA_ORBIT.pitchDeg;
+}
+
+export function getInitialOverviewCameraPose() {
+  return getOverviewCameraPose(getDefaultOverviewBounds(), { terrainMode: 'citywalk' });
+}
+
+function applyOverviewCameraPose(diorama, bounds) {
+  if (!diorama?.camera || !diorama?.controls) return null;
+  const pose = getOverviewCameraPose(bounds, {
+    terrainModel: diorama.terrainModel,
+    terrainMode: diorama.sceneBuildContext?.terrainMode
+  });
+  diorama.camera.position.copy(pose.position);
+  diorama.controls.target.copy(pose.target);
+  diorama.controls.update();
+  return pose;
+}
+
+function getDefaultOverviewBounds() {
+  const span = DEFAULT_WORK_AREA_SPAN_METERS;
+  const half = span / 2;
+  return { minX: -half, maxX: half, minZ: -half, maxZ: half };
+}
+
+function getCameraControlDistances(sceneSpan, terrainMode) {
+  const profile = getCameraProfile(terrainMode);
+  const inspectDistance = Number(profile.inspectDistance) || 180;
+  const minDistance = THREE.MathUtils.clamp(sceneSpan * 0.06, 36, inspectDistance * 0.75);
+  return {
+    minDistance,
+    maxDistance: Math.max(minDistance * 4, sceneSpan * 2.1)
+  };
 }
 
 function seededUnit(value) {
@@ -1610,20 +1700,4 @@ function smoothstep(t) {
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
-}
-
-function percentile(values, ratio) {
-  const sorted = values.filter(Number.isFinite).sort((a, b) => a - b);
-  if (!sorted.length) return 0;
-  const index = Math.min(sorted.length - 1, Math.ceil(sorted.length * ratio) - 1);
-  return roundMetric(sorted[index]);
-}
-
-function maxMetric(values) {
-  const finite = values.filter(Number.isFinite);
-  return finite.length ? roundMetric(Math.max(...finite)) : 0;
-}
-
-function roundMetric(value) {
-  return Number((Number(value) || 0).toFixed(3));
 }

@@ -31,6 +31,12 @@ The renderer is replaceable. The data contract is the product asset.
 8. Desktop Web is the only active target. Mobile Web and Kotlin Android are deferred.
 9. Route and road are separate layers: roads are muted geographic context; the itinerary route is the persisted 2D route rendered in industrial safety yellow.
 10. Production 3D data must move through provider-neutral BFF normalizers, cache keys, provenance, and attribution gates before being rendered as real-world facts.
+11. 3D V1 is a bounded local work area, not an unbounded route-wide map. The user must select a
+    2D center point with the red-pin flow before 3D generation.
+12. V1 work-area span defaults to 800m, uses 600m / 1000m / 2000m for urban / scenic / hiking
+    profiles, and hard-caps at 2000m.
+13. The 3D route must not use gray outline/bed geometry as route guidance. Only the industrial
+    safety-yellow route is the primary action layer.
 
 ## 3. Product capability tree
 
@@ -38,9 +44,11 @@ The renderer is replaceable. The data contract is the product asset.
 3D planning diorama
   1. Enter 3D reliably
      1.1 right-bottom 3D button
-     1.2 2D camera freeze
-     1.3 nonblank slab within 1.5s
-     1.4 graceful exit to 2D
+     1.2 red-pin center selection on the 2D map
+     1.3 square work-area preview
+     1.4 2D camera freeze
+     1.5 nonblank slab within 1.5s
+     1.6 graceful exit to 2D
 
   2. Preserve geographic truth
      2.1 persisted places
@@ -51,10 +59,11 @@ The renderer is replaceable. The data contract is the product asset.
 
   3. Build terrain foundation
      3.1 local projection
-     3.2 terrain bounds and chunk bbox
-     3.3 absolute-elevation foundation
-     3.4 local relief height grid
-     3.5 sampleHeight as the only vertical authority
+     3.2 bounded square work-area bounds and chunk bbox
+     3.3 uniform selected-plane slab rise
+     3.4 absolute-elevation foundation
+     3.5 local relief height grid
+     3.6 sampleHeight as the only vertical authority
 
   4. Carve and emerge geography
      4.1 water channels depress into the foundation
@@ -89,15 +98,42 @@ The renderer is replaceable. The data contract is the product asset.
 
 ### Current repair plan from the latest deep research report
 
-The latest code scan and deep research report agree on the same repair order:
+The latest visual-quality reset adds a blocking sequence before any further visual expansion:
+
+```text
+VQ0 route layer repair
+  -> VQ1 2D red-pin selection
+  -> VQ2 fixed square work-area scene envelope
+  -> VQ3 outside-context dimming and edge treatment
+  -> VQ4 bounded-scene visual gates
+```
+
+This sequence is now the immediate roadmap. Existing Alpha/Beta/Delta QA remains useful, but it is
+not sufficient because the current user-facing screenshot can still score 1/10 while automated
+structure gates pass.
+
+The latest code scan and deep research report agree on the long-term repair order:
 
 ```text
 P0 engineering stability and interaction correctness
   -> P1 generation timeline and observability
   -> P2 water / road / bridge geometry correctness
   -> P3 building massing / dissolve / LOD
-  -> P4 safety, performance, provenance and visual gates
+  -> P4 DEM tile and local precision
+  -> P5 landmark restoration
+  -> P6 commercial provider and compliance
 ```
+
+The immediate next-stage execution order is narrower:
+
+```text
+Alpha visual proof infrastructure
+  -> Beta P2 water / road / bridge visual correctness
+  -> Gamma P3 building massing / dissolve modularization
+  -> Delta inspect camera and scene precision profiles
+```
+
+Alpha is a prerequisite for Beta. Visual correctness work without ROI screenshots, fixed camera presets, and `window.__threeDebug__.qa` evidence is not merge-ready.
 
 This is a refactor of the existing Three.js path, not an engine replacement. Do not switch
 the primary stack to Cesium, Mapbox, OSMBuildings, or another hosted 3D city product to solve
@@ -138,12 +174,18 @@ Goal: 3D must not lie, blank, or desync from 2D.
 
 Engineering tasks:
 
+- Replace any route-wide or all-point scene envelope path with an explicit selected work area:
+  `{ centerLngLat, spanMeters, hardCapMeters, profile }`.
+- Add `selecting-3d-center` before 3D generation. The 2D map owns cursor pin position, square
+  preview, click commit, and cancel handling.
 - Restore the source quality gate by excluding generated artifact directories from Prettier
   and Git tracking rules.
 - Lock route geometry to persisted `event.routeToNext.geometry`.
 - Add route hash, route length, first point, and last point diagnostics.
 - Unify `sampleHeight(x, z)` as the only vertical authority for route, road, water, bridge, building, marker, and annotation placement.
 - Ensure 3D entry displays a nonblank slab within 1.5s even when DEM or geoAssets fail.
+- Keep `slab-rise` as a uniform-height selected plane. DEM relief, water carve, road flattening,
+  and bridge offsets must wait for later timeline phases.
 - Keep the 3D button visible in the bottom-right map control area.
 - Keep 60s no-auto-exit covered by E2E. User interaction may pause/resume camera orbit, but
   must not switch modes.
@@ -158,6 +200,11 @@ Data tasks:
 
 Visual tasks:
 
+- Remove gray route outline/bed from 3D route guidance.
+- Keep the yellow route stable above terrain, roads, water, and bridges during camera movement.
+- Raise only the selected square work area and dim/simplify outside context.
+- During the first raise, keep the selected square top surface perfectly level; terrain variation
+  appears only in `terrain-refine`.
 - Keep route guidance industrial safety yellow, not gold.
 - Keep the current planning-diorama palette and low-poly terrain style.
 - Use the fixed entry sequence: 2D freeze -> foundation raise -> water carving ->
@@ -165,6 +212,12 @@ Visual tasks:
 
 QA gates:
 
+- Work-area span is explicit and `<= 2000m`.
+- Red-pin 2D selection E2E proves center selection and cancellation.
+- The selected square is visibly raised and outside context is dimmed.
+- Slab-rise top-surface height variance stays within epsilon before `terrain-refine`.
+- Route gray-outline pixels remain below the calibrated threshold.
+- Route jitter/z-fighting remains below the calibrated threshold during camera movement.
 - `npm run check`, `npm test`, and the targeted 3D E2E pass.
 - 2D and 3D route hash match.
 - Route length differs from persisted/provider length by no more than 1-2%.
@@ -297,14 +350,20 @@ Goal: make city/street close views useful without pretending to be a true city r
 
 Engineering tasks:
 
-- Add deterministic rectangular building massing as the first building stage.
-- Build footprint extrusion for authoritative buildings.
+- Add deterministic rectangular building massing as the first building stage. Implemented and
+  covered by generation timeline plus `river-bridge` timeline visual evidence.
+- Build footprint extrusion for authoritative buildings. Implemented and covered by direct
+  renderer tests on flat terrain.
 - Keep the existing five-template fallback catalog per scenario.
-- Replace repeated fallback meshes with `InstancedMesh` where practical.
+- Replace repeated fallback meshes with `InstancedMesh` where practical. Implemented for fallback
+  low-poly massing.
 - Add continuous massing-to-outline dissolve based on camera distance with hysteresis and fade.
-- Align building base to terrain samples and reject abnormal intersections.
+  Implemented and covered by direct LOD tests plus stepped visual gates.
+- Align building base to terrain samples and reject abnormal intersections. Implemented and
+  covered by direct rejected-footprint fallback tests.
 - Split the implementation into `building-massing-renderer.js` and
-  `building-dissolve-renderer.js`.
+  `building-dissolve-renderer.js`. Current implementation keeps massing geometry in the former
+  and camera-distance LOD/dissolve state in the latter.
 - Prefer double-layer representation plus reveal/opacity/clip behavior over morph target
   topology conversion.
 
@@ -323,9 +382,10 @@ Visual tasks:
 
 QA gates:
 
-- Building base terrain error P95 <= 0.25m in seeded scenes.
-- LOD transition has no visible pop or flicker.
-- Fallback buildings are deterministic across reloads.
+- Building base terrain error P95 <= 0.25m in seeded scenes and direct footprint tests.
+- LOD transition has no visible pop or flicker in `micro-street`, `old-street`, and
+  `landmark-pilot`.
+- Fallback buildings are deterministic across reloads and direct rebuild tests.
 
 Do not do:
 
@@ -428,10 +488,51 @@ Do not do:
 
 - Do not bind the product roadmap to one commercial 3D provider before the data contract is proven.
 
-## 5. Immediate next batch
+## 5. Immediate Next Batch
 
-The next executable batch should continue P1 consolidation, not P4/P5 expansion. P0 correctness
-floor was implemented on 2026-06-21:
+The next executable batch is now the local visual-quality reset. P4/P5 expansion remains blocked.
+P0 correctness floor and core P1/P2 code paths were implemented before this batch, but the latest
+manual visual review proved that automated structure gates were insufficient.
+
+VQ reset tasks:
+
+1. Repair route guidance rendering:
+   - remove gray 3D outline/bed from route guidance;
+   - keep road bed as muted context only;
+   - enforce route `renderOrder`, `depthWrite=false`, route lift, and anti-z-fighting discipline;
+   - increase route sampling where needed.
+
+2. Implement 2D red-pin selection:
+   - 3D button enters `selecting-3d-center`;
+   - red pin follows the cursor;
+   - square preview follows the selected center and profile span;
+   - click commits `centerLngLat`;
+   - `Esc`, right click, and toggle click cancel.
+
+3. Implement fixed square work-area envelope:
+   - default 800m;
+   - urban 600m;
+   - scenic 1000m;
+   - hiking 2000m;
+   - hard cap 2000m;
+   - routes and assets are clipped to the square.
+
+4. Implement outside-context dimming:
+   - selected square uses the existing bone-white terrain style;
+   - selected square rises first as a uniform-height plane;
+   - outside context is lower brightness and lower detail;
+   - edge skirt/fade makes the work-area boundary legible without decorative borders.
+
+5. Add bounded visual QA:
+   - route gray-outline pixel threshold;
+   - route yellow-pixel stability threshold;
+   - work-area span and center assertions;
+   - outside dimming ROI assertion;
+   - no unbounded scene envelope assertion.
+
+Previous Alpha/Beta context remains:
+
+The Alpha visual proof infrastructure is still required after the reset stabilizes:
 
 - cached route geometry now stores recomputed diagnostics: hash, point count, length, first point,
   and last point;
@@ -454,7 +555,7 @@ P1 started on 2026-06-21 with the context/debug layer:
 - 3D render construction now reads environmental assets from `SceneBuildContext.geoAssets`;
 - Playwright verifies the scene id, geo asset counts, and provenance source count in the browser.
 
-P1-2 continues the renderer isolation:
+P1/P2 renderer isolation is in place:
 
 - `geo-asset-renderer` owns water, bridge, and road mesh construction from `trip.geoAssets`;
 - `route-guidance-renderer` owns persisted route geometry, diagnostics, dashed estimated fallback,
@@ -463,7 +564,7 @@ P1-2 continues the renderer isolation:
 - `map-3d` is reduced toward scene orchestration: terrain, buildings, vegetation, markers,
   annotations, camera, and animation remain to be split in later P1 batches.
 
-Deep research integration added on 2026-06-21:
+Deep research integration established:
 
 - the official implementation route is now AMap 2D/Web Service + BFF data/cache +
   `geoAssets` + Three.js, not Cesium/Mapbox/Babylon/OSMBuildings as primary stack;
@@ -478,51 +579,46 @@ route-highlight -> building-massing -> building-dissolve`;
 - current Overpass/OSM context ingestion remains a bounded prototype context layer and must
   not be presented as the commercial production dependency.
 
-1. Freeze the route contract:
-   - add route hash diagnostics;
-   - verify first/last points;
-   - verify 2D/3D length consistency;
-   - make estimated fallback visibly dashed.
+The immediate task list is:
 
-2. Centralize terrain sampling:
-   - expose one `sampleHeight()` / `TerrainModel.heightAt()` path;
-   - route, roads, water, bridges, buildings, markers, and annotations must all use it;
-   - add tests for route/building/water attachment.
+1. Build ROI visual baseline harness:
+   - Chromium-only first;
+   - deterministic local fixtures only;
+   - no live provider calls;
+   - first fixtures: `river-bridge`, `micro-street`, `hiking-terrain`.
 
-3. Split renderer responsibilities:
-   - terrain renderer;
-   - route guidance renderer;
-   - geo asset renderer for roads/water/bridges;
-   - building renderer;
-   - camera controller;
-   - animation timeline.
+2. Formalize `window.__threeDebug__.qa` v1:
+   - geometry metrics;
+   - budget metrics;
+   - provenance metrics;
+   - layer state metrics;
+   - additive schema evolution only.
 
-4. Add scene debug and QA hooks:
-   - `window.__threeDebug__`;
-   - mesh counts by layer;
-   - route hash/length;
-   - terrain confidence;
-   - first slab time and details ready time.
+3. Add `river-bridge` P2 structured geometry gates:
+   - `waterCoverageRatio`;
+   - `bridgeContinuity`;
+   - `routeGroundClearanceP95`;
+   - `zFightingRisk`;
+   - `bridgePierCount`.
 
-5. Add Playwright geometry gates:
-   - nonblank 3D;
-   - route card focus;
-   - 2D/3D route hash;
-   - water present -> water mesh;
-   - bridge present -> bridge mesh;
-   - building base attachment.
+4. Attach visual failure evidence:
+   - actual screenshot;
+   - diff screenshot;
+   - fixture JSON;
+   - camera preset JSON;
+   - QA JSON;
+   - Playwright trace.
 
-6. Add generation timeline screenshot gates:
-   - foundation rise;
-   - carved water / emerged roads / bridge deck;
-   - route highlight draw;
-   - building massing;
-   - building dissolve close view.
+5. Keep live provider paths separate from default visual gates:
+   - default visual QA must be reproducible offline from fixtures;
+   - live-provider remains explicit opt-in.
 
-7. Update documentation:
+6. Update documentation:
    - `docs/2d-data-foundation.md` remains the truth-source contract;
    - `docs/3d-assets-landcover-and-landmarks.md` remains the asset/provenance contract;
    - `docs/3d-deep-research-integration.md` records the latest external research decision;
+   - `docs/qa/visual-baseline.md` owns visual proof execution;
+   - `docs/qa/debug-contract.md` owns `window.__threeDebug__.qa`.
    - this document drives execution order.
 
 ## 6. Complexity map

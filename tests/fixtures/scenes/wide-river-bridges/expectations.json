@@ -1,0 +1,23 @@
+{
+  "scene": "wide-river-bridges",
+  "route": {
+    "hash": "fixture-wide-river-bridges-route-v1",
+    "maxOccludedRatio": 0.2,
+    "minYellowPixelRatio": 0.00025
+  },
+  "water": {
+    "requiresCoverage": true,
+    "maxBlankPixelRatio": 0.005,
+    "minChannelDepthMeters": 1.25,
+    "minCoverageRatio": 0.97,
+    "minBluePixelRatio": 0.00008
+  },
+  "bridge": {
+    "requiresDeckContinuity": true,
+    "minSpanCoverageRatio": 0.95,
+    "minDeckCount": 2
+  },
+  "building": {
+    "maxPopDeltaPixels": 18
+  }
+}

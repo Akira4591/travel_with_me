@@ -18,7 +18,7 @@ Every use scenario has exactly five stable procedural templates. A hash of `loca
 | Residential | gable, terrace, courtyard, annex, tower  |
 | Generic     | box, gable, terrace, annex, courtyard    |
 
-Source priority: licensed GLB/CityGML model -> licensed building footprint with height/levels -> OSM-compatible footprint where its licence and attribution are accepted -> this POI template. The UI must preserve provenance on every record.
+Source priority: licensed GLB/CityGML model -> licensed building footprint with height/levels -> OSM-compatible footprint where its licence and attribution are accepted -> this POI template. The UI must preserve provenance on every record. If an attributable footprint cannot pass the terrain-base tolerance gate, the renderer degrades it to neutral synthetic massing at the footprint center instead of silently dropping all building context.
 
 ## 3. Mountains and vegetation
 
@@ -45,7 +45,11 @@ The current client uses the selected route's travel mode only to set a visual ro
 
 The terrain never begins as a zero-height sheet. A sampled DEM produces two heights: a compressed absolute-elevation foundation and relative local relief. This gives a flat but elevated district a slight, stable base while keeping a mountain legible without turning the entire scene into a vertical wall. With no DEM, the renderer uses only a low neutral fallback surface and labels the confidence accordingly.
 
-The entry sequence is fixed: first the terrain foundation rises as a clean base; second, local terrain relief, water surfaces, roads, and bridge structures emerge together from that base; last, buildings dissolve in and their close-range detail LOD becomes eligible. Route and water vertices share the terrain reveal progress, which prevents floating route lines and blank river cuts while the terrain is forming. Exit runs the same sequence in reverse.
+The entry sequence is fixed: first the selected terrain foundation rises as a clean, uniform-height
+plane; second, local terrain relief, water surfaces, roads, and bridge structures emerge together
+from that base; last, buildings dissolve in and their close-range detail LOD becomes eligible.
+Route and water vertices share the terrain reveal progress, which prevents floating route lines and
+blank river cuts while the terrain is forming. Exit runs the same sequence in reverse.
 
 Provider-neutral water and bridge input is retained only with provenance:
 
@@ -83,10 +87,13 @@ Candidate data classes to evaluate during provider onboarding: official municipa
 
 - A missing provider must fail closed to neutral templates, not invented detail.
 - Every visible real asset must have `source`, `licence`, `updatedAt`, and `attribution`.
-- Flat-terrain and mountain screenshots must both show a nonzero ground foundation; route and water surfaces may not float during the entry animation.
+- Flat-terrain and mountain screenshots must both show a nonzero ground foundation; the first
+  selected-plane lift must be uniform-height, and route/water surfaces may not float during the
+  entry animation.
 - A waterway/bridge scene must have no terrain-colored gap where an attributable polygon or centerline is present.
 - Vegetation density is capped per terrain chunk and disabled before it harms itinerary/road readability.
 - At least one mountain, an old-street storefront, and a landmark route must pass desktop screenshot review at overview and inspect distances.
+- Landmark model metadata must pass `npm.cmd run check:landmarks` before a record can survive normalization. The gate validates URL allowlist, `model/gltf-*` content type, byte size, texture budget, triangle/material budgets, footprint drift, `sha256-*` integrity, `optimized: true`, and required LOD1 plus placeholder outputs.
 
 ## 8. Implemented workspace contract
 
@@ -121,12 +128,25 @@ Candidate data classes to evaluate during provider onboarding: official municipa
   }],
   landmarks: [{
     id: 'landmark-1', lnglat: [lng, lat], modelUrl: 'https://...',
+    asset: {
+      sourceFormat: 'owner-provided-glb' | 'municipal-cityjson' | 'municipal-citygml',
+      contentType: 'model/gltf-binary' | 'model/gltf+json',
+      byteSize, textureBytes, triangleCount, materialCount,
+      footprintDriftMeters,
+      optimized: true,
+      integrity: 'sha256-...',
+      lods: [
+        { level: 'LOD2', modelUrl, byteSize, triangleCount, integrity: 'sha256-...' },
+        { level: 'LOD1', modelUrl, byteSize, triangleCount, integrity: 'sha256-...' },
+        { level: 'placeholder', modelUrl, byteSize, triangleCount, integrity: 'sha256-...' }
+      ]
+    },
     provenance: { source, licence, attribution, updatedAt }
   }]
 }
 ```
 
-Current renderer behavior: an authorized `buildings[].locationId` replaces that POI's fallback block with a footprint extrusion. An attributable building without `locationId` is rendered as surrounding context, capped to keep the frame and GPU budget stable. Attributable roads become a muted terrain-conforming base layer, while the selected itinerary uses a warm road bed, graphite outline, and industrial safety-yellow guidance stripe. Authorized land-cover polygons generate deterministic vegetation clusters on the terrain; attributable waterways and bridges render on the same terrain model as roads. Landmark records are validated and retained but intentionally do not auto-load remote model URLs yet: model delivery requires an allowlist, content-type/size validation, integrity metadata, and GLTF/GLB optimization before it may execute in the renderer.
+Current renderer behavior: an authorized `buildings[].locationId` replaces that POI's fallback block with a footprint extrusion. An attributable building without `locationId` is rendered as surrounding context, capped to keep the frame and GPU budget stable. Rejected footprint extrusions fall back to neutral synthetic massing and are not presented as real exterior models. Repeated fallback low-poly massing is batched with `InstancedMesh`; close-range detail and dissolve LOD remain per building. Attributable roads become a muted terrain-conforming base layer, while the selected itinerary uses a warm road bed, graphite outline, and industrial safety-yellow guidance stripe. Authorized land-cover polygons generate deterministic vegetation clusters on the terrain; attributable waterways and bridges render on the same terrain model as roads. Landmark records are retained only after `js/render/landmark-assets.js` validates their release-gate metadata. The renderer still does not auto-load remote model URLs; the gate exists so future model loading cannot begin without allowlist, content-type/size validation, integrity metadata, LOD outputs, and GLTF/GLB optimization.
 
 ### OpenStreetMap context ingestion
 

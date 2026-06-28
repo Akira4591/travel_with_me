@@ -1,3 +1,5 @@
+import { validateLandmarkAsset } from './landmark-assets.js';
+
 const MAX_BUILDINGS = 120;
 const MAX_ROADS = 180;
 const MAX_LANDCOVER_AREAS = 48;
@@ -118,12 +120,15 @@ function normalizeLandmarks(items) {
     .map((item, index) => {
       const provenance = normalizeProvenance(item?.provenance);
       const lnglat = normalizePoint(item?.lnglat);
-      if (!lnglat || !provenance || !item?.modelUrl) return null;
+      const assetValidation = validateLandmarkAsset(item);
+      if (!lnglat || !provenance || !item?.modelUrl || !assetValidation.passed) return null;
       return {
         id: String(item.id || `landmark-${index + 1}`),
         lnglat,
         modelUrl: String(item.modelUrl),
-        provenance
+        provenance,
+        asset: assetValidation.normalizedAsset,
+        assetValidation
       };
     })
     .filter(Boolean)

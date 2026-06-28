@@ -1,16 +1,31 @@
 const ROUTE_CLEARANCE_P95_MAX_METERS = 0.3;
 const BUILDING_BASE_ERROR_P95_MAX_METERS = 0.25;
 const FIRST_SLAB_MAX_MS = 1500;
+const WORK_AREA_HARD_CAP_METERS = 2000;
 
 export function evaluateSceneQuality(debug = {}) {
   const geometry = normalizeGeometryMetrics(debug);
   const budgets = normalizeBudgets(debug);
   const provenance = normalizeProvenance(debug);
+  const layers = normalizeLayers(debug);
+  const lod = normalizeLod(debug);
   const warnings = [];
   const errors = [];
 
   if (debug.firstSlabMs > FIRST_SLAB_MAX_MS) {
     errors.push(`FIRST_SLAB_SLOW:${debug.firstSlabMs}`);
+  }
+  if (debug.workArea?.spanMeters > WORK_AREA_HARD_CAP_METERS) {
+    errors.push(`WORK_AREA_SPAN_EXCEEDS_CAP:${debug.workArea.spanMeters}`);
+  }
+  if (debug.workArea && geometry.workAreaRaisedPixelRatio < 1) {
+    errors.push(`WORK_AREA_NOT_RAISED:${geometry.workAreaRaisedPixelRatio}`);
+  }
+  if (debug.workArea && geometry.outsideDimmedPixelRatio < 1) {
+    errors.push(`OUTSIDE_CONTEXT_NOT_DIMMED:${geometry.outsideDimmedPixelRatio}`);
+  }
+  if (geometry.routeGrayOutlinePixelRatio > 0) {
+    errors.push(`ROUTE_GRAY_OUTLINE_VISIBLE:${geometry.routeGrayOutlinePixelRatio}`);
   }
   if (geometry.routeGroundClearanceP95 > ROUTE_CLEARANCE_P95_MAX_METERS) {
     errors.push(`ROUTE_CLEARANCE_P95_HIGH:${geometry.routeGroundClearanceP95}`);
@@ -27,6 +42,14 @@ export function evaluateSceneQuality(debug = {}) {
   if (debug.counts?.bridgePiers > 0 && debug.counts?.bridgeDecks === 0) {
     errors.push('BRIDGE_PIERS_WITHOUT_DECK');
   }
+  if (
+    budgets.vegetationDensityCap > 0 &&
+    budgets.vegetationMaxInstancesPerArea > budgets.vegetationDensityCap
+  ) {
+    errors.push(
+      `VEGETATION_DENSITY_CAP_EXCEEDED:${budgets.vegetationMaxInstancesPerArea}/${budgets.vegetationDensityCap}`
+    );
+  }
   if (debug.geoAssetCounts?.roads > 0 && debug.counts?.roadMeshes === 0) {
     warnings.push('ROADS_WITHOUT_ROAD_MESH');
   }
@@ -36,19 +59,39 @@ export function evaluateSceneQuality(debug = {}) {
   if (provenance.missingRequiredFieldCount > 0) {
     warnings.push(`MISSING_PROVENANCE_FIELDS:${provenance.missingRequiredFieldCount}`);
   }
+  if (provenance.landmarkCount > 0 && provenance.landmarkAllowlisted < provenance.landmarkCount) {
+    errors.push(
+      `LANDMARK_ASSET_NOT_RELEASE_GATED:${provenance.landmarkAllowlisted}/${provenance.landmarkCount}`
+    );
+  }
 
   return {
+    version: 1,
     passed: errors.length === 0,
     warnings: uniqueStrings(warnings),
     errors: uniqueStrings(errors),
     budgets,
     geometry,
     provenance,
+    layers,
+    lod,
     thresholds: {
       firstSlabMaxMs: FIRST_SLAB_MAX_MS,
+      workAreaHardCapMeters: WORK_AREA_HARD_CAP_METERS,
       routeClearanceP95MaxMeters: ROUTE_CLEARANCE_P95_MAX_METERS,
       buildingBaseErrorP95MaxMeters: BUILDING_BASE_ERROR_P95_MAX_METERS
     }
+  };
+}
+
+function normalizeLod(debug) {
+  const metrics = debug.lodMetrics || debug.buildingGroup?.userData?.lodMetrics || {};
+  const entryCount = Number(metrics.entryCount || debug.counts?.buildingMassings || 0);
+  return {
+    buildingEntryCount: entryCount,
+    buildingDetailRatio: toFixedNumber(metrics.detailRatio),
+    buildingDetailAlphaAverage: toFixedNumber(metrics.detailAlphaAverage),
+    buildingDistanceP50: toFixedNumber(metrics.distanceP50)
   };
 }
 
@@ -56,9 +99,15 @@ function normalizeGeometryMetrics(debug) {
   const metrics = debug.geometryMetrics || {};
   const counts = debug.counts || {};
   const geoAssetCounts = debug.geoAssetCounts || {};
-  const waterCoverageRatio = ratio(counts.waterMeshes, geoAssetCounts.waterways);
+  const waterCoverageRatio = Number.isFinite(Number(metrics.waterCoverageRatio))
+    ? toFixedNumber(metrics.waterCoverageRatio)
+    : ratio(counts.waterMeshes, geoAssetCounts.waterways);
   const bridgeContinuity =
-    geoAssetCounts.bridges > 0 ? ratio(counts.bridgeDecks, geoAssetCounts.bridges) : 1;
+    Number.isFinite(Number(metrics.bridgeContinuity)) && geoAssetCounts.bridges > 0
+      ? toFixedNumber(metrics.bridgeContinuity)
+      : geoAssetCounts.bridges > 0
+        ? ratio(counts.bridgeDecks, geoAssetCounts.bridges)
+        : 1;
 
   return {
     routeGroundClearanceP95: toFixedNumber(metrics.routeClearanceP95Meters),
@@ -66,8 +115,16 @@ function normalizeGeometryMetrics(debug) {
     buildingBaseTerrainErrorP95: toFixedNumber(metrics.buildingBaseTerrainErrorP95Meters),
     buildingBaseTerrainErrorMax: toFixedNumber(metrics.buildingBaseTerrainErrorMaxMeters),
     terrainHeightVariance: toFixedNumber(debug.elevationRange),
+    terrainCarvingDepthP50: toFixedNumber(metrics.terrainCarvingDepthP50Meters),
     waterCoverageRatio,
     bridgeContinuity,
+    zFightingRisk: toFixedNumber(metrics.zFightingRisk),
+    routeVisiblePixelRatio: toFixedNumber(metrics.routeVisiblePixelRatio || 1),
+    routeGrayOutlinePixelRatio: toFixedNumber(metrics.routeGrayOutlinePixelRatio),
+    workAreaRaisedPixelRatio: toFixedNumber(metrics.workAreaRaisedPixelRatio),
+    outsideDimmedPixelRatio: toFixedNumber(metrics.outsideDimmedPixelRatio),
+    slabRiseTopHeightVariance: toFixedNumber(metrics.slabRiseTopHeightVariance),
+    bridgePierCount: Number(counts.bridgePiers || 0),
     bridgeCount: Number(counts.bridgeDecks || 0),
     buildingFloatingCount: 0,
     buildingPenetrationCount: 0
@@ -75,12 +132,25 @@ function normalizeGeometryMetrics(debug) {
 }
 
 function normalizeBudgets(debug) {
+  const counts = debug.counts || {};
+  const visibleMeshCount = Number(debug.visibleMeshCount || 0);
+  const vegetationMetrics = debug.vegetationMetrics || {};
   return {
-    terrainChunks: Number(debug.counts?.terrainChunks || 0),
-    buildingInstances: Number(debug.counts?.buildingMassings || 0),
-    buildingDetailed: Number(debug.counts?.buildingDetailed || 0),
-    vegetationInstances: Number(debug.counts?.vegetationInstances || 0),
-    visibleMeshCount: Number(debug.visibleMeshCount || 0)
+    terrainChunks: Number(counts.terrainChunks || 0),
+    buildingInstances: Number(counts.buildingMassings || 0),
+    buildingDetailed: Number(counts.buildingDetailed || 0),
+    vegetationInstances: Number(counts.vegetationInstances || 0),
+    vegetationAreaCount: Number(vegetationMetrics.areaCount || 0),
+    vegetationMaxInstancesPerArea: Number(vegetationMetrics.maxInstancesPerArea || 0),
+    vegetationDensityCap: Number(vegetationMetrics.densityCap || 0),
+    vegetationChunkCount: Number(vegetationMetrics.chunkCount || 0),
+    vegetationVisibleChunkCount: Number(vegetationMetrics.visibleChunkCount || 0),
+    vegetationCulledChunkCount: Number(vegetationMetrics.culledChunkCount || 0),
+    visibleMeshCount,
+    triangleCount: Number(debug.triangleCount || debug.containerMetrics?.triangleCount || 0),
+    frameTimeP95: Number(debug.frameTimeP95 || debug.containerMetrics?.frameTimeP95 || 0),
+    generationTimeMs: Number(debug.generationTimeMs || debug.firstSlabMs || 0),
+    textureMemoryEstimateMB: Number(debug.textureMemoryEstimateMB || 0)
   };
 }
 
@@ -94,14 +164,55 @@ function normalizeProvenance(debug) {
   );
   const buildingCount = Number(debug.geoAssetCounts?.buildings || 0);
   const landmarkCount = Number(debug.geoAssetCounts?.landmarks || 0);
+  const landmarkAssetStats = debug.landmarkAssetStats || {};
 
   return {
+    totalRealAssets: sources.length,
     buildingRealRatio: buildingCount > 0 ? 1 : 0,
-    landmarkAllowlisted: 0,
+    landmarkAllowlisted: Number(landmarkAssetStats.allowlisted || 0),
     landmarkCount,
+    landmarkOptimized: Number(landmarkAssetStats.optimized || 0),
+    landmarkIntegrityCount: Number(landmarkAssetStats.withIntegrity || 0),
+    missingSourceCount: sources.filter(source => !source.source).length,
+    missingLicenceCount: sources.filter(source => !source.licence).length,
     missingAttributionCount: sources.filter(source => !source.attribution).length,
+    missingUpdatedAtCount: sources.filter(source => !source.updatedAt).length,
     missingRequiredFieldCount,
     sourceCount: sources.length
+  };
+}
+
+function normalizeLayers(debug) {
+  const counts = debug.counts || {};
+  const geoAssetCounts = debug.geoAssetCounts || {};
+  const quality = debug.quality || {};
+  const missingLayers = new Set(quality.missingLayers || []);
+  return {
+    water: layerState(counts.waterMeshes, geoAssetCounts.waterways, missingLayers.has('waterways')),
+    roads: layerState(counts.roadMeshes, geoAssetCounts.roads, missingLayers.has('roads')),
+    bridges: layerState(counts.bridgeDecks, geoAssetCounts.bridges, missingLayers.has('bridges')),
+    route: layerState(counts.routeSegments, debug.routeGeometryCount, false),
+    buildings: layerState(
+      Number(counts.buildingMassings || 0) + Number(counts.buildingDetailed || 0),
+      geoAssetCounts.buildings,
+      missingLayers.has('buildings')
+    ),
+    vegetation: layerState(
+      counts.vegetationInstances,
+      geoAssetCounts.landcover,
+      missingLayers.has('landcover')
+    )
+  };
+}
+
+function layerState(renderedCount, expectedCount, missing) {
+  const count = Number(renderedCount || 0);
+  const expected = Number(expectedCount || 0);
+  return {
+    visible: count > 0,
+    count,
+    expected,
+    degraded: Boolean(missing && expected === 0)
   };
 }
 

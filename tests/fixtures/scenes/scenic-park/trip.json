@@ -1,0 +1,79 @@
+{
+  "id": "fixture-scenic-park",
+  "title": "Scenic Park Fixture",
+  "activeDayId": "day-scenic",
+  "locations": {
+    "forest-gate": {
+      "id": "forest-gate",
+      "name": "Forest Park Gate",
+      "type": "park trail",
+      "lnglat": [116.455, 40.01],
+      "resolved": true
+    },
+    "hill-pavilion": {
+      "id": "hill-pavilion",
+      "name": "Hill Pavilion",
+      "type": "hill viewpoint",
+      "lnglat": [116.463, 40.016],
+      "resolved": true
+    },
+    "lake-view": {
+      "id": "lake-view",
+      "name": "Lake View Deck",
+      "type": "park lake viewpoint",
+      "lnglat": [116.47, 40.022],
+      "resolved": true
+    }
+  },
+  "days": [
+    {
+      "id": "day-scenic",
+      "title": "Scenic park walk",
+      "events": [
+        {
+          "id": "event-forest-gate",
+          "title": "Enter forest park",
+          "locationId": "forest-gate",
+          "routeToNext": {
+            "mode": "walking",
+            "geometry": [
+              [116.455, 40.01],
+              [116.459, 40.013],
+              [116.463, 40.016]
+            ],
+            "distanceMeters": 980,
+            "durationSeconds": 900,
+            "source": "fixture",
+            "fetchedAt": "2026-06-22T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "event-hill-pavilion",
+          "title": "Pause at hill pavilion",
+          "locationId": "hill-pavilion",
+          "routeToNext": {
+            "mode": "walking",
+            "geometry": [
+              [116.463, 40.016],
+              [116.466, 40.019],
+              [116.47, 40.022]
+            ],
+            "distanceMeters": 940,
+            "durationSeconds": 880,
+            "source": "fixture",
+            "fetchedAt": "2026-06-22T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "event-lake-view",
+          "title": "Reach lake view deck",
+          "locationId": "lake-view"
+        }
+      ]
+    }
+  ],
+  "geoAssetStatus": {
+    "status": "ok",
+    "updatedAt": "2026-06-22T00:00:00.000Z"
+  }
+}

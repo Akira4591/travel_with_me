@@ -444,6 +444,12 @@ PR 描述模板：
 
 ## 10. 官方参考
 
+Current status override:
+
+- Playwright is already part of the project toolchain.
+- The next development preparation task is not installing Playwright; it is building the deterministic ROI visual baseline harness documented in `docs/qa/visual-baseline.md`.
+- Live-provider checks remain explicit opt-in and must not be part of default visual QA.
+
 - Node.js downloads: https://nodejs.org/en/download
 - npm install docs: https://docs.npmjs.com/cli/v11/commands/npm-install/
 - VS Code Windows setup: https://code.visualstudio.com/docs/setup/windows

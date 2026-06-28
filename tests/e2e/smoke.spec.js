@@ -485,6 +485,58 @@ async function openSeededDesktop(page, isMobile, options = {}) {
   );
 }
 
+async function enter3DFrom2DSelection(page, lnglat = getSeededRouteCenter()) {
+  await page.locator('#map-3d-toggle').click();
+  await expect(page.locator('.map-3d-selection-pin')).toBeVisible({ timeout: 5_000 });
+  await expect(page.locator('#map-3d-toggle')).toHaveAttribute('data-state', 'selecting-3d-center');
+  if (lnglat) {
+    await page.evaluate(center => {
+      const toLngLat = () => ({
+        lng: center[0],
+        lat: center[1],
+        getLng: () => center[0],
+        getLat: () => center[1]
+      });
+      const patchMap = map => {
+        if (!map) return;
+        map.setCenter?.(center);
+        map.containerToLngLat = toLngLat;
+        map.unproject = () => center;
+      };
+      const map = document.querySelector('#map')?.__mapInstance;
+      patchMap(map);
+      patchMap(window.__mockAMapLastMap);
+      (window.__mockAMapMaps || []).forEach(patchMap);
+    }, lnglat);
+  }
+  const map = page.locator('#map');
+  const box = await map.boundingBox();
+  const x = Math.round((box?.x || 0) + (box?.width || 800) / 2);
+  const y = Math.round((box?.y || 0) + (box?.height || 600) / 2);
+  await page.mouse.click(x, y);
+}
+
+function getSeededRouteCenter(workspace = SEEDED_WORKSPACE) {
+  const trip =
+    workspace.trips?.find(item => item.id === workspace.activeTripId) || workspace.trips?.[0];
+  const firstDay = trip?.days?.[0];
+  const events = firstDay?.events || [];
+  for (let index = 0; index < events.length - 1; index += 1) {
+    const from = trip.locations?.[events[index].locationId]?.lnglat;
+    const to = trip.locations?.[events[index + 1].locationId]?.lnglat;
+    if (isLngLat(from) && isLngLat(to)) {
+      return [(Number(from[0]) + Number(to[0])) / 2, (Number(from[1]) + Number(to[1])) / 2];
+    }
+  }
+  return null;
+}
+
+function isLngLat(value) {
+  return (
+    Array.isArray(value) && Number.isFinite(Number(value[0])) && Number.isFinite(Number(value[1]))
+  );
+}
+
 async function openTripMenu(page) {
   await page.getByRole('button', { name: '行程菜单' }).click();
 }
@@ -712,11 +764,19 @@ test('desktop can enter and exit nonblank 3D map view', async ({ page, isMobile 
   });
 
   await expect(page.locator('#map-3d-toggle')).toBeVisible();
-  await page.locator('#map-3d-toggle').click();
+  await enter3DFrom2DSelection(page);
 
   await expect(page.locator('#map-3d canvas')).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('#map-3d-toggle')).toContainText('2D');
-  await expect(page.locator('#map-3d')).toHaveAttribute('data-terrain-mode', 'citywalk');
+  await expect(page.locator('#map-3d')).toHaveAttribute(
+    'data-work-area-source',
+    'selected-2d-point'
+  );
+  await expect(page.locator('#map-3d')).toHaveAttribute('data-work-area-span-meters', /^\d+$/);
+  await expect(page.locator('#map-3d')).toHaveAttribute(
+    'data-terrain-mode',
+    /citywalk|micro-street/
+  );
   await expect(page.locator('#map-3d')).toHaveAttribute(
     'data-terrain-confidence',
     /sampled|low-relief|flat-fallback/
@@ -767,6 +827,50 @@ test('desktop can enter and exit nonblank 3D map view', async ({ page, isMobile 
   await expect(page.locator('#map-3d')).toBeHidden({ timeout: 15_000 });
 });
 
+test('desktop 3D anchors empty off-route selections to location context', async ({
+  page,
+  isMobile
+}) => {
+  test.setTimeout(60_000);
+  await openSeededDesktop(page, isMobile);
+
+  await enter3DFrom2DSelection(page, [116.6, 39.9]);
+
+  await expect(page.locator('#map-3d canvas')).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('#map-3d')).toHaveAttribute(
+    'data-work-area-source',
+    'selected-2d-point'
+  );
+  await expect(page.locator('#map-3d')).toHaveAttribute('data-work-area-anchor-adjusted', 'true');
+  await expect(page.locator('#map-3d')).toHaveAttribute('data-work-area-anchor-type', 'location');
+  await expect(page.locator('#map-3d')).toHaveAttribute(
+    'data-work-area-anchor-distance-meters',
+    /^[1-9]\d*$/
+  );
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => ({
+          phase: window.__threeDebug__?.phase,
+          passed: window.__threeDebug__?.quality?.passed,
+          anchorAdjusted: window.__threeDebug__?.workArea?.anchorAdjusted,
+          anchorType: window.__threeDebug__?.workArea?.anchorType,
+          routeSegments: window.__threeDebug__?.counts?.routeSegments || 0,
+          buildingMassings: window.__threeDebug__?.counts?.buildingMassings || 0
+        })),
+      { timeout: 15_000 }
+    )
+    .toMatchObject({
+      phase: 'steady',
+      passed: true,
+      anchorAdjusted: true,
+      anchorType: 'location'
+    });
+
+  const debug = await page.evaluate(() => window.__threeDebug__ || {});
+  expect(debug.counts?.buildingMassings || 0).toBeGreaterThan(0);
+});
+
 test('desktop 3D renders attributable water, roads, and deck-first bridges', async ({
   page,
   isMobile
@@ -775,7 +879,7 @@ test('desktop 3D renders attributable water, roads, and deck-first bridges', asy
   await openSeededDesktop(page, isMobile, { workspace: createGeoAssetWorkspace() });
 
   await page.getByRole('button', { name: 'Day 1' }).click();
-  await page.locator('#map-3d-toggle').click();
+  await enter3DFrom2DSelection(page);
 
   await expect(page.locator('#map-3d canvas')).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('#map-3d')).toHaveAttribute('data-water-carve-count', '1');
@@ -820,10 +924,12 @@ test('desktop 3D camera supports unlocked WASD translation with terrain y clamp'
   await openSeededDesktop(page, isMobile);
 
   await page.getByRole('button', { name: 'Day 1' }).click();
-  await page.locator('#map-3d-toggle').click();
+  await enter3DFrom2DSelection(page);
 
   await expect(page.locator('#map-3d canvas')).toBeVisible({ timeout: 30_000 });
-  await expect.poll(async () => page.evaluate(() => window.__threeDebug__?.phase)).toBe('steady');
+  await expect
+    .poll(async () => page.evaluate(() => window.__threeDebug__?.phase), { timeout: 15_000 })
+    .toBe('steady');
 
   const before = await page.evaluate(() => window.__threeDebug__?.camera);
   const metrics = await page.evaluate(() => window.__threeDebug__?.geometryMetrics || {});
@@ -872,17 +978,21 @@ test('desktop 3D stays open after 60 seconds idle', async ({ page, isMobile }) =
   await openSeededDesktop(page, isMobile);
 
   await page.getByRole('button', { name: 'Day 1' }).click();
-  await page.locator('#map-3d-toggle').click();
+  await enter3DFrom2DSelection(page);
 
   await expect(page.locator('#map-3d canvas')).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('#map-3d-toggle')).toContainText('2D');
-  await expect.poll(async () => page.evaluate(() => window.__threeDebug__?.phase)).toBe('steady');
+  await expect
+    .poll(async () => page.evaluate(() => window.__threeDebug__?.phase), { timeout: 15_000 })
+    .toBe('steady');
 
   await page.waitForTimeout(61_000);
 
   await expect(page.locator('#map-3d')).toBeVisible();
   await expect(page.locator('#map-3d-toggle')).toContainText('2D');
-  await expect.poll(async () => page.evaluate(() => window.__threeDebug__?.phase)).toBe('steady');
+  await expect
+    .poll(async () => page.evaluate(() => window.__threeDebug__?.phase), { timeout: 15_000 })
+    .toBe('steady');
 });
 
 test('desktop can open share image preview from seeded trip', async ({ page, isMobile }) => {

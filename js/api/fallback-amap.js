@@ -35,6 +35,17 @@ class FallbackMap {
     this.svg = this.root.querySelector('.fallback-map-routes');
     this.markerLayer = this.root.querySelector('.fallback-map-markers');
     this.container.replaceChildren(this.root);
+    this.root.addEventListener('click', event => {
+      const rect = this.root.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      const [lng, lat] = this.unproject([x, y]);
+      this.emit('click', {
+        lnglat: new FallbackLngLat(lng, lat),
+        pixel: new FallbackPixel(x, y),
+        originEvent: event
+      });
+    });
     this.resize();
   }
 
@@ -74,8 +85,16 @@ class FallbackMap {
     this.handlers.set(event, handlers);
   }
 
-  emit(event) {
-    (this.handlers.get(event) || []).forEach(handler => handler());
+  off(event, handler) {
+    if (!this.handlers.has(event)) return;
+    this.handlers.set(
+      event,
+      this.handlers.get(event).filter(item => item !== handler)
+    );
+  }
+
+  emit(event, payload) {
+    (this.handlers.get(event) || []).forEach(handler => handler(payload));
   }
 
   getZoom() {
@@ -84,6 +103,12 @@ class FallbackMap {
 
   getCenter() {
     return new FallbackLngLat(this.center[0], this.center[1]);
+  }
+
+  setCenter(center) {
+    this.center = normalizeLngLat(center) || this.center;
+    this.bounds = null;
+    this.render();
   }
 
   setZoomAndCenter(zoom, center) {
@@ -110,13 +135,35 @@ class FallbackMap {
 
   project(lnglat) {
     const point = normalizeLngLat(lnglat) || this.center;
-    const bounds = this.bounds || createBounds([this.center, point]);
+    const bounds = this.getProjectionBounds(point);
     const lngSpan = Math.max(0.002, bounds.maxLng - bounds.minLng);
     const latSpan = Math.max(0.002, bounds.maxLat - bounds.minLat);
     const pad = 72;
     const x = pad + ((point[0] - bounds.minLng) / lngSpan) * Math.max(1, this.width - pad * 2);
     const y = pad + ((bounds.maxLat - point[1]) / latSpan) * Math.max(1, this.height - pad * 2);
     return [x, y];
+  }
+
+  containerToLngLat(pixel) {
+    return new FallbackLngLat(...this.unproject(pixel));
+  }
+
+  unproject(pixel) {
+    const x = Number(Array.isArray(pixel) ? pixel[0] : pixel?.x) || 0;
+    const y = Number(Array.isArray(pixel) ? pixel[1] : pixel?.y) || 0;
+    const bounds = this.getProjectionBounds(this.center);
+    const lngSpan = Math.max(0.002, bounds.maxLng - bounds.minLng);
+    const latSpan = Math.max(0.002, bounds.maxLat - bounds.minLat);
+    const pad = 72;
+    const usableWidth = Math.max(1, this.width - pad * 2);
+    const usableHeight = Math.max(1, this.height - pad * 2);
+    const lng = bounds.minLng + ((x - pad) / usableWidth) * lngSpan;
+    const lat = bounds.maxLat - ((y - pad) / usableHeight) * latSpan;
+    return [lng, lat];
+  }
+
+  getProjectionBounds(point) {
+    return this.bounds || createBounds([this.center, point || this.center]);
   }
 
   updateBounds() {

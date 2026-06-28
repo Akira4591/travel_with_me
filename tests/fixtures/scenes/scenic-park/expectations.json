@@ -1,0 +1,27 @@
+{
+  "scene": "scenic-park",
+  "scenario": "scenic",
+  "terrain": {
+    "expectedMode": "scenic-park",
+    "minHeightRangeMeters": 80,
+    "maxHeightRangeMeters": 180,
+    "requiresSlopeCue": true,
+    "requiresLandcover": true
+  },
+  "route": {
+    "hash": "fixture-scenic-park-route-v1",
+    "maxOccludedRatio": 0.28,
+    "minYellowPixelRatio": 0.00005
+  },
+  "water": {
+    "requiresCoverage": true,
+    "maxBlankPixelRatio": 0.02
+  },
+  "bridge": {
+    "requiresDeckContinuity": false,
+    "minSpanCoverageRatio": 1
+  },
+  "building": {
+    "maxPopDeltaPixels": 0
+  }
+}

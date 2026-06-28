@@ -1,5 +1,23 @@
 # Trip App
 
+## Current next-stage focus
+
+The active desktop Web branch is now evidence-first:
+
+```text
+Alpha visual proof infrastructure
+  -> Beta P2 water / road / bridge visual correctness
+  -> Gamma P3 building massing / dissolve
+  -> Delta inspect camera and scene precision profiles
+```
+
+Do not start P4 DEM tiles, P5 landmark restoration, commercial 3D providers, or mobile-first work until the first ROI visual baselines and P2 visual correctness gates are stable.
+
+Key QA documents:
+
+- [Visual Baseline QA Plan](docs/qa/visual-baseline.md)
+- [3D Debug QA Contract](docs/qa/debug-contract.md)
+
 Trip App 是一个中文旅行路线规划 Web App，用来创建多条旅行路线、管理多日行程、搜索地点、规划交通方式，并生成旅行手账风格的分享长图。
 
 当前项目是 **Node/Hono BFF + 原生 ES Modules 前端**，不是 React/Vue/Vite 项目，也不是纯静态站。

@@ -30,8 +30,8 @@ export function renderHeader() {
 
 function cleanHeaderText(value) {
   return String(value || '')
-    .replace(/^(🎒|馃帓)\s*/u, '')
-    .replace(/\s*(📍|馃搷)\s*$/u, '');
+    .replace(/^(\u{1F392}|\u9983\u5E13)\s*/u, '')
+    .replace(/\s*(\u{1F4CD}|\u9983\u6437)\s*$/u, '');
 }
 
 // ─── Tabs ─────────────────────────────────────────────

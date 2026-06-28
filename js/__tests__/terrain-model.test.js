@@ -30,6 +30,30 @@ describe('createTerrainModel', () => {
     expect(model.metrics.mean).toBe(130);
   });
 
+  it('keeps the first raised foundation plane at one uniform height before terrain refinement', () => {
+    const model = createTerrainModel({
+      bounds,
+      heightScale: 20,
+      grid: {
+        rows: 2,
+        cols: 2,
+        heights: [
+          [100, 180],
+          [130, 240]
+        ]
+      }
+    });
+
+    const sampledFoundationHeights = [
+      model.foundationAt(-10, -10),
+      model.foundationAt(0, 0),
+      model.foundationAt(10, 10)
+    ];
+
+    expect(new Set(sampledFoundationHeights.map(value => value.toFixed(6))).size).toBe(1);
+    expect(model.heightAt(-10, -10)).not.toBeCloseTo(model.heightAt(10, 10));
+  });
+
   it('falls back to low procedural terrain when no grid is available', () => {
     const model = createTerrainModel({ bounds, grid: null });
 

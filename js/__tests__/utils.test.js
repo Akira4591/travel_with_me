@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest';
 import { formatDistance, formatDuration, calculateDistance, escapeHTML } from '../utils.js';
 
 describe('formatDistance', () => {
-  it('returns "距离待确认" for 0 or invalid input', () => {
+  it('returns pending text for 0 or invalid input', () => {
     expect(formatDistance(0)).toBe('距离待确认');
     expect(formatDistance(null)).toBe('距离待确认');
   });
@@ -23,7 +23,7 @@ describe('formatDistance', () => {
 });
 
 describe('formatDuration', () => {
-  it('returns "用时待确认" for 0 or invalid', () => {
+  it('returns pending text for 0 or invalid', () => {
     expect(formatDuration(0)).toBe('用时待确认');
   });
 

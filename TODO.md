@@ -1,6 +1,6 @@
 # Travel With Me Roadmap
 
-Last updated: 2026-06-22
+Last updated: 2026-06-23
 
 This file is the active backlog only. Product direction and data boundaries are owned by `docs/product-architecture-blueprint.md`. The latest 3D technical route is owned by `docs/3d-deep-research-integration.md` and executed through `docs/3d-top-down-execution-roadmap.md`.
 
@@ -11,40 +11,192 @@ The project is now in:
 ```text
 S1 desktop private-test baseline closed
   -> S2 differentiation validation closed at code level
-  -> 3D P0/P1 correctness convergence
+  -> 3D structural gates closed
+  -> VQ0 local visual-quality reset implemented at code level; final manual visual acceptance pending
 ```
 
 Desktop Web is the only active product surface. Mobile Web remains a compatibility guard only. Native Android is deferred as a separate Kotlin product after the desktop Web value and data model stabilize.
 
 ## Latest Verification Baseline
 
-Latest verified baseline from 2026-06-22. Detailed gate accounting is maintained in `docs/quality-gate-status.md`.
+Latest verified baseline from 2026-06-23. Detailed gate accounting is maintained in `docs/quality-gate-status.md`.
 
-| Gate                                                                 | Result                                                                          |
-| -------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `npm.cmd run check`                                                  | Passed                                                                          |
-| `npm.cmd test`                                                       | Passed: 27 files, 131 tests                                                     |
-| `npm.cmd run check:encoding`                                         | Passed: 273 visible source/doc/test files scanned                               |
-| `npm.cmd run check:architecture`                                     | Passed: 34 render files scanned                                                 |
-| `npm.cmd run check:provenance`                                       | Passed: 18 scene fixture files scanned                                          |
-| `npx.cmd playwright test tests/e2e/smoke.spec.js --project=chromium` | Passed: 12 desktop tests, 1 mobile-only test skipped in Chromium                |
-| Tracked-source secret scan                                           | Passed: no known real AMap/DeepSeek key patterns found                          |
-| In-app browser 2D/3D visual check                                    | Passed: 2D AMap provider loaded, 3D enters, canvas visible, DOM metrics present |
+| Gate                              | Result                                                                                                                               |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `npm.cmd run check`               | Passed                                                                                                                               |
+| `npm.cmd test`                    | Passed: 34 files, 170 tests                                                                                                          |
+| `npm.cmd run check:encoding`      | Passed: 341 visible source/doc/test files scanned                                                                                    |
+| Full visual baseline suite        | Passed: 24 local ROI fixture captures/interactions with QA JSON and screenshots in 12.4m                                             |
+| `npm.cmd run check:architecture`  | Passed: 37 render files scanned                                                                                                      |
+| `npm.cmd run check:provenance`    | Passed: 42 scene fixture files scanned                                                                                               |
+| `npm.cmd run check:landmarks`     | Passed: 1 landmark record scanned                                                                                                    |
+| `npm.cmd run check:ledger`        | Passed: active backlog and quality-gate ledger counts are internally consistent                                                      |
+| Targeted desktop 3D smoke         | Passed: 16 Chromium desktop tests, 14 mobile/desktop-scope skips                                                                     |
+| `npm.cmd run gate50:review`       | Passed: full automated Gate 50 package with static gates, unit tests, encoding, desktop smoke, and 24 Chromium 3D visual baselines   |
+| `npm.cmd run gate50:live-review`  | Passed: generated six local review screenshots plus per-view QA JSON for hiking, old-street, and landmark review scenes              |
+| Core visual stability             | Passed: `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=core`, 5/5 runs, 25/25 core checks                               |
+| Overview/inspect stability        | Passed: `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=overview-inspect`, 5/5 runs, 15/15 scene checks                  |
+| Precision stability               | Passed: `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=precision`, 5/5 runs, 15/15 scene checks                         |
+| Camera-stress stability           | Passed: `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=camera-stress`, 5/5 runs, 15/15 stress checks                    |
+| Timeline stability                | Passed: `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=timeline`, 5/5 generation timeline checks                        |
+| Full visual stability             | Passed: `npm.cmd run test:e2e:visual:stability -- --runs=5`, 5/5 runs, 120/120 visual baseline checks                                |
+| Tracked-source secret scan        | Passed: no known real AMap/DeepSeek key patterns found                                                                               |
+| In-app browser 2D/3D visual check | Passed: 2D marker selection enters bounded 3D; QA passed; route gray outline is 0; initial/loading/idle view uses one overview orbit |
+| Manual 3D visual review           | Pending after VQ0 implementation; previous screenshot scored 1/10 before bounded work-area and route-layer repair                    |
 
 Quality gate count from `docs/quality-gate-status.md`:
 
 | Status       | Count |
 | ------------ | ----: |
-| Complete     |    32 |
-| Partial      |     6 |
-| Not complete |     4 |
-| Total        |    42 |
+| Complete     |    49 |
+| Partial      |     1 |
+| Not complete |     0 |
+| Total        |    50 |
 
-Known remaining gaps:
+VQ0 local visual reset implemented in code:
 
-- Add maintained screenshot baselines for foundation, carved water, route highlight, building massing, building dissolve, route focus, and inspect.
-- Add city/scenic/hiking/old-street/landmark scenario visual baselines.
-- Add ROI screenshot gates and structured QA snapshots for the first three scene fixtures.
+- The 3D button now enters `selecting-3d-center` and shows a red pin before generation.
+- 3D builds from a fixed square `workArea` centered on the selected 2D point instead of full route/all-point bounds.
+- Default work area is 800m, with 600m/1000m/2000m profile sizing and a V1 hard cap of 2000m.
+- The selected square is raised as the primary bone-white work slab and outside context is dimmed.
+- Route guidance no longer creates gray `bed`/`edge` route meshes; yellow guidance is the only primary route layer.
+- QA now exposes `routeGrayOutlinePixelRatio`, `workAreaRaisedPixelRatio`, `outsideDimmedPixelRatio`, and work-area dataset fields.
+- Overview camera starts on the same scene-profile orbit used by idle auto-rotate before terrain data loads, during entry, and after steady state; x/z remain unlocked for drag and WASD movement.
+- The unloaded initial 3D camera now uses the same 800m default work-area scale as the bounded 3D scene, avoiding a separate pre-load angle before idle orbit starts.
+- 3D route guidance is narrowed back to a 2D-style yellow navigation line instead of a thick road-surface band.
+- 3D route guidance now uses a flat unlit yellow material so route readability does not collapse under shallow camera/terrain lighting.
+- Muted 3D road ribbons remain available as terrain context but are no longer strong enough to read as a gray route outline.
+- Building LOD keeps low-poly massing opaque while near-camera detail dissolves in, so close views change face/detail level without turning buildings into transparent slabs.
+- Vegetation frustum telemetry now uses landcover chunk bounds so licensed vegetation areas remain measurable during camera stress.
+- Empty 2D selections that fall outside available trip/route data now snap to the nearest POI/location
+  anchor before 3D generation, preventing a technically valid but visually blank work area.
+- The off-route anchoring path is now covered by desktop E2E smoke so blank-slab regressions fail
+  before manual visual review.
+- Micro-street and citywalk overview camera presets are closer/lower so the initial and idle-orbit view
+  remains continuous while giving route, roads, and nearby context more first-screen presence.
+- The visible-text encoding gate now catches broader GBK/UTF-8 mojibake fragments; core utility and 3D
+  toggle strings have been cleaned and covered by tests.
+
+Remaining VQ0 acceptance item:
+
+- Run `npm.cmd run gate50:review`, complete `docs/qa/gate50-manual-review.md` against the new bounded diorama output, and if accepted move gate 50 from partial to complete.
+  The latest full automated Gate 50 package passed and produced validated local evidence at
+  `output/gate50/latest-review.json` plus `output/gate50/latest-manual-review.md`, but final
+  product-quality acceptance is still manual.
+  Capture the local screenshot review inputs with `npm.cmd run gate50:live-review`.
+  The latest run generated `output/gate50/live-review/manifest.md` with six passing overview/inspect
+  capture rows for hiking, old-street, and landmark-pilot scenes. Route-yellow ratios ranged from
+  `0.0011` in the hiking overview to `0.02693` in the old-street inspect view.
+  Engineering pre-review now shows route outline and transparent-building defects reduced, but the
+  live composition remains intentionally pending manual product-quality acceptance.
+  For a stronger pre-review evidence packet, run
+  `npm.cmd run gate50:review -- --include-stability --stability-runs=5`.
+  Use `--evidence-json=output/gate50/evidence.json` when a machine-readable local evidence record is
+  needed for the review meeting, then validate it with
+  `npm.cmd run check:gate50-evidence -- output/gate50/evidence.json`.
+  Generate the local review packet with
+  `npm.cmd run gate50:packet -- output/gate50/evidence.json output/gate50/manual-review-packet.md`.
+
+Known remaining non-blocking follow-ups after VQ0:
+
+- Promote maintained golden screenshot assertions after the current stage screenshot capture gate is stable across repeated local runs.
+  **Prepared:** `npm.cmd run test:e2e:visual:stability -- --runs=5` is now the repeatability command
+  for collecting five-run local evidence before turning on committed golden assertions.
+  **Evidence collected:** the full visual baseline passed 5/5 local runs, covering all 24 maintained
+  Chromium visual checks per run.
+  **Evidence collected:** `core` passed 5/5 local runs across core ROI captures and the
+  micro-street inspect-camera readability gate.
+  **Evidence collected:** `overview-inspect` passed 5/5 local runs across hiking-terrain,
+  old-street, and landmark-pilot.
+- Promote city/scenic/hiking precision gates from fixture coverage to repeated-run baseline once thresholds stabilize.
+  **Prepared:** `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=precision` now scopes
+  repeated scenario checks without hand-writing a grep.
+  **Evidence collected:** `precision` passed 5/5 local runs across old-street city precision,
+  scenic-park scenic precision, and hiking-terrain mountain precision.
+- Keep 30-second route readability and z-fighting stress stable across repeated runs.
+  **Evidence collected:** `camera-stress` passed 5/5 local runs across river-bridge,
+  micro-street, and hiking-terrain 30-second camera stress gates.
+- Keep the generation timeline screenshot gate stable across repeated runs.
+  **Evidence collected:** `timeline` passed 5/5 local runs for the river-bridge staged generation
+  sequence from foundation to route focus.
+- Keep real landmark model rendering disabled until an actual licensed model package passes the release gate.
+
+Next-stage deep-research decision:
+
+```text
+VQ0 local visual-quality reset
+  -> route layer repair
+  -> 2D red-pin selection
+  -> bounded square work area
+  -> outside-context dimming
+  -> bounded-scene visual gates
+  -> resume visual proof / P2 / P3 / inspect profile work
+```
+
+Do not start P4 DEM tiles, P5 landmark restoration, or commercial 3D provider routing until VQ0, the first visual baseline, and P2 visual correctness gates are stable.
+
+## Immediate Next Batch: VQ0 Local Visual Reset
+
+Goal: make 3D visual quality acceptable and regression-testable before adding more visual
+complexity. The immediate batch is now VQ0; the previous Alpha visual proof infrastructure remains
+the testing foundation.
+
+Tasks:
+
+0. Complete VQ0 local visual reset. **Code-level implemented; manual visual acceptance pending.**
+   - Modules: 2D/3D entry controller, route guidance renderer, scene envelope/work-area builder,
+     outside context renderer, visual QA.
+   - Acceptance: user selects a 2D point with red pin, 3D builds only the bounded square, outside
+     context is dimmed, the first selected-plane lift is uniform-height, gray route outline is gone,
+     yellow route remains readable, `npm.cmd run gate50:review` passes, and manual visual review
+     accepts the new bounded composition.
+   - Rollback: keep 3D disabled with a reason when no work-area center is selected.
+
+1. Build ROI visual baseline harness for `river-bridge`, `micro-street`, and `hiking-terrain`. **Implemented.**
+   - Modules: tests, QA docs, Playwright helpers.
+   - Acceptance: `npm.cmd run test:e2e:visual` passes in Chromium without live provider calls.
+   - Repeatability evidence: `npm.cmd run test:e2e:visual:stability -- --runs=5` must pass before
+     screenshot assertions are promoted from capture evidence to maintained golden baselines. Use
+     `--preset=core`, `--preset=precision`, `--preset=overview-inspect`,
+     `--preset=camera-stress`, or `--preset=timeline` for scoped repeatability evidence.
+   - Rollback: keep capture-only screenshots and disable blocking assertions until stable.
+
+2. Formalize `window.__threeDebug__.qa` v1. **Implemented.**
+   - Modules: renderer QA/debug contract, docs.
+   - Acceptance: each visual capture can export QA JSON with geometry, budget, provenance, and layer fields.
+   - Rollback: keep new fields additive and non-blocking.
+
+3. Add `river-bridge` structured P2 geometry gates. **Expanded in the Beta first pass.**
+   - Modules: scene quality gates, terrain/water/bridge metrics, tests.
+   - Acceptance: emit and assert `waterCoverageRatio`, `bridgeContinuity`, `terrainCarvingDepthP50`, `routeVisiblePixelRatio`, `zFightingRisk`, and `bridgePierCount`.
+   - Rollback: downgrade unstable thresholds to warnings while preserving telemetry.
+
+4. Attach failure evidence to Playwright reports. **Implemented for visual ROI captures.**
+   - Modules: E2E/visual test helpers.
+   - Acceptance: visual runs attach actual screenshot, fixture JSON, camera preset JSON, and QA JSON; Playwright trace is available through the configured retry/report workflow.
+   - Rollback: attach only on failure to control artifact size.
+
+5. Keep live-provider tests out of default visual CI. **Implemented.**
+   - Modules: test config and docs.
+   - Acceptance: local and CI visual gates are deterministic and use only fixture data.
+   - Rollback: keep live-provider smoke as explicit opt-in only.
+
+Current limitation: landmark restoration is now release-gated by allowlist, integrity, LOD, optimization, and budget metadata. Remote model loading remains disabled until a real licensed model package passes that gate.
+
+Next Beta work:
+
+- Calibrate water coverage and bridge continuity against additional river/bridge fixture shapes.
+  **Started:** added `wide-river-bridges` fixture coverage for polygon waterways, side canal
+  geometry, and multiple bridge decks; water and bridge thresholds are fixture-owned.
+- Calibrate the new `routeYellowPixelRatio` ROI metric beyond the initial `>= 0.00008` gate.
+  **Started:** every visual fixture now owns an explicit `route.minYellowPixelRatio`; tests fail when
+  this threshold is missing instead of falling back to a global default.
+- Extend the new `qa.lod` building near/far and stepped no-pop gates from `micro-street` to old-street and landmark-pilot after the current overview/inspect review gates are stable for five local runs.
+  **Implemented:** near/far `qa.lod` response and stepped no-pop dissolve gates now cover
+  `micro-street`, `old-street`, and `landmark-pilot`.
+- Extend vegetation budget work from per-area density caps to chunking/frustum-culling performance telemetry.
+  **Started:** vegetation QA now emits chunk count, visible chunk count, and culled chunk count;
+  hiking visual gates assert the telemetry is internally consistent.
 
 ## P0: 3D Correctness Floor
 
@@ -62,6 +214,8 @@ Tasks:
 - Render real routes as continuous industrial safety-yellow guidance.
 - Render estimated fallback routes as dashed and clearly labelled.
 - Ensure a nonblank foundation slab appears within 1.5 seconds.
+- Keep first foundation lift as a uniform selected plane; terrain relief starts only after
+  `terrain-refine`.
 - Add structured `geoAssets` degraded-state results and BFF timeout/error classification.
 - Keep 2D mode normal while 3D work is in progress.
 
@@ -99,13 +253,13 @@ Tasks:
 - Add debug metrics for mesh counts, terrain confidence, route diagnostics, generation phase and frame timing.
 - Add `camera-controller.js` for overview, route-focus, inspect, drag-pause and orbit recovery.
 - Add `terrain-foundation.js` so slab rise is independent from terrain refinement and layer reveal.
-- Add Playwright screenshot gates for foundation, carved geography, route highlight, massing, dissolve and route focus.
+- Add Playwright screenshot gates for foundation, carved geography, route highlight, massing, dissolve and route focus. **Implemented for `river-bridge` timeline capture.**
 
 QA:
 
 - timeline phase values observable in `window.__threeDebug__`
 - debug exposes `mode`, `phase`, `phaseProgress`, `quality`, `counts`, `camera`, and `provenance`
-- screenshots prove stage order
+- screenshots and QA JSON prove stage order
 - no direct provider renderer fetch for rendered trip state
 - provenance gate blocks real-world asset rendering when source data is missing
 
@@ -131,7 +285,7 @@ QA:
 - bridge data present -> bridge deck mesh present
 - no support data -> bridge pier count remains 0
 - no terrain-colored gap where attributable water exists
-- no obvious z-fighting during 30s camera interaction
+- no obvious z-fighting during 30s camera interaction; current `river-bridge` visual stress gate covers route readability and `zFightingRisk <= 0.01`
 - accepted 4s generation sequence remains stable: 1s foundation, 1s terrain/water/roads, 1s building massing, 1s dissolve
 
 ## P3: Building Massing and Dissolve
@@ -140,21 +294,23 @@ Goal: buildings provide useful planning context without pretending to be survey-
 
 Tasks:
 
-- Split `building-massing-renderer.js` from `building-dissolve-renderer.js`.
-- Raise deterministic rectangular massing clusters first.
-- Use authoritative footprint extrusion when available.
-- Keep fallback buildings neutral and deterministic.
-- Add continuous massing-to-outline dissolve with distance hysteresis.
-- Use `InstancedMesh` for repeated fallback massing where practical.
-- Align building bases to terrain samples and reject abnormal intersections.
+- Split `building-massing-renderer.js` from `building-dissolve-renderer.js`. **Implemented:** massing geometry and dissolve/LOD state now live in separate renderer modules; `map-3d.js` only orchestrates them.
+- Raise deterministic rectangular massing clusters first. **Implemented:** generation timeline and `river-bridge` visual timeline gates prove building massing appears before dissolve.
+- Use authoritative footprint extrusion when available. **Implemented:** direct renderer tests cover flat-terrain footprint extrusion.
+- Keep fallback buildings neutral and deterministic. **Implemented:** direct renderer tests compare fallback massing outputs across rebuilds.
+- Add continuous massing-to-outline dissolve with distance hysteresis. **Implemented:** dissolve alpha now uses a tested distance hysteresis band to reduce threshold flicker.
+- Use `InstancedMesh` for repeated fallback massing where practical. **Implemented for fallback low-poly massing.**
+- Align building bases to terrain samples and reject abnormal intersections. **Implemented:** direct renderer tests cover terrain-error rejection and synthetic fallback for rejected unlocated footprints.
 - Mark fallback buildings as `syntheticMassing=true`; never present them as real exterior models.
+  **Implemented:** rejected authoritative footprints degrade to neutral synthetic massing instead of disappearing.
 
 QA:
 
-- building base terrain error P95 <= 0.25m in seeded scenes
-- LOD transition has no visible pop or flicker
-- fallback buildings are deterministic across reloads
+- building base terrain error P95 <= 0.25m in seeded scenes and direct renderer footprint tests
+- LOD transition has no visible pop or flicker; current `micro-street`, `old-street`, and `landmark-pilot` gates prove near/far detail response and stepped no-pop alpha continuity
+- fallback buildings are deterministic across reloads and direct renderer rebuild tests
 - route guidance remains readable above building context
+- route guidance remains readable above old-street and landmark contextual layers
 
 ## P4: DEM Tile Precision
 

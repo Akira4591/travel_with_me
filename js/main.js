@@ -73,7 +73,7 @@ import {
   clearRouteOverlays,
   highlightSegment,
   clearSegmentHighlight
-} from './render/map.js';
+} from './render/map.js?v=20260623-gate50-marker-select';
 import {
   renderHeader,
   renderTabs,
@@ -93,7 +93,7 @@ import { openTripModal } from './render/trip-modal.js';
 import { bindShareButton } from './render/share-flow.js';
 import { openAnnotationModal } from './render/annotation-modal.js';
 import { renderWorkspaceTabs, closeWorkspaceMenu } from './render/workspace-tabs.js';
-import { init3DToggle } from './render/toggle-3d.js';
+import { init3DToggle } from './render/toggle-3d.js?v=20260623-gate50-marker-select';
 import { scheduleRoutePlanning, clearAllRoutes } from './route-planner.js?v=20260622-map-base-v2';
 import { readSharedTripFromURL } from './share.js';
 import {
@@ -105,6 +105,7 @@ import {
   stringifyWorkspaceExport
 } from './storage.js';
 import { sleep } from './utils.js';
+import { resolveAnchored3DWorkArea } from './three-work-area.js';
 import { inferIconId } from './render/icons.js';
 import { createLogger } from './logger.js';
 import { buildGuideDraft, searchGuidePlaces } from './guide-import-flow.js';
@@ -241,7 +242,7 @@ function getItineraryHandlers() {
     },
     onRouteClick: segment => {
       if (threeDToggle?.is3DMode() && dioramaInstance) {
-        import('./render/map-3d.js?v=20260622-quality-gates-v1').then(({ focus3DRoute }) => {
+        import('./render/map-3d.js?v=20260623-gate50-orbit-pose-v3').then(({ focus3DRoute }) => {
           focus3DRoute(dioramaInstance, segment.id);
         });
         return;
@@ -288,11 +289,12 @@ function setup3DToggle() {
   threeDToggle = init3DToggle({
     map,
     onEnter3D: enter3DView,
-    onExit3D: exit3DView
+    onExit3D: exit3DView,
+    getWorkAreaOptions: get3DWorkAreaOptions
   });
 }
 
-async function enter3DView() {
+async function enter3DView(workArea = null) {
   if (!hasActiveTrip() || !hasTripEventLocations()) {
     throw new Error('3D view requires at least one resolved trip location.');
   }
@@ -302,14 +304,42 @@ async function enter3DView() {
   await hydrateGeoAssetsFor3D();
 
   const { initDiorama, enter3DMode } =
-    await import('./render/map-3d.js?v=20260622-quality-gates-v1');
+    await import('./render/map-3d.js?v=20260623-gate50-orbit-pose-v3');
   dioramaInstance = await initDiorama({ container });
+  const anchoredWorkArea = resolveAnchored3DWorkArea(
+    workArea,
+    getTrip(),
+    getAppState().activeDayId
+  );
+  if (anchoredWorkArea?.anchorAdjusted) {
+    setStatus('所选位置缺少可用 3D 地理锚点，已吸附到最近路线生成工作区。');
+  }
+
   await enter3DMode(dioramaInstance, {
     trip: getTrip(),
     activeDayId: getAppState().activeDayId,
     onAnnotationRequest: open3DAnnotationFlow,
-    loadElevationGrid: fetchElevationGrid
+    loadElevationGrid: fetchElevationGrid,
+    workArea: anchoredWorkArea
   });
+}
+
+function get3DWorkAreaOptions() {
+  const trip = getTrip();
+  const locations = get3DActiveLocations(trip, getAppState().activeDayId);
+  const text = locations
+    .map(location => `${location.name || ''} ${location.address || ''} ${location.note || ''}`)
+    .join(' ');
+  if (/徒步|登山|山地|mountain|hiking|trail/i.test(text)) {
+    return { spanMeters: 2000, hardCapMeters: 2000, profile: 'hiking' };
+  }
+  if (/景区|公园|湖|河|园区|park|scenic|lake|river/i.test(text)) {
+    return { spanMeters: 1000, hardCapMeters: 2000, profile: 'scenic-park' };
+  }
+  if (/老街|巷|咖啡|小店|市集|街区|street|cafe|shop|market/i.test(text)) {
+    return { spanMeters: 600, hardCapMeters: 2000, profile: 'micro-street' };
+  }
+  return { spanMeters: 800, hardCapMeters: 2000, profile: 'default' };
 }
 
 async function hydrateGeoAssetsFor3D() {
@@ -363,7 +393,7 @@ function hasGeoAssetGeometry(geoAssets = {}) {
 
 async function exit3DView() {
   if (!dioramaInstance) return;
-  const { exit3DMode } = await import('./render/map-3d.js?v=20260622-quality-gates-v1');
+  const { exit3DMode } = await import('./render/map-3d.js?v=20260623-gate50-orbit-pose-v3');
   await exit3DMode(dioramaInstance);
 }
 
@@ -385,7 +415,7 @@ function open3DAnnotationFlow(draft) {
         renderAnnotationMarkers();
         if (dioramaInstance) {
           const { refresh3DAnnotations } =
-            await import('./render/map-3d.js?v=20260622-quality-gates-v1');
+            await import('./render/map-3d.js?v=20260623-gate50-orbit-pose-v3');
           refresh3DAnnotations(dioramaInstance, { trip: getTrip() });
         }
         setStatus('3D 标记已保存。');

@@ -1,11 +1,11 @@
 import * as THREE from 'three';
 
 const CAMERA_PROFILES = {
-  'micro-street': { minClearance: 6, maxClearance: 40, baseSpeed: 16 },
-  citywalk: { minClearance: 10, maxClearance: 100, baseSpeed: 26 },
-  'scenic-park': { minClearance: 16, maxClearance: 180, baseSpeed: 38 },
-  hiking: { minClearance: 24, maxClearance: 320, baseSpeed: 54 },
-  'region-overview': { minClearance: 60, maxClearance: 1200, baseSpeed: 120 }
+  'micro-street': { minClearance: 6, maxClearance: 620, baseSpeed: 16, inspectDistance: 120 },
+  citywalk: { minClearance: 10, maxClearance: 620, baseSpeed: 26, inspectDistance: 180 },
+  'scenic-park': { minClearance: 16, maxClearance: 760, baseSpeed: 38, inspectDistance: 260 },
+  hiking: { minClearance: 24, maxClearance: 980, baseSpeed: 54, inspectDistance: 340 },
+  'region-overview': { minClearance: 60, maxClearance: 1200, baseSpeed: 120, inspectDistance: 520 }
 };
 
 const DEFAULT_PROFILE = CAMERA_PROFILES.citywalk;
@@ -15,6 +15,10 @@ const SPEED_UP_KEY_RIGHT = 'ShiftRight';
 const PRECISION_KEY = 'AltLeft';
 const PRECISION_KEY_RIGHT = 'AltRight';
 const AUTO_ORBIT_MODES = new Set(['overview']);
+
+export function getCameraProfile(terrainMode) {
+  return resolveProfile(terrainMode);
+}
 
 export function createCameraController({
   camera,
@@ -138,6 +142,7 @@ export function createCameraController({
     }
     const moved = applyKeyboardMovement(deltaSeconds);
     clampCameraY();
+    syncAdaptiveMode();
     controls.update?.();
     if (moved) updateInteractionAfterMovement();
     return moved;
@@ -204,6 +209,21 @@ export function createCameraController({
       currentProfile.maxClearance
     );
     camera.position.y = groundY + clampedClearance;
+  }
+
+  function syncAdaptiveMode() {
+    if (mode !== 'overview' && mode !== 'route-focus' && mode !== 'inspect') return;
+    const distance = camera.position.distanceTo(controls.target);
+    const inspectDistance = Number(currentProfile.inspectDistance || 0);
+    if (inspectDistance <= 0) return;
+    const exitDistance = inspectDistance * 1.35;
+    if (distance <= inspectDistance && mode !== 'inspect') {
+      mode = 'inspect';
+      syncAutoRotate();
+    } else if (mode === 'inspect' && distance >= exitDistance) {
+      mode = 'overview';
+      syncAutoRotate();
+    }
   }
 
   controls.addEventListener('start', onStart);
