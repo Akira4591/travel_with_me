@@ -12,7 +12,8 @@ The project is now in:
 S1 desktop private-test baseline closed
   -> S2 differentiation validation closed at code level
   -> 3D structural gates closed
-  -> VQ0 local visual-quality reset implemented at code level; final manual visual acceptance pending
+  -> VQ0 local visual-quality reset implemented at code level
+  -> Gate 50 presentation productization active; final manual visual acceptance pending
 ```
 
 Desktop Web is the only active product surface. Mobile Web remains a compatibility guard only. Native Android is deferred as a separate Kotlin product after the desktop Web value and data model stabilize.
@@ -77,18 +78,18 @@ VQ0 local visual reset implemented in code:
 - The visible-text encoding gate now catches broader GBK/UTF-8 mojibake fragments; core utility and 3D
   toggle strings have been cleaned and covered by tests.
 
-Remaining VQ0 acceptance item:
+Remaining Gate 50 acceptance item:
 
 - Run `npm.cmd run gate50:review`, complete `docs/qa/gate50-manual-review.md` against the new bounded diorama output, and if accepted move gate 50 from partial to complete.
   The latest full automated Gate 50 package passed and produced validated local evidence at
   `output/gate50/latest-review.json` plus `output/gate50/latest-manual-review.md`, but final
   product-quality acceptance is still manual.
   Capture the local screenshot review inputs with `npm.cmd run gate50:live-review`.
-  The latest run generated `output/gate50/live-review/manifest.md` with six passing overview/inspect
-  capture rows for hiking, old-street, and landmark-pilot scenes. Route-yellow ratios ranged from
-  `0.0011` in the hiking overview to `0.02693` in the old-street inspect view.
-  Engineering pre-review now shows route outline and transparent-building defects reduced, but the
-  live composition remains intentionally pending manual product-quality acceptance.
+  The live packet now targets the minimum eight-shot productization set from the July 2026 research
+  follow-up: hiking overview/route-focus, old-street overview/inspect, landmark route-focus/inspect,
+  and river-bridge overview/inspect. Engineering pre-review now shows route outline and
+  transparent-building defects reduced, but the live composition remains intentionally pending
+  manual product-quality acceptance.
   For a stronger pre-review evidence packet, run
   `npm.cmd run gate50:review -- --include-stability --stability-runs=5`.
   Use `--evidence-json=output/gate50/evidence.json` when a machine-readable local evidence record is
@@ -135,22 +136,71 @@ VQ0 local visual-quality reset
 
 Do not start P4 DEM tiles, P5 landmark restoration, or commercial 3D provider routing until VQ0, the first visual baseline, and P2 visual correctness gates are stable.
 
-## Immediate Next Batch: VQ0 Local Visual Reset
+## Immediate Next Batch: Gate 50 Presentation Productization
 
-Goal: make 3D visual quality acceptable and regression-testable before adding more visual
-complexity. The immediate batch is now VQ0; the previous Alpha visual proof infrastructure remains
-the testing foundation.
+Goal: make the already-bounded 3D diorama read as a product-quality planning scene before adding
+P4 DEM tiles, P5 landmark restoration, commercial providers, or broad new scene families. The
+research conclusion is that the current gap is presentation engineering: visual hierarchy,
+focus/context, first-screen composition, and local semantic density.
 
 Tasks:
 
-0. Complete VQ0 local visual reset. **Code-level implemented; manual visual acceptance pending.**
-   - Modules: 2D/3D entry controller, route guidance renderer, scene envelope/work-area builder,
-     outside context renderer, visual QA.
-   - Acceptance: user selects a 2D point with red pin, 3D builds only the bounded square, outside
-     context is dimmed, the first selected-plane lift is uniform-height, gray route outline is gone,
-     yellow route remains readable, `npm.cmd run gate50:review` passes, and manual visual review
-     accepts the new bounded composition.
-   - Rollback: keep 3D disabled with a reason when no work-area center is selected.
+0. Regenerate the Gate 50 eight-shot live review packet. **Implemented in command wiring; manual
+   acceptance pending.**
+   - Modules: `tests/e2e/gate50-live-review.spec.js`, `scripts/run-gate50-live-review.mjs`,
+     `docs/qa/gate50-manual-review.md`.
+   - Acceptance: `npm.cmd run gate50:live-review` writes eight screenshot/QA rows for hiking
+     overview/route-focus, old-street overview/inspect, landmark route-focus/inspect, and
+     river-bridge overview/inspect; river-bridge asserts water, bridge, route, and z-fighting
+     metrics in the live packet.
+   - Rollback: keep the previous six-shot packet only as historical evidence; do not promote Gate
+     50 from it.
+
+1. Terrain presentation pack. **Next P0 implementation target.**
+   - Modules: terrain shading/profile code in `js/render/terrain-*`, visual QA metric emission, and
+     hiking fixture thresholds.
+   - Acceptance: hiking overview and route-focus no longer read as a large blank white slab while
+     retaining the bone-white planning style; add warn-mode metrics for terrain relief contrast,
+     non-background pixel ratio, and visible semantic layer count.
+   - Rollback: expose a flat/relief-lite profile switch and keep the current flat foundation path.
+
+2. Camera composition pack. **Next P0 implementation target.**
+   - Modules: `js/render/camera-controller.js`, fixture `camera-presets.json`, Gate 50 live review.
+   - Acceptance: first-screen framing gives the route and immediate context enough presence in
+     hiking, old-street, landmark, and river-bridge; route-focus views are part of the manual packet.
+   - Rollback: support a legacy camera preset for quick comparison.
+
+3. Urban semantic density pack. **P1 after terrain/camera evidence.**
+   - Modules: building massing renderer, synthetic layout/frontage hints, POI/context markers, and
+     QA density metrics.
+   - Acceptance: old-street and landmark inspect captures show route, nearby roads, building
+     context, and POI/landmark context together; fallback context remains labelled
+     `syntheticMassing=true`.
+   - Rollback: keep synthetic massing and frontage hints behind profile-level switches.
+
+4. Route dominance and focus-edge pack. **P1 after semantic density evidence.**
+   - Modules: route material policy, route visibility QA, work-area dimming/feather treatment.
+   - Acceptance: route remains the dominant yellow planning line with no gray route bed or outline;
+     work area separates from outside context without a harsh decorative border.
+   - Rollback: retain the current no-gray route material and existing outside dimming policy.
+
+5. QA v2 and Gate 50 hygiene pack. **P1/P2 warn-first metrics.**
+   - Modules: `window.__threeDebug__.qa`, `js/render/scene-quality-gates.js`,
+     `docs/qa/debug-contract.md`, `docs/qa/visual-baseline.md`.
+   - Acceptance: add warn-mode presentation metrics before making them blocking:
+     `terrainReliefContrast`, `visibleSemanticLayerCount`, `routeContextAdjacency`,
+     `firstScreenRouteLegibility`, plus a cleared or explicitly explained
+     `MISSING_PROVENANCE_FIELDS` warning in Gate 50 QA.
+   - Rollback: keep metrics additive and non-blocking until thresholds are calibrated.
+
+Do not do in this batch:
+
+- switch engines to Cesium, Mapbox, OSMBuildings, or a commercial 3D provider;
+- start DEM tile precision, real landmark model restoration, or photoreal city replication;
+- add heavy post-processing or broad new scene profiles before the eight-shot Gate 50 packet is
+  accepted or rejected with a concrete defect class.
+
+Historical implemented VQ0/Alpha items retained as the testing foundation:
 
 1. Build ROI visual baseline harness for `river-bridge`, `micro-street`, and `hiking-terrain`. **Implemented.**
    - Modules: tests, QA docs, Playwright helpers.

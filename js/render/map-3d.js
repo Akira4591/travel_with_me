@@ -1350,7 +1350,9 @@ function applyVisualCameraPreset(diorama, bounds, name, preset = {}) {
 
   camera.position.copy(position);
   controls.target.copy(target);
-  diorama.cameraController?.setMode(name === 'inspect' ? 'inspect' : 'overview');
+  diorama.cameraController?.setMode(
+    name === 'inspect' ? 'inspect' : name === 'route-focus' ? 'route-focus' : 'overview'
+  );
   diorama.cameraController?.update(0);
   controls.update();
   updateBuildingLod(diorama);

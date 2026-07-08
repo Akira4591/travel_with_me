@@ -46,6 +46,21 @@ npm.cmd run gate50:live-review
 This writes `manifest.md`, `manifest.json`, screenshots, and per-view QA JSON to
 `output/gate50/live-review/`.
 
+The live review packet must now contain the minimum productization scene set below. This set comes
+from the July 2026 visual-quality research follow-up and is intentionally focused on presentation
+quality, not broader engine expansion:
+
+| Scene            | Required views        | Product question                                                               |
+| ---------------- | --------------------- | ------------------------------------------------------------------------------ |
+| `hiking-terrain` | overview, route-focus | Does the terrain avoid the white-board slab look while keeping the route read? |
+| `old-street`     | overview, inspect     | Do storefront massing, route, roads, and POI context read together?            |
+| `landmark-pilot` | route-focus, inspect  | Does landmark context support the route without implying real restoration?     |
+| `river-bridge`   | overview, inspect     | Are water carving, bridge decks, and route crossing visible in the review?     |
+
+Optional expansion after the minimum packet is stable: add `wide-river-bridges` overview to prove
+polygon water and multiple bridge decks in the same manual packet. Do not expand beyond that before
+the current Gate 50 visual decision is made.
+
 Useful scoped reruns:
 
 ```powershell
@@ -118,10 +133,28 @@ Accept gate 50 only if all items below are true in the live view:
   empty raised square.
 - Roads, water, bridges, buildings, and annotations do not create obvious z-fighting or blank
   terrain gaps in the selected area.
+- Water and bridge value is visible in the Gate 50 packet, not only in lower-level visual baseline
+  tests; `river-bridge` must show blue-grey water, deck crossing, and yellow route together.
 - Building massing appears as neutral planning context; fallback buildings are not presented as
   real exterior reconstructions.
 - Close-view building dissolve does not visibly pop or flicker.
 - The result is visually acceptable for the current low-poly planning-diorama style.
+
+## Defect Taxonomy
+
+Use one primary class when rejecting or deferring Gate 50:
+
+| Class       | Reject when                                                                 |
+| ----------- | --------------------------------------------------------------------------- |
+| terrain     | selected area reads as a flat white board, relief is dirty, or slopes lie   |
+| camera      | first view is too distant, snaps, hides route context, or lacks focus       |
+| route       | yellow route is faint, occluded, thick, gray-shadowed, or hard to follow    |
+| urban       | inspect view lacks street/building/route/POI co-visibility                  |
+| water       | river/canal is terrain-colored, missing, or visually detached from bridges  |
+| bridge      | decks are discontinuous, floating, z-fighting, or unsupported by provenance |
+| focus-edge  | selected work area and outside context do not separate cleanly              |
+| provenance  | QA reports missing required source/licence/attribution/updatedAt fields     |
+| performance | interaction or capture instability prevents a confident visual decision     |
 
 ## Rejection Handling
 

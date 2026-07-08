@@ -15,41 +15,41 @@ This document is the current status ledger for engineering, 2D map, 3D generatio
 
 Commands run on 2026-06-23:
 
-| Check                                                                                                 | Result                                                                                                                                                     |
-| ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm.cmd run check`                                                                                   | Passed                                                                                                                                                     |
-| `npm.cmd test`                                                                                        | Passed: 34 files, 170 tests                                                                                                                                |
-| `npm.cmd run check:encoding`                                                                          | Passed: 341 visible source/doc/test files scanned                                                                                                          |
-| `npm.cmd run check:architecture`                                                                      | Passed: 37 render files scanned; renderer/provider boundary enforced                                                                                       |
-| `npm.cmd run check:provenance`                                                                        | Passed: 42 scene fixture files scanned                                                                                                                     |
-| `npm.cmd run check:landmarks`                                                                         | Passed: 1 landmark record scanned with allowlist, integrity, LOD, and budget validation                                                                    |
-| `npm.cmd run check:ledger`                                                                            | Passed: TODO and quality-gate ledger counts are internally consistent                                                                                      |
-| `npm.cmd run test:e2e:visual:stability -- --dry-run`                                                  | Passed: visual repeatability runner command wiring is available for five-run local evidence                                                                |
-| `node scripts/run-e2e-smoke.mjs`                                                                      | Passed: 16 Chromium desktop tests, 14 mobile/desktop-scope skips                                                                                           |
-| `npx.cmd playwright test tests/e2e/live-provider.spec.js`                                             | Passed by skip: live provider smoke is explicit opt-in only                                                                                                |
-| Full visual baseline suite                                                                            | Passed: 24 local ROI fixture captures/interactions with QA JSON and screenshots in 12.4m                                                                   |
-| Beta route-yellow fixture calibration                                                                 | Passed: all maintained visual fixtures declare `route.minYellowPixelRatio`; visual suite rejects missing values                                            |
-| Beta water/bridge fixture expansion                                                                   | Passed: `river-bridge` and `wide-river-bridges` water/bridge ROI gates                                                                                     |
-| targeted 3D/2D gate E2E                                                                               | Passed: 16 Chromium desktop tests, 14 mobile/desktop-scope skips; covers nonblank 3D, geo assets, WASD camera, geometry P95, 2D fallback, 60s no-auto-exit |
-| tracked-source secret scan for known AMap/DeepSeek patterns                                           | Passed: no matches in tracked source                                                                                                                       |
-| `npm.cmd run gate50:review -- --evidence-json=output/gate50/latest-review.json`                       | Passed: full automated Gate 50 package; static gates, 34-file/170-test unit suite, encoding, desktop smoke, and 24 visual baselines                        |
-| `npm.cmd run check:gate50-evidence -- output/gate50/latest-review.json`                               | Passed: validates latest full Gate 50 evidence JSON                                                                                                        |
-| `npm.cmd run gate50:packet -- output/gate50/latest-review.json output/gate50/latest-manual-review.md` | Passed: creates the local full manual review packet from validated evidence                                                                                |
-| `npm.cmd run gate50:live-review`                                                                      | Passed: generated six local review screenshots plus per-view QA JSON for hiking, old-street, and landmark review scenes                                    |
-| `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=core`                                     | Passed: five consecutive core visual runs, 25/25 checks across core ROI captures and micro-street inspect readability                                      |
-| `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=overview-inspect`                         | Passed: five consecutive overview/inspect runs, 15/15 scene checks across hiking-terrain, old-street, and landmark-pilot                                   |
-| `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=precision`                                | Passed: five consecutive terrain precision runs, 15/15 scene checks across old-street, scenic-park, and hiking-terrain                                     |
-| `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=camera-stress`                            | Passed: five consecutive 30-second camera-stress runs, 15/15 stress checks across river-bridge, micro-street, and hiking-terrain                           |
-| `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=timeline`                                 | Passed: five consecutive river-bridge generation timeline checks from foundation to route focus                                                            |
-| `npm.cmd run test:e2e:visual:stability -- --runs=5`                                                   | Passed: five consecutive full visual baseline runs, 120/120 maintained Chromium visual checks                                                              |
-| `npm.cmd run gate50:review -- --skip-visual --skip-smoke`                                             | Passed: validates gate 50 review command wiring, static gates, unit tests, and encoding gate                                                               |
-| `npm.cmd run gate50:review -- --dry-run --include-stability --stability-preset=precision`             | Passed: validates optional Gate 50 visual-stability evidence wiring                                                                                        |
-| `npm.cmd run gate50:review -- --dry-run --evidence-json=output/gate50/dry-run.json`                   | Passed: validates local machine-readable evidence summary output                                                                                           |
-| `npm.cmd run check:gate50-evidence -- output/gate50/dry-run.json`                                     | Passed: validates Gate 50 evidence JSON status, required steps, timestamps, exit codes, and duration totals                                                |
-| `npm.cmd run gate50:packet -- output/gate50/dry-run.json output/gate50/manual-review.md`              | Passed: creates a local manual visual review packet from validated Gate 50 evidence                                                                        |
-| live blank-selection anchoring check                                                                  | Passed: off-route 2D center selection snapped to `workAreaAnchorType=location`, kept route/building data, and reported `qaPassed=true`                     |
-| in-app browser 2D/3D visual check                                                                     | Passed: 2D marker selection enters bounded 3D; QA passed; route gray outline is 0; initial/loading/idle camera uses one overview orbit                     |
-| manual 3D screenshot review                                                                           | Pending after VQ0 implementation; previous screenshot scored 1/10 before bounded work-area and route-layer repair                                          |
+| Check                                                                                                 | Result                                                                                                                                                      |
+| ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm.cmd run check`                                                                                   | Passed                                                                                                                                                      |
+| `npm.cmd test`                                                                                        | Passed: 34 files, 170 tests                                                                                                                                 |
+| `npm.cmd run check:encoding`                                                                          | Passed: 341 visible source/doc/test files scanned                                                                                                           |
+| `npm.cmd run check:architecture`                                                                      | Passed: 37 render files scanned; renderer/provider boundary enforced                                                                                        |
+| `npm.cmd run check:provenance`                                                                        | Passed: 42 scene fixture files scanned                                                                                                                      |
+| `npm.cmd run check:landmarks`                                                                         | Passed: 1 landmark record scanned with allowlist, integrity, LOD, and budget validation                                                                     |
+| `npm.cmd run check:ledger`                                                                            | Passed: TODO and quality-gate ledger counts are internally consistent                                                                                       |
+| `npm.cmd run test:e2e:visual:stability -- --dry-run`                                                  | Passed: visual repeatability runner command wiring is available for five-run local evidence                                                                 |
+| `node scripts/run-e2e-smoke.mjs`                                                                      | Passed: 16 Chromium desktop tests, 14 mobile/desktop-scope skips                                                                                            |
+| `npx.cmd playwright test tests/e2e/live-provider.spec.js`                                             | Passed by skip: live provider smoke is explicit opt-in only                                                                                                 |
+| Full visual baseline suite                                                                            | Passed: 24 local ROI fixture captures/interactions with QA JSON and screenshots in 12.4m                                                                    |
+| Beta route-yellow fixture calibration                                                                 | Passed: all maintained visual fixtures declare `route.minYellowPixelRatio`; visual suite rejects missing values                                             |
+| Beta water/bridge fixture expansion                                                                   | Passed: `river-bridge` and `wide-river-bridges` water/bridge ROI gates                                                                                      |
+| targeted 3D/2D gate E2E                                                                               | Passed: 16 Chromium desktop tests, 14 mobile/desktop-scope skips; covers nonblank 3D, geo assets, WASD camera, geometry P95, 2D fallback, 60s no-auto-exit  |
+| tracked-source secret scan for known AMap/DeepSeek patterns                                           | Passed: no matches in tracked source                                                                                                                        |
+| `npm.cmd run gate50:review -- --evidence-json=output/gate50/latest-review.json`                       | Passed: full automated Gate 50 package; static gates, 34-file/170-test unit suite, encoding, desktop smoke, and 24 visual baselines                         |
+| `npm.cmd run check:gate50-evidence -- output/gate50/latest-review.json`                               | Passed: validates latest full Gate 50 evidence JSON                                                                                                         |
+| `npm.cmd run gate50:packet -- output/gate50/latest-review.json output/gate50/latest-manual-review.md` | Passed: creates the local full manual review packet from validated evidence                                                                                 |
+| `npm.cmd run gate50:live-review`                                                                      | Passed previously with six local review screenshots; command is now expanded to the eight-shot hiking, old-street, landmark, and river-bridge review packet |
+| `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=core`                                     | Passed: five consecutive core visual runs, 25/25 checks across core ROI captures and micro-street inspect readability                                       |
+| `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=overview-inspect`                         | Passed: five consecutive overview/inspect runs, 15/15 scene checks across hiking-terrain, old-street, and landmark-pilot                                    |
+| `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=precision`                                | Passed: five consecutive terrain precision runs, 15/15 scene checks across old-street, scenic-park, and hiking-terrain                                      |
+| `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=camera-stress`                            | Passed: five consecutive 30-second camera-stress runs, 15/15 stress checks across river-bridge, micro-street, and hiking-terrain                            |
+| `npm.cmd run test:e2e:visual:stability -- --runs=5 --preset=timeline`                                 | Passed: five consecutive river-bridge generation timeline checks from foundation to route focus                                                             |
+| `npm.cmd run test:e2e:visual:stability -- --runs=5`                                                   | Passed: five consecutive full visual baseline runs, 120/120 maintained Chromium visual checks                                                               |
+| `npm.cmd run gate50:review -- --skip-visual --skip-smoke`                                             | Passed: validates gate 50 review command wiring, static gates, unit tests, and encoding gate                                                                |
+| `npm.cmd run gate50:review -- --dry-run --include-stability --stability-preset=precision`             | Passed: validates optional Gate 50 visual-stability evidence wiring                                                                                         |
+| `npm.cmd run gate50:review -- --dry-run --evidence-json=output/gate50/dry-run.json`                   | Passed: validates local machine-readable evidence summary output                                                                                            |
+| `npm.cmd run check:gate50-evidence -- output/gate50/dry-run.json`                                     | Passed: validates Gate 50 evidence JSON status, required steps, timestamps, exit codes, and duration totals                                                 |
+| `npm.cmd run gate50:packet -- output/gate50/dry-run.json output/gate50/manual-review.md`              | Passed: creates a local manual visual review packet from validated Gate 50 evidence                                                                         |
+| live blank-selection anchoring check                                                                  | Passed: off-route 2D center selection snapped to `workAreaAnchorType=location`, kept route/building data, and reported `qaPassed=true`                      |
+| in-app browser 2D/3D visual check                                                                     | Passed: 2D marker selection enters bounded 3D; QA passed; route gray outline is 0; initial/loading/idle camera uses one overview orbit                      |
+| manual 3D screenshot review                                                                           | Pending after VQ0 implementation; previous screenshot scored 1/10 before bounded work-area and route-layer repair                                           |
 
 ## Manual Visual Override
 
@@ -182,8 +182,9 @@ Self-audit on 2026-06-23 after `codex/next-beta-visual-calibration`:
   unchecked live-visual decision checklist.
 - Full Gate 50 automated evidence now passes locally and has a validated full review packet in
   ignored `output/gate50/` artifacts.
-- Gate 50 live review capture now produces six local overview/inspect screenshots plus QA JSON for
-  the hiking, old-street, and landmark-pilot review scenes.
+- Gate 50 live review capture now targets the eight-shot productization packet: hiking
+  overview/route-focus, old-street overview/inspect, landmark route-focus/inspect, and
+  river-bridge overview/inspect.
 - The `core` visual stability preset now has five consecutive local passes covering core ROI
   captures and micro-street inspect readability.
 - The `overview-inspect` visual stability preset now has five consecutive local passes covering the
@@ -248,11 +249,14 @@ Self-audit after the full five-run visual stability stage:
 
 ## Immediate Fix Order
 
-1. Complete VQ0 manual acceptance: **blocking**
+1. Complete Gate 50 presentation productization and manual acceptance: **blocking**
    - run `npm.cmd run gate50:review`;
-   - complete `docs/qa/gate50-manual-review.md` against the new bounded 3D output after route de-gray, red-pin selection, fixed square work area, outside dimming, and VQ0 QA fields;
+   - run `npm.cmd run gate50:live-review` and review the eight-shot packet for hiking,
+     old-street, landmark, and river-bridge scenes;
+   - complete `docs/qa/gate50-manual-review.md` against the new bounded 3D output after route de-gray, red-pin selection, fixed square work area, outside dimming, VQ0 QA fields, and water/bridge visibility;
    - if accepted, promote gate 50 to complete;
-   - if rejected, use the screenshot as the next visual-defect source of truth.
+   - if rejected, classify the screenshot with the Gate 50 defect taxonomy and use it as the next
+     visual-defect source of truth.
 2. Add deterministic visual proof infrastructure before more visual fixes: **first Alpha subset implemented**
    - ROI screenshots for `river-bridge`, `micro-street`, and `hiking-terrain`;
    - fixed camera presets;

@@ -391,30 +391,84 @@ This order keeps the project commercially defensible: visible behavior becomes c
 
 ## 11. Immediate Next-Stage Execution
 
-The immediate execution layer is:
+The earlier Alpha/Beta/Gamma technical layers are now implemented enough that the next blocker is
+presentation productization, not another renderer architecture pass. The July 2026 visual-quality
+research follow-up defines the current Gate 50 work as: improve visual hierarchy, focus/context
+separation, first-screen composition, and local semantic density while keeping the existing
+Three.js bounded-diorama engine.
+
+Current evidence-based conclusion:
+
+- Structural contracts are present: red-pin 2D selection, bounded `workArea`, yellow-only route
+  guidance, outside dimming, generation timeline, water/bridge fixtures, building massing, and QA
+  v1.
+- The manual risk is visual composition: hiking can still read as a white slab, old-street and
+  landmark inspect can lack enough local semantic density, and water/bridge value is not yet visible
+  in the Gate 50 manual packet.
+- Therefore the next stage must be presentation engineering over the existing engine. Do not switch
+  to Cesium, Mapbox, OSMBuildings, DEM tiles, real landmark models, or a commercial 3D provider to
+  solve this Gate 50 problem.
+
+The immediate execution layer becomes:
 
 ```text
-Alpha visual proof infrastructure
-  -> Beta P2 visual truth
-  -> Gamma P3 building refinement
-  -> Delta inspect camera and scene profiles
+Gate 50 presentation productization
+  -> terrain presentation pack
+  -> camera composition pack
+  -> urban semantic density pack
+  -> route dominance and focus-edge pack
+  -> QA v2 / provenance hygiene
 ```
 
-Alpha is mandatory before Beta. The first hard evidence set must include:
+The minimum manual evidence set is eight shots:
 
-- ROI screenshots for `river-bridge`, `micro-street`, and `hiking-terrain`;
-- fixed camera presets per capture point;
-- a screenshot normalization stylesheet;
-- `window.__threeDebug__.qa.version === 1`;
-- failure attachments: actual screenshot, diff, fixture JSON, camera JSON, QA JSON, and trace.
+| Fixture          | Required views        | Acceptance focus                                          |
+| ---------------- | --------------------- | --------------------------------------------------------- |
+| `hiking-terrain` | overview, route-focus | terrain relief cue, route legibility, anti-white-board    |
+| `old-street`     | overview, inspect     | street/building/route co-visibility and semantic density  |
+| `landmark-pilot` | route-focus, inspect  | landmark context without real-restoration overclaim       |
+| `river-bridge`   | overview, inspect     | water carving, bridge deck, route crossing, no z-fighting |
 
-Beta then promotes P2 visual metrics from existence checks to correctness checks:
+### Productization Packs
 
-- `waterCoverageRatio`;
-- `bridgeContinuity`;
-- `routeGroundClearanceP95`;
-- `zFightingRisk`;
-- `bridgePierCount === 0` when no pier/support provenance exists.
+1. Terrain presentation pack:
+   - Target modules: terrain foundation/shading/profile renderers, hiking fixture expectations, QA
+     debug metrics.
+   - Add low-contrast relief cues: slope/aspect shading, sparse contour or ridge-valley tint, and
+     micro-relief that keeps the bone-white planning palette.
+   - Start metrics in warn mode: `terrainReliefContrast`, `nonBackgroundPixelRatio`,
+     `visibleSemanticLayerCount`.
+   - Rollback: `flat` or `relief-lite` terrain profile.
+
+2. Camera composition pack:
+   - Target modules: `js/render/camera-controller.js`, fixture `camera-presets.json`, Gate 50
+     live-review capture.
+   - Make overview, route-focus, and inspect presets scene-specific acceptance surfaces, not only
+     debugging conveniences.
+   - Metrics: `firstScreenRouteLegibility`, `routeContextAdjacency`, camera shot coverage.
+   - Rollback: legacy preset switch for before/after comparison.
+
+3. Urban semantic density pack:
+   - Target modules: building massing/dissolve renderers, synthetic contextual massing, POI/context
+     marker policy, QA density metrics.
+   - Add frontage/block hints only as neutral planning context; all fallback massing remains
+     labelled `syntheticMassing=true`.
+   - Metrics: `buildingClusterCoverage`, `sceneInformationDensity`,
+     `poiBuildingRouteCoVisibility`.
+
+4. Route dominance and focus-edge pack:
+   - Target modules: route material policy, route visibility QA, outside-context dimming and
+     work-area falloff.
+   - Keep no gray route bed or outline. Improve yellow route readability through material/camera
+     policy before considering heavier geometry.
+   - Metrics: `routeOcclusionRatio`, `firstScreenRouteLegibility`,
+     `workAreaFigureGroundContrast`.
+
+5. QA v2 and hygiene pack:
+   - Target modules: `window.__threeDebug__.qa`, `js/render/scene-quality-gates.js`,
+     QA docs and Gate 50 packet.
+   - Add presentation metrics as warnings first, then promote only after thresholds are calibrated.
+   - Clear or explicitly classify any `MISSING_PROVENANCE_FIELDS` warning before Gate 50 promotion.
 
 The latest visual-quality reset inserts a narrower blocking sequence before further P3/P4/P5
 expansion:

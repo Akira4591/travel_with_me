@@ -323,8 +323,14 @@ Current blocking `old-street` / `landmark-pilot` contextual route metrics:
 
 Current blocking overview / inspect review metrics:
 
-- `hiking-terrain`, `old-street`, and `landmark-pilot` must each attach fixed-preset overview and inspect ROI screenshots;
+- `hiking-terrain`, `old-street`, `landmark-pilot`, and `river-bridge` must be represented in
+  the Gate 50 live-review packet;
+- the minimum Gate 50 live-review packet is eight shots: hiking overview/route-focus, old-street
+  overview/inspect, landmark route-focus/inspect, and river-bridge overview/inspect;
+- deterministic visual baseline may keep narrower fixture-scoped tests, but the manual packet must
+  expose water/bridge value directly;
 - overview capture must enter `camera.mode === "overview"`;
+- route-focus capture must enter `camera.mode === "route-focus"`;
 - inspect capture must enter `camera.mode === "inspect"`;
 - inspect capture must keep `camera.clearance` inside the terrain-relative profile bounds;
 - both captures must keep the route layer visible and route pixels readable at the fixture threshold;
@@ -332,7 +338,36 @@ Current blocking overview / inspect review metrics:
 - `old-street` must retain at least four contextual building entries;
 - `landmark-pilot` must retain at least one attributable landmark record;
 - `landmark-pilot` must report `qa.provenance.landmarkAllowlisted >= 1`;
+- `river-bridge` must retain water meshes, bridge decks, blue-grey water pixels, route visibility,
+  `bridgePierCount === 0`, and fixture-owned water/bridge continuity thresholds;
 - all captures must keep `zFightingRisk <= 0.01`.
+
+## QA v2 Presentation Metrics
+
+The next metrics are presentation-quality indicators, not immediate hard gates. Add them to
+`window.__threeDebug__.qa` in warning mode, collect local samples in Gate 50 packets, and only make
+thresholds blocking after repeated fixture evidence.
+
+| Metric                         | First use                                                          |
+| ------------------------------ | ------------------------------------------------------------------ |
+| `terrainReliefContrast`        | Hiking anti-white-board review; prove relief cue without dirtiness |
+| `nonBackgroundPixelRatio`      | Detect visually blank first screens                                |
+| `visibleSemanticLayerCount`    | Count route, terrain, water, road, building, POI/landmark layers   |
+| `firstScreenRouteLegibility`   | Camera/presentation score for default overview or route-focus      |
+| `routeContextAdjacency`        | Route visible near roads, buildings, POIs, water, or terrain cues  |
+| `workAreaFigureGroundContrast` | Selected square separates from outside context without hard border |
+
+Initial calibration command:
+
+```powershell
+npm.cmd run gate50:live-review
+```
+
+Promotion command after metrics are implemented and thresholds are calibrated:
+
+```powershell
+npm.cmd run gate50:review -- --include-stability --stability-runs=5
+```
 
 Current blocking `river-bridge` timeline stage metrics:
 

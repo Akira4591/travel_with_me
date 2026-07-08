@@ -337,32 +337,35 @@ Engineering acceptance:
 
 ## 7. Immediate Implementation Order
 
-The next implementation order is now evidence-first:
+The evidence-first infrastructure, QA v1, P2 water/bridge gates, and P3 building massing/dissolve
+work are now implemented enough that Gate 50 is blocked by presentation quality rather than missing
+low-level renderer capability. The next implementation order is:
 
-1. Build deterministic visual proof infrastructure:
-   - ROI screenshots for `river-bridge`, `micro-street`, and `hiking-terrain`;
-   - fixed camera presets;
-   - screenshot normalization stylesheet;
-   - Playwright failure attachments.
+1. Gate 50 live-review packet expansion:
+   - eight-shot minimum: hiking overview/route-focus, old-street overview/inspect, landmark
+     route-focus/inspect, river-bridge overview/inspect;
+   - river-bridge live packet must assert water coverage, bridge continuity, route visibility, blue
+     water pixels, no piers without provenance, and z-fighting budget.
 
-2. Formalize `window.__threeDebug__.qa` v1:
-   - geometry metrics;
-   - budgets;
-   - provenance metrics;
-   - layer visibility and degradation state.
+2. Terrain presentation pack:
+   - add relief-lite cues for hiking without abandoning the bone-white planning style;
+   - collect `terrainReliefContrast`, `nonBackgroundPixelRatio`, and
+     `visibleSemanticLayerCount` in warn mode.
 
-3. Close P2 water / road / bridge visual correctness:
-   - water channel depression is measurable and visible;
-   - no terrain-colored gap appears where attributable water exists;
-   - bridge decks are continuous;
-   - route guidance remains readable above the geographic skeleton.
+3. Camera composition pack:
+   - tune overview, route-focus, and inspect presets as product shots, not only test utilities;
+   - measure first-screen route legibility and route/context adjacency.
 
-4. Split building massing and dissolve:
-   - create deterministic massing clusters;
-   - mark fallback context as `syntheticMassing`;
-   - make detail LOD a dissolve stage only after P2 visual gates are stable.
+4. Urban semantic density pack:
+   - improve old-street and landmark inspect co-visibility for route, road, building, POI/landmark,
+     and local context;
+   - keep all fallback context labelled as synthetic planning massing.
 
-5. Add inspect camera and scene profile gates:
-   - overview / route-focus / inspect are explicit camera modes;
-   - scene profiles expose budgets;
-   - over-budget scenes degrade context layers before route readability.
+5. Route dominance, focus edge, and QA hygiene:
+   - preserve the no-gray-route policy;
+   - improve work-area figure-ground contrast through dimming/falloff, not decorative borders;
+   - clear or classify `MISSING_PROVENANCE_FIELDS` before promoting Gate 50.
+
+Do not start DEM tile precision, real landmark restoration, commercial 3D provider routing, engine
+replacement, or broad scene expansion until the eight-shot Gate 50 packet is accepted or rejected
+with a specific defect class.
