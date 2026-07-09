@@ -4,7 +4,7 @@
 
 Travel With Me is a desktop-first travel planning workspace. It turns Chinese travel notes and selected places into an editable multi-day itinerary, proves that itinerary on a real 2D map, then offers 3D only when it adds planning value. It is not turn-by-turn navigation or a generic 3D city viewer.
 
-The authoritative 2D data contract is maintained in [2D Data Foundation](./2d-data-foundation.md).
+The authoritative 2D data contract is maintained in [2D Data Foundation](../architecture/2d-data-foundation.md).
 
 ## Core rule
 
@@ -20,7 +20,7 @@ User / AI guide
        locations[].lnglat, routeToNext.geometry, annotations[]
   -> persisted trip/workspace
   -> 2D map: markers, route, route card
-  -> 3D: projection, terrain, route ribbon, authorized assets
+  -> 3D: selected work-area projection, terrain, 2D route-style surface projection, authorized assets
 ```
 
 `trip` is the only persistent business model. The 2D map and Three.js scene are renderers, never competing stores.
@@ -44,7 +44,7 @@ Before a day can enter useful 3D, 2D must have resolved location coordinates, a 
 | 2D fact                      | 3D expression                                         |
 | ---------------------------- | ----------------------------------------------------- |
 | `locations[].lnglat`         | scene projection, marker and fallback-building anchor |
-| `routeToNext.geometry.paths` | terrain-conforming road ribbon and itinerary line     |
+| `routeToNext.geometry.paths` | 2D route-style projection onto valid 3D surfaces      |
 | elevation provider           | terrain mesh and confidence-gated slope insight       |
 | `annotations[]`              | shared user markers                                   |
 | authorized `geoAssets`       | footprint, vegetation, landmark detail                |
@@ -63,23 +63,29 @@ Exit: a desktop user can create/import a trip, resolve locations, inspect real 2
 
 ### D1: 3D route and terrain truth — current priority
 
-- Require cached 2D route geometry for real-road rendering.
+- Require cached 2D route geometry for route projection.
 - Gate terrain claims on elevation confidence.
 - Follow the fixed generation state machine: freeze 2D, derive the selected work-area envelope,
   raise a uniform-height slab, refine terrain, carve water, emerge roads and bridges, highlight
   route, raise building massing, dissolve building detail.
 - Add overview/route-focus/inspect camera states, route elevation summaries, and visual gates.
+- The 3D route must inherit the active 2D route color, width, dash state, and selected-segment style.
+  It is flat on flat surfaces, conforms tightly to raised/depressed valid surfaces, and is absent
+  when no route segment intersects the selected work area.
 
-Current D1 execution is evidence-first:
+Current D1 execution is Gate 50 presentation productization:
 
 ```text
-Alpha visual proof infrastructure
-  -> Beta P2 water / road / bridge visual correctness
-  -> Gamma P3 building massing / dissolve
-  -> Delta inspect camera and scene precision profiles
+bounded 3D work area
+  -> 2D route-style surface projection
+  -> terrain presentation
+  -> camera composition
+  -> urban semantic density
+  -> QA v2 / Gate 50 manual decision
 ```
 
-P4 DEM tiles, P5 landmark restoration, and commercial provider routing are blocked until Alpha/Beta visual gates are stable.
+P4 DEM tiles, P5 landmark restoration, and commercial provider routing are blocked until Gate 50
+accepts the bounded local diorama.
 
 ### D2: Authorized place detail
 
@@ -102,18 +108,18 @@ Mobile Web is compatibility-only. Native Android is a separate Kotlin product de
 
 ## Document ownership
 
-| Document                                    | Role                                             |
-| ------------------------------------------- | ------------------------------------------------ |
-| This blueprint                              | product direction, data truth, delivery gates    |
-| `docs/documentation-index.md`               | maintained document map and removed-history list |
-| `ARCHITECTURE.md`                           | implemented module boundaries and ADRs           |
-| `docs/api.md`                               | BFF/API contracts and environment variables      |
-| `docs/quality-gate-status.md`               | current quality gate verification ledger         |
-| `docs/3d-deep-research-integration.md`      | latest 3D technical decisions and QA gates       |
-| `docs/3d-generation-process-alignment.md`   | required 2D-to-3D user-visible process           |
-| `docs/3d-top-down-execution-roadmap.md`     | P0-P6 3D implementation order                    |
-| `docs/qa/visual-baseline.md`                | ROI visual baseline execution                    |
-| `docs/qa/debug-contract.md`                 | `window.__threeDebug__.qa` schema                |
-| `docs/3d-assets-landcover-and-landmarks.md` | licensed asset pipeline                          |
-| `TODO.md`                                   | active backlog only                              |
-| `commercialization-solutions.md`            | post-validation market decisions                 |
+| Document                                                 | Role                                             |
+| -------------------------------------------------------- | ------------------------------------------------ |
+| This blueprint                                           | product direction, data truth, delivery gates    |
+| `docs/README.md`                                         | maintained document map and removed-history list |
+| `ARCHITECTURE.md`                                        | implemented module boundaries and ADRs           |
+| `docs/engineering/api.md`                                | BFF/API contracts and environment variables      |
+| `docs/operations/quality-gate-status.md`                 | current quality gate verification ledger         |
+| `docs/architecture/3d/deep-research-integration.md`      | latest 3D technical decisions and QA gates       |
+| `docs/architecture/3d/generation-process-alignment.md`   | required 2D-to-3D user-visible process           |
+| `docs/architecture/3d/top-down-execution-roadmap.md`     | P0-P6 3D implementation order                    |
+| `docs/engineering/qa/visual-baseline.md`                 | ROI visual baseline execution                    |
+| `docs/engineering/qa/debug-contract.md`                  | `window.__threeDebug__.qa` schema                |
+| `docs/architecture/3d/assets-landcover-and-landmarks.md` | licensed asset pipeline                          |
+| `TODO.md`                                                | active backlog only                              |
+| `docs/product/commercialization.md`                      | post-validation market decisions                 |

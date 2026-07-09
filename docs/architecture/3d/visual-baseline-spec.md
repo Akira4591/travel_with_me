@@ -14,7 +14,7 @@ Use three layers together:
 
 Do not rely on screenshots alone. A screenshot can show that something changed, but structured metrics must explain whether terrain, water, bridge, route, and building geometry are still correct.
 
-Execution details now live in `docs/qa/visual-baseline.md`. The debug payload contract lives in `docs/qa/debug-contract.md`.
+Execution details now live in `docs/engineering/qa/visual-baseline.md`. The debug payload contract lives in `docs/engineering/qa/debug-contract.md`.
 
 The implementation order is fixed:
 

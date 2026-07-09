@@ -4,11 +4,11 @@ Last verified: 2026-06-23
 
 This document is the current status ledger for engineering, 2D map, 3D generation, data provenance, visual, and release quality gates. Source gates are consolidated from:
 
-- `docs/product-architecture-blueprint.md`
-- `docs/3d-deep-research-integration.md`
-- `docs/3d-generation-process-alignment.md`
-- `docs/3d-assets-landcover-and-landmarks.md`
-- `docs/release-playbook.md`
+- `docs/product/architecture-blueprint.md`
+- `docs/architecture/3d/deep-research-integration.md`
+- `docs/architecture/3d/generation-process-alignment.md`
+- `docs/architecture/3d/assets-landcover-and-landmarks.md`
+- `docs/operations/release-playbook.md`
 - `TODO.md`
 
 ## Verification Evidence
@@ -19,7 +19,7 @@ Commands run on 2026-06-23:
 | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm.cmd run check`                                                                                   | Passed                                                                                                                                                      |
 | `npm.cmd test`                                                                                        | Passed: 34 files, 170 tests                                                                                                                                 |
-| `npm.cmd run check:encoding`                                                                          | Passed: 341 visible source/doc/test files scanned                                                                                                           |
+| `npm.cmd run check:encoding`                                                                          | Passed: 347 visible source/doc/test files scanned                                                                                                           |
 | `npm.cmd run check:architecture`                                                                      | Passed: 37 render files scanned; renderer/provider boundary enforced                                                                                        |
 | `npm.cmd run check:provenance`                                                                        | Passed: 42 scene fixture files scanned                                                                                                                      |
 | `npm.cmd run check:landmarks`                                                                         | Passed: 1 landmark record scanned with allowlist, integrity, LOD, and budget validation                                                                     |
@@ -121,7 +121,7 @@ VQ0 target state:
 |  23 | Roads render as muted terrain-following ribbons                                                                     | `geo-asset-renderer.test.js` and water/road E2E                                |
 |  24 | 3D overview can enter and exit without blanking                                                                     | `desktop can enter and exit nonblank 3D map view`                              |
 |  25 | 3D mode never auto-exits after 60 seconds                                                                           | `desktop 3D stays open after 60 seconds idle`                                  |
-|  26 | No visible UI mojibake in maintained source, tests, and docs                                                        | `npm.cmd run check:encoding`: 341 files scanned                                |
+|  26 | No visible UI mojibake in maintained source, tests, and docs                                                        | `npm.cmd run check:encoding`: 347 files scanned                                |
 |  27 | Accepted 4s generation timing replaces the old `<= 3s` detail budget                                                | `generation-timing.js` and `generation-timeline.test.js`                       |
 |  28 | Route clearance P95 is within 0.3m above terrain/road surface                                                       | `route-guidance-renderer.test.js` and WASD 3D E2E geometry metrics             |
 |  29 | Building base terrain error P95 is <= 0.25m in seeded scenes                                                        | `window.__threeDebug__.geometryMetrics` and WASD 3D E2E                        |
@@ -148,9 +148,9 @@ VQ0 target state:
 
 ## Partial Gates
 
-|   # | Gate                                                                 | Evidence                                                                                                                                                                                                             | Required fix                                                                                                        |
-| --: | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-|  50 | Live 3D composition reaches product-quality bounded diorama standard | VQ0 code path implemented; full automated Gate 50 package passed with validated evidence at `output/gate50/latest-review.json`, but final user screenshot review has not yet accepted the new bounded 3D composition | Complete `docs/qa/gate50-manual-review.md` with the generated full review packet, then promote the gate if accepted |
+|   # | Gate                                                                 | Evidence                                                                                                                                                                                                             | Required fix                                                                                                                    |
+| --: | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+|  50 | Live 3D composition reaches product-quality bounded diorama standard | VQ0 code path implemented; full automated Gate 50 package passed with validated evidence at `output/gate50/latest-review.json`, but final user screenshot review has not yet accepted the new bounded 3D composition | Complete `docs/engineering/qa/gate50-manual-review.md` with the generated full review packet, then promote the gate if accepted |
 
 ## Not Complete Gates
 
@@ -260,7 +260,7 @@ Self-audit after the full five-run visual stability stage:
    - run `npm.cmd run gate50:review`;
    - run `npm.cmd run gate50:live-review` and review the eight-shot packet for hiking,
      old-street, landmark, and river-bridge scenes;
-   - complete `docs/qa/gate50-manual-review.md` against the new bounded 3D output after route de-gray, red-pin selection, fixed square work area, outside dimming, VQ0 QA fields, and water/bridge visibility;
+   - complete `docs/engineering/qa/gate50-manual-review.md` against the new bounded 3D output after route de-gray, red-pin selection, fixed square work area, outside dimming, VQ0 QA fields, and water/bridge visibility;
    - if accepted, promote gate 50 to complete;
    - if rejected, classify the screenshot with the Gate 50 defect taxonomy and use it as the next
      visual-defect source of truth.

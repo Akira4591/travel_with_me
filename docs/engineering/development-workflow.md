@@ -384,9 +384,9 @@ npm.cmd run test:watch
 - 小步提交。
 - 每次只解决一个阶段目标。
 - 代码、测试、文档一起更新。
-- 新 API 必须同步 `docs/api.md`。
+- 新 API 必须同步 `docs/engineering/api.md`。
 - 新架构决策必须同步 `ARCHITECTURE.md`。
-- 新产品/技术方向必须同步 `docs/product-architecture-blueprint.md`；3D 技术取舍必须同步 `docs/3d-deep-research-integration.md` 和 `docs/3d-top-down-execution-roadmap.md`。
+- 新产品/技术方向必须同步 `docs/product/architecture-blueprint.md`；3D 技术取舍必须同步 `docs/architecture/3d/deep-research-integration.md` 和 `docs/architecture/3d/top-down-execution-roadmap.md`。
 
 ### 8.3 提交前
 
@@ -447,7 +447,7 @@ PR 描述模板：
 Current status override:
 
 - Playwright is already part of the project toolchain.
-- The next development preparation task is not installing Playwright; it is building the deterministic ROI visual baseline harness documented in `docs/qa/visual-baseline.md`.
+- The next development preparation task is not installing Playwright; it is building the deterministic ROI visual baseline harness documented in `docs/engineering/qa/visual-baseline.md`.
 - Live-provider checks remain explicit opt-in and must not be part of default visual QA.
 
 - Node.js downloads: https://nodejs.org/en/download

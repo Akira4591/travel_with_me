@@ -2,7 +2,7 @@
 
 Last updated: 2026-06-23
 
-This file is the active backlog only. Product direction and data boundaries are owned by `docs/product-architecture-blueprint.md`. The latest 3D technical route is owned by `docs/3d-deep-research-integration.md` and executed through `docs/3d-top-down-execution-roadmap.md`.
+This file is the active backlog only. Product direction and data boundaries are owned by `docs/product/architecture-blueprint.md`. The latest 3D technical route is owned by `docs/architecture/3d/deep-research-integration.md` and executed through `docs/architecture/3d/top-down-execution-roadmap.md`.
 
 ## Current Stage
 
@@ -20,13 +20,13 @@ Desktop Web is the only active product surface. Mobile Web remains a compatibili
 
 ## Latest Verification Baseline
 
-Latest verified baseline from 2026-06-23. Detailed gate accounting is maintained in `docs/quality-gate-status.md`.
+Latest verified baseline from 2026-06-23. Detailed gate accounting is maintained in `docs/operations/quality-gate-status.md`.
 
 | Gate                              | Result                                                                                                                               |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `npm.cmd run check`               | Passed                                                                                                                               |
 | `npm.cmd test`                    | Passed: 34 files, 170 tests                                                                                                          |
-| `npm.cmd run check:encoding`      | Passed: 341 visible source/doc/test files scanned                                                                                    |
+| `npm.cmd run check:encoding`      | Passed: 347 visible source/doc/test files scanned                                                                                    |
 | Full visual baseline suite        | Passed: 24 local ROI fixture captures/interactions with QA JSON and screenshots in 12.4m                                             |
 | `npm.cmd run check:architecture`  | Passed: 37 render files scanned                                                                                                      |
 | `npm.cmd run check:provenance`    | Passed: 42 scene fixture files scanned                                                                                               |
@@ -45,7 +45,7 @@ Latest verified baseline from 2026-06-23. Detailed gate accounting is maintained
 | In-app browser 2D/3D visual check | Passed: 2D marker selection enters bounded 3D; QA passed; route gray outline is 0; initial/loading/idle view uses one overview orbit |
 | Manual 3D visual review           | Pending after VQ0 implementation; previous screenshot scored 1/10 before bounded work-area and route-layer repair                    |
 
-Quality gate count from `docs/quality-gate-status.md`:
+Quality gate count from `docs/operations/quality-gate-status.md`:
 
 | Status       | Count |
 | ------------ | ----: |
@@ -85,7 +85,7 @@ VQ0 local visual reset implemented in code:
 
 Remaining Gate 50 acceptance item:
 
-- Run `npm.cmd run gate50:review`, complete `docs/qa/gate50-manual-review.md` against the new bounded diorama output, and if accepted move gate 50 from partial to complete.
+- Run `npm.cmd run gate50:review`, complete `docs/engineering/qa/gate50-manual-review.md` against the new bounded diorama output, and if accepted move gate 50 from partial to complete.
   The latest full automated Gate 50 package passed and produced validated local evidence at
   `output/gate50/latest-review.json` plus `output/gate50/latest-manual-review.md`, but final
   product-quality acceptance is still manual.
@@ -153,7 +153,7 @@ Tasks:
 0. Regenerate the Gate 50 eight-shot live review packet. **Implemented in command wiring; manual
    acceptance pending.**
    - Modules: `tests/e2e/gate50-live-review.spec.js`, `scripts/run-gate50-live-review.mjs`,
-     `docs/qa/gate50-manual-review.md`.
+     `docs/engineering/qa/gate50-manual-review.md`.
    - Acceptance: `npm.cmd run gate50:live-review` writes eight screenshot/QA rows for hiking
      overview/route-focus, old-street overview/inspect, landmark route-focus/inspect, and
      river-bridge overview/inspect; river-bridge asserts water, bridge, route, and z-fighting
@@ -194,7 +194,7 @@ Tasks:
 
 5. QA v2 and Gate 50 hygiene pack. **P1/P2 warn-first metrics.**
    - Modules: `window.__threeDebug__.qa`, `js/render/scene-quality-gates.js`,
-     `docs/qa/debug-contract.md`, `docs/qa/visual-baseline.md`.
+     `docs/engineering/qa/debug-contract.md`, `docs/engineering/qa/visual-baseline.md`.
    - Acceptance: add warn-mode presentation metrics before making them blocking:
      `terrainReliefContrast`, `visibleSemanticLayerCount`, `routeContextAdjacency`,
      `firstScreenRouteLegibility`, `routeStyleParity`, `routeSurfaceConformance`,
@@ -422,12 +422,12 @@ Tasks:
 
 ## Documentation Rules
 
-- Product direction: update `docs/product-architecture-blueprint.md`.
+- Product direction: update `docs/product/architecture-blueprint.md`.
 - Architecture decision: update `ARCHITECTURE.md`.
 - Active backlog: update this file.
-- BFF/API contract: update `docs/api.md`.
-- 3D technical route: update `docs/3d-deep-research-integration.md`.
-- 3D execution order: update `docs/3d-top-down-execution-roadmap.md`.
-- 3D process alignment: update `docs/3d-generation-process-alignment.md`.
-- Asset/provenance pipeline: update `docs/3d-assets-landcover-and-landmarks.md`.
-- Commercial strategy: update `commercialization-solutions.md`.
+- BFF/API contract: update `docs/engineering/api.md`.
+- 3D technical route: update `docs/architecture/3d/deep-research-integration.md`.
+- 3D execution order: update `docs/architecture/3d/top-down-execution-roadmap.md`.
+- 3D process alignment: update `docs/architecture/3d/generation-process-alignment.md`.
+- Asset/provenance pipeline: update `docs/architecture/3d/assets-landcover-and-landmarks.md`.
+- Commercial strategy: update `docs/product/commercialization.md`.

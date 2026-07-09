@@ -4,7 +4,7 @@
 
 3D is a desktop Web planning diorama. It must help users understand itinerary order, terrain pressure, waterways, bridges, and nearby spatial context. It is not a survey-grade city replica.
 
-The deep research consolidation is captured in `docs/3d-deep-research-integration.md`. This roadmap follows that decision record: AMap remains the 2D/POI/geocode/route source, Three.js remains the 3D renderer, and the BFF plus `geoAssets` contract is the long-term data foundation.
+The deep research consolidation is captured in `docs/architecture/3d/deep-research-integration.md`. This roadmap follows that decision record: AMap remains the 2D/POI/geocode/route source, Three.js remains the 3D renderer, and the BFF plus `geoAssets` contract is the long-term data foundation.
 
 The correct architecture is:
 
@@ -620,11 +620,11 @@ The immediate task list is:
    - live-provider remains explicit opt-in.
 
 6. Update documentation:
-   - `docs/2d-data-foundation.md` remains the truth-source contract;
-   - `docs/3d-assets-landcover-and-landmarks.md` remains the asset/provenance contract;
-   - `docs/3d-deep-research-integration.md` records the latest external research decision;
-   - `docs/qa/visual-baseline.md` owns visual proof execution;
-   - `docs/qa/debug-contract.md` owns `window.__threeDebug__.qa`.
+   - `docs/architecture/2d-data-foundation.md` remains the truth-source contract;
+   - `docs/architecture/3d/assets-landcover-and-landmarks.md` remains the asset/provenance contract;
+   - `docs/architecture/3d/deep-research-integration.md` records the latest external research decision;
+   - `docs/engineering/qa/visual-baseline.md` owns visual proof execution;
+   - `docs/engineering/qa/debug-contract.md` owns `window.__threeDebug__.qa`.
    - this document drives execution order.
 
 ## 6. Complexity map

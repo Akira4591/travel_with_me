@@ -1,14 +1,14 @@
 # Architecture
 
-Travel With Me 是一个中文旅行路线规划 Web App。本文档记录当前系统架构、关键架构决策和设计原则。产品方向、阶段口径和 2D/3D 同源边界以 [产品与架构总纲](docs/product-architecture-blueprint.md) 为准。
+Travel With Me 是一个中文旅行路线规划 Web App。本文档记录当前系统架构、关键架构决策和设计原则。产品方向、阶段口径和 2D/3D 同源边界以 [产品与架构总纲](docs/product/architecture-blueprint.md) 为准。
 
 文档边界：
 
-- 产品方向、交付阶段和文档职责见 `docs/product-architecture-blueprint.md`。
-- 商业化缺口、方案取舍和阶段路线见 `commercialization-solutions.md`。
+- 产品方向、交付阶段和文档职责见 `docs/product/architecture-blueprint.md`。
+- 商业化缺口、方案取舍和阶段路线见 `docs/product/commercialization.md`。
 - 近期执行 backlog 见 `TODO.md`。
-- BFF 接口契约见 `docs/api.md`。
-- 3D 技术路线、状态机和质量门禁见 `docs/3d-deep-research-integration.md` 与 `docs/3d-top-down-execution-roadmap.md`。
+- BFF 接口契约见 `docs/engineering/api.md`。
+- 3D 技术路线、状态机和质量门禁见 `docs/architecture/3d/deep-research-integration.md` 与 `docs/architecture/3d/top-down-execution-roadmap.md`。
 
 本文档只回答：系统如何组织、为什么这样组织、哪些架构约束必须遵守。
 
@@ -260,7 +260,7 @@ buildTripShareImage(trip, { includeRoutes })
 
 **权衡**: 放弃把 3D 变成全量城市/全球地图平台。生产 DEM 目标是自托管 Copernicus GLO-30/GLO-90 或兼容 Terrarium/PMTiles 管线；Mapbox Terrain-DEM/RGB 只作为原型加速选项；Overture、Microsoft building footprints、ESA WorldCover、CityGML/CityJSON 和授权 GLB 都必须经 BFF 资产包进入。
 
-**详细设计规范**: `docs/3d-deep-research-integration.md`、`docs/3d-generation-process-alignment.md`、`docs/3d-top-down-execution-roadmap.md`、`docs/3d-assets-landcover-and-landmarks.md`、`docs/qa/visual-baseline.md`、`docs/qa/debug-contract.md`
+**详细设计规范**: `docs/architecture/3d/deep-research-integration.md`、`docs/architecture/3d/generation-process-alignment.md`、`docs/architecture/3d/top-down-execution-roadmap.md`、`docs/architecture/3d/assets-landcover-and-landmarks.md`、`docs/engineering/qa/visual-baseline.md`、`docs/engineering/qa/debug-contract.md`
 
 **当前迭代约束**: 下一阶段先完成 Alpha 视觉证明基础设施，再进入 Beta 的 P2 水/路/桥视觉正确性修复。P3 建筑细化、inspect 摄像机和场景精度 profile 必须建立在 ROI 截图与 `window.__threeDebug__.qa` 指标稳定之后。
 
@@ -284,7 +284,7 @@ buildTripShareImage(trip, { includeRoutes })
 
 **核心战略判断**: 3D diorama + 地形感知 + 标记放置是视觉化、体验化的付费锚点，比"离线地图"（Wanderlog Pro 锚点）更有说服力。
 
-**竞品分析、市场数据、能力对标、分阶段路线图、技术方案矩阵、权益定价**: 见 `commercialization-solutions.md`。
+**竞品分析、市场数据、能力对标、分阶段路线图、技术方案矩阵、权益定价**: 见 `docs/product/commercialization.md`。
 
 ---
 
@@ -388,5 +388,10 @@ trip-app/
 │       ├── icons.test.js
 │       └── state.test.js
 └── docs/
-    └── api.md                # BFF API 文档
+    ├── README.md             # 文档索引
+    ├── product/              # 产品与商业化
+    ├── architecture/         # 2D/3D 架构合同
+    ├── engineering/          # API、开发、QA、测试
+    ├── operations/           # 发布与质量门
+    └── design/               # UI 视觉规范
 ```

@@ -170,7 +170,7 @@ If gate 50 is rejected, record the next source of truth before continuing implem
 - attach or save the latest screenshot;
 - state the visible defect in one sentence;
 - classify it as route, terrain, water, road, bridge, building, camera, lighting, palette, or UI;
-- update `docs/quality-gate-status.md` with the rejected reason;
+- update `docs/operations/quality-gate-status.md` with the rejected reason;
 - add the smallest next fix to `TODO.md`.
 
 Do not start P4/P5/P6 work from an unaccepted live visual state.
@@ -179,6 +179,6 @@ Do not start P4/P5/P6 work from an unaccepted live visual state.
 
 After full automated evidence passes and the user accepts the live visual result:
 
-1. Update `docs/quality-gate-status.md` gate 50 from partial to complete.
+1. Update `docs/operations/quality-gate-status.md` gate 50 from partial to complete.
 2. Update `TODO.md` from "manual visual acceptance pending" to accepted.
 3. Commit and push the promotion as its own small stage.

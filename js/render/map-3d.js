@@ -1,7 +1,7 @@
 // js/render/map-3d.js
 // Three.js planning diorama renderer.
 //
-// Design contract: see ARCHITECTURE.md ADR-6 and docs/3d-top-down-execution-roadmap.md.
+// Design contract: see ARCHITECTURE.md ADR-6 and docs/architecture/3d/top-down-execution-roadmap.md.
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';

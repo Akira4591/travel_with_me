@@ -4,7 +4,7 @@
 
 3D mode is not a layer switch that directly places terrain, water, roads, bridges, and buildings into a Three.js scene.
 
-The latest deep research is integrated in `docs/3d-deep-research-integration.md`. Its most important conclusion for this file is that the generation process must be a state machine with QA hooks, not only a visual animation.
+The latest deep research is integrated in `docs/architecture/3d/deep-research-integration.md`. Its most important conclusion for this file is that the generation process must be a state machine with QA hooks, not only a visual animation.
 
 The correct product metaphor is:
 
