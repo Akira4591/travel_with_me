@@ -114,7 +114,10 @@ Required behavior:
 - Waterways carve downward into the foundation and reveal a quiet blue-gray water surface.
 - Roads emerge as muted surface ribbons on top of the ground.
 - Bridges emerge after roads/water and visibly cross waterways or terrain gaps.
-- The itinerary route uses the same 2D route guidance identity: industrial safety yellow, continuous for real geometry, dashed only for estimated fallback.
+- The itinerary route is projected from the 2D page route onto valid 3D surfaces. On flat surfaces,
+  its color, width, dash state, and selected-segment styling match 2D exactly and stay flat; on
+  raised or depressed surfaces, the route conforms tightly to the surface like a local texture
+  replacement. If the selected work area contains no route segment, no route layer appears.
 
 This means water is not just a blue mesh pasted above terrain. It needs a terrain depression or visual channel mask when the data supports it.
 
@@ -126,12 +129,13 @@ foundation surface
   -> water surface
   -> neutral roads
   -> bridges
-  -> itinerary route safety-yellow line
+  -> itinerary route 2D-style surface projection, only where a route segment exists
 ```
 
-The route must not use a gray 3D outline. Road bed belongs to the muted road/context layer, not to
-the route guidance layer. If contrast is later needed, only a narrow warm low-opacity halo is
-allowed, and it must not be gray.
+The route must not use a gray 3D outline, raised tube, or independent road-bed support layer. Road
+bed belongs to the muted road/context layer, not to the route guidance layer. If contrast is later
+needed, it must be derived from the same 2D selected-route style and remain subordinate to the
+surface-projected route.
 
 ### Step 4: Raise Rectangular Building Clusters
 
@@ -173,12 +177,13 @@ The current implementation has the correct data boundary and can render terrain,
 
 Current remaining gaps from visual QA and quality-gate review:
 
-- 3D currently lacks the required 2D red-pin selection flow and bounded square work-area contract.
-- Scene bounds can still read like a route-wide or map-wide board instead of a user-selected local
-  diorama.
-- The 3D route can show a thick gray outline/bed that competes with the industrial-yellow guidance
-  line.
-- Yellow route pixels can jitter or flicker when layered close to terrain/roads.
+- The bounded work-area and red-pin selection contract is implemented, but the selected area can
+  still read like a flat board instead of a product-quality local diorama.
+- The route rendering contract must move from the current default yellow fixture signal to true 2D
+  style projection: inherited color/width/dash/selected state, tight surface conformance, and no
+  route layer when the selected work area contains no route segment.
+- Route pixels can jitter or flicker when layered close to terrain/roads if the projection and
+  z-order policy is not stable.
 - Terrain can fall back to an overly flat board.
 - Water currently reads as a surface ribbon more than a carved channel.
 - Roads and bridges render, but lack a clear "emerge from ground" stage.
@@ -301,7 +306,7 @@ P0 visual acceptance:
 - 3D mode does not auto-exit after idle time.
 - 2D to 3D transition starts with a raised foundation, not instantly visible final layers.
 - The canvas is nonblank within 1.5 seconds.
-- Real route geometry renders as a continuous safety-yellow line.
+- Real route geometry renders as the 2D route style projected onto the 3D surface.
 - Real route geometry has no gray outline, thick gray bed, or flickering layered shadow in 3D.
 - Estimated fallback route renders dashed and is clearly labelled.
 - Text in 3D UI contains no mojibake.

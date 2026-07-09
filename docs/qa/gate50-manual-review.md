@@ -122,9 +122,15 @@ Accept gate 50 only if all items below are true in the live view:
 - The 3D scene is a bounded square work area, not an unbounded route-wide board.
 - The selected work area is visually raised and clearly separated from the dimmed outside context.
 - The ground palette stays bone-white and does not reintroduce the previous gray base-map look.
-- The route guidance is a narrow industrial-yellow line with no gray route outline or thick gray
-  route bed.
-- The yellow route remains readable during overview, drag, wheel, and `WASD` movement.
+- If a route segment intersects the selected work area, the 3D route inherits the active 2D route
+  color, width, dash state, and selected-segment style. It must not use an independent 3D-only
+  industrial-yellow identity.
+- In flat areas, the route is flat. On raised or depressed terrain, road, bridge, or other valid
+  surfaces, it conforms tightly to the surface like a route-texture overlay.
+- The route guidance has no gray route outline, thick gray route bed, raised tube, or independent
+  support stripe.
+- If the selected work area contains no route segment, no route layer appears.
+- The projected route remains readable during overview, drag, wheel, and `WASD` movement.
 - The first camera angle and idle auto-orbit feel continuous; there is no initial snap to a
   different view.
 - The first camera angle is close enough to read the route and immediate context; it must not be a
@@ -134,7 +140,8 @@ Accept gate 50 only if all items below are true in the live view:
 - Roads, water, bridges, buildings, and annotations do not create obvious z-fighting or blank
   terrain gaps in the selected area.
 - Water and bridge value is visible in the Gate 50 packet, not only in lower-level visual baseline
-  tests; `river-bridge` must show blue-grey water, deck crossing, and yellow route together.
+  tests; `river-bridge` must show blue-grey water, deck crossing, and the projected 2D-style route
+  together.
 - Building massing appears as neutral planning context; fallback buildings are not presented as
   real exterior reconstructions.
 - Close-view building dissolve does not visibly pop or flicker.
@@ -144,17 +151,17 @@ Accept gate 50 only if all items below are true in the live view:
 
 Use one primary class when rejecting or deferring Gate 50:
 
-| Class       | Reject when                                                                 |
-| ----------- | --------------------------------------------------------------------------- |
-| terrain     | selected area reads as a flat white board, relief is dirty, or slopes lie   |
-| camera      | first view is too distant, snaps, hides route context, or lacks focus       |
-| route       | yellow route is faint, occluded, thick, gray-shadowed, or hard to follow    |
-| urban       | inspect view lacks street/building/route/POI co-visibility                  |
-| water       | river/canal is terrain-colored, missing, or visually detached from bridges  |
-| bridge      | decks are discontinuous, floating, z-fighting, or unsupported by provenance |
-| focus-edge  | selected work area and outside context do not separate cleanly              |
-| provenance  | QA reports missing required source/licence/attribution/updatedAt fields     |
-| performance | interaction or capture instability prevents a confident visual decision     |
+| Class       | Reject when                                                                                         |
+| ----------- | --------------------------------------------------------------------------------------------------- |
+| terrain     | selected area reads as a flat white board, relief is dirty, or slopes lie                           |
+| camera      | first view is too distant, snaps, hides route context, or lacks focus                               |
+| route       | route style drifts from 2D, floats, is occluded, fabricates no-route geometry, or is hard to follow |
+| urban       | inspect view lacks street/building/route/POI co-visibility                                          |
+| water       | river/canal is terrain-colored, missing, or visually detached from bridges                          |
+| bridge      | decks are discontinuous, floating, z-fighting, or unsupported by provenance                         |
+| focus-edge  | selected work area and outside context do not separate cleanly                                      |
+| provenance  | QA reports missing required source/licence/attribution/updatedAt fields                             |
+| performance | interaction or capture instability prevents a confident visual decision                             |
 
 ## Rejection Handling
 

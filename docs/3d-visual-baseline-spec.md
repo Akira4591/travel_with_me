@@ -94,7 +94,7 @@ Each scene should eventually support these capture points:
 | ------------------- | ---------------------------------------------------- |
 | `slab-rise`         | foundation visible and nonblank within budget        |
 | `water-road-bridge` | water, road, and bridge layers resolved correctly    |
-| `route-highlight`   | industrial safety-yellow route remains dominant      |
+| `route-highlight`   | 2D route style projects onto valid 3D surfaces       |
 | `building-massing`  | rectangular building clusters are visible            |
 | `building-dissolve` | near-view building detail appears without popping    |
 | `inspect`           | close camera view remains readable and non-occluding |
@@ -167,7 +167,10 @@ The local visual reset adds these blocking gates before more terrain/building de
 | `uniform-slab-rise`      | selected square top-surface height variance stays within epsilon during `slab-rise`.     |
 | `outside-context-dimmed` | outside-area ROI is lower brightness/detail than the selected square.                    |
 | `route-no-gray-outline`  | `routeGrayOutlinePixelRatio` remains below the calibrated threshold.                     |
-| `route-yellow-primary`   | yellow route pixels remain the dominant route guidance signal.                           |
+| `route-style-parity`     | 3D route color, width, dash, and selected state match the active 2D page route.          |
+| `route-surface-fit`      | projected route stays visually attached to terrain, roads, bridge decks, or surfaces.    |
+| `route-absent-empty`     | no route layer appears when the selected work area contains no route segment.            |
+| `route-yellow-primary`   | legacy default-style proxy while the 2D default route remains yellow.                    |
 | `route-no-jitter`        | camera stress sampling keeps `zFightingRisk` and route-pixel variance below threshold.   |
 | `no-unbounded-envelope`  | scene envelope source is the selected work area, not route/all-trip bbox.                |
 
@@ -201,21 +204,21 @@ npm.cmd run test:e2e:visual
 
 It runs capture-plus-metric gates by default. Golden screenshot assertions are opt-in through `VISUAL_BASELINE_ASSERT=1`.
 
-The first Beta expansion promotes `river-bridge` from layer existence to structural correctness by asserting water coverage, bridge continuity, carving depth, route visibility, route yellow ROI pixels, unsupported pier absence, and z-fighting risk.
+The first Beta expansion promotes `river-bridge` from layer existence to structural correctness by asserting water coverage, bridge continuity, carving depth, route visibility, current-default route ROI pixels, unsupported pier absence, and z-fighting risk.
 
 The next Beta/P3-adjacent expansion adds `micro-street` near/far LOD validation: zooming into inspect distance must increase building detail alpha, and zooming back to overview distance must reduce it. This gate protects the design rule that buildings dissolve from simple massing into more detailed outlines as the camera approaches, without claiming the full building renderer modularization is complete.
 
 The building dissolve smoothness gate samples stepped zoom-in movement from overview toward inspect distance. It blocks large alpha jumps, backward alpha drops, z-fighting, missing structured route/building layers, and final inspect-route unreadability. This converts the close-view "no pop" requirement into deterministic QA evidence while the renderer is still monolithic.
 
-The following Beta stability expansion adds 30-second `river-bridge`, `micro-street`, and `hiking-terrain` camera stress gates. They exercise repeated drag, WASD, and wheel input while sampling QA snapshots. The gates block if the route loses its industrial safety-yellow pixel signal, if `zFightingRisk` exceeds `0.01`, or if the scene leaves `steady` phase during the stress window. The `micro-street` variant also requires visible building-layer context so dense street scenes cannot hide or weaken the route signal without detection. The `hiking-terrain` variant requires attributable landcover context so terrain and vegetation templates cannot hide the route signal without detection.
+The following Beta stability expansion adds 30-second `river-bridge`, `micro-street`, and `hiking-terrain` camera stress gates. They exercise repeated drag, WASD, and wheel input while sampling QA snapshots. The gates block if the projected route loses its current 2D-style readable signal, if `zFightingRisk` exceeds `0.01`, or if the scene leaves `steady` phase during the stress window. The `micro-street` variant also requires visible building-layer context so dense street scenes cannot hide or weaken the route signal without detection. The `hiking-terrain` variant requires attributable landcover context so terrain and vegetation templates cannot hide the route signal without detection.
 
 The vegetation budget gate records per-landcover-area template counts and fails if generated instances exceed the declared density cap. It also exposes vegetation chunk, visible chunk, and frustum-culled chunk telemetry for licensed landcover. Full terrain-tile streaming remains separate P4 work.
 
-The inspect-view gate validates the close-camera state directly: `micro-street` must enter `camera.mode === "inspect"`, keep terrain-relative camera clearance inside profile bounds, keep route and building context visible together, and retain the industrial safety-yellow route signal. This closes the first deterministic inspect-state visual review without requiring committed golden screenshots.
+The inspect-view gate validates the close-camera state directly: `micro-street` must enter `camera.mode === "inspect"`, keep terrain-relative camera clearance inside profile bounds, keep route and building context visible together, and retain the projected 2D route-style signal. This closes the first deterministic inspect-state visual review without requiring committed golden screenshots.
 
 The water-pixel gate validates `river-bridge` as a rendered image, not only as mesh counts. It samples the WebGL ROI for a blue-grey water signal and combines that with the carved-channel depth metric. This blocks regressions where attributable water data exists but the screen falls back to terrain-colored blank space.
 
-The contextual-route gate adds `old-street` and `landmark-pilot` fixtures. `old-street` verifies narrow storefront context does not hide the industrial safety-yellow route. `landmark-pilot` keeps landmark provenance and placeholder metadata in the scene contract while blocking route unreadability before true restoration is allowed.
+The contextual-route gate adds `old-street` and `landmark-pilot` fixtures. `old-street` verifies narrow storefront context does not hide the projected 2D-style route. `landmark-pilot` keeps landmark provenance and placeholder metadata in the scene contract while blocking route unreadability before true restoration is allowed.
 
 The timeline-stage gate freezes the emergence animation in test mode and captures `river-bridge` at foundation rise, carved geography, route highlight, building massing, building dissolve, and route focus. Each checkpoint attaches ROI PNG evidence and QA JSON so the accepted 4-second generation sequence can be reviewed without relying on manual timing.
 

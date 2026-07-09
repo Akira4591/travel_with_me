@@ -66,9 +66,12 @@ VQ0 target state:
 - Default work area is 800m; profile defaults are urban 600m, scenic 1000m, hiking 2000m.
 - V1 hard cap is 2000m.
 - Selected square raises first as a uniform-height plane; outside context is dimmed or simplified.
-- 3D route guidance has no gray outline/bed and keeps yellow as the only primary route layer.
-- 3D yellow guidance is a narrow 2D-style navigation line, not a thick road-surface band.
-- 3D yellow guidance uses a flat unlit route material so route readability does not depend on shallow camera or terrain lighting.
+- 3D route guidance has no gray outline/bed, raised tube, or independent support stripe.
+- 3D route guidance must inherit the active 2D route color, width, dash state, and selected-segment
+  style instead of using a hard-coded 3D yellow identity.
+- On flat areas, the projected route is flat. On raised or depressed valid surfaces, it conforms to
+  the surface like a route-texture overlay. If the selected work area contains no route segment, no
+  route layer appears.
 - Initial camera pose is the same scene-profile overview orbit before terrain data loads, during entry, and after idle auto-rotate starts.
 - The unloaded initial camera uses the same 800m default work-area scale as the bounded 3D scene, so idle orbit does not begin from a mismatched pre-load distance.
 - Empty 2D selections outside available route/location coverage are snapped to the nearest location
@@ -106,7 +109,7 @@ VQ0 target state:
 |  11 | 2D and 3D route endpoints match                                                                                     | Desktop 3D E2E endpoint key assertion                                          |
 |  12 | 2D and 3D route length stays consistent                                                                             | Desktop 3D E2E length assertion                                                |
 |  13 | Persisted route geometry is preserved through 3D render paths                                                       | `route-guidance-renderer` tests and E2E route hash                             |
-|  14 | Real routes render as continuous industrial safety-yellow guidance                                                  | 3D smoke and shared `route-guidance.js`                                        |
+|  14 | Real routes render as the active 2D route style projected onto valid 3D surfaces                                    | 3D smoke and shared `route-guidance.js`                                        |
 |  15 | Estimated fallback routes render as dashed geometry                                                                 | `route-guidance-renderer.test.js`                                              |
 |  16 | Geo asset upstream failure exposes degraded state                                                                   | Desktop 3D E2E degraded-state assertions                                       |
 |  17 | Named generation timeline exists                                                                                    | `generation-timeline.test.js`                                                  |
@@ -159,7 +162,9 @@ Real landmark model rendering still remains a future P5 feature, but the release
 
 Self-audit on 2026-06-23 after `codex/next-beta-visual-calibration`:
 
-- Route-yellow readability thresholds are fixture-owned and missing thresholds fail the visual suite.
+- Route readability thresholds are fixture-owned. Current yellow-pixel thresholds remain a legacy
+  proxy while the default 2D route style is yellow; the next QA update must add route style-parity
+  and surface-conformance checks.
 - Water/bridge correctness now covers both the original narrow `river-bridge` fixture and the `wide-river-bridges` polygon-water, multi-span fixture.
 - The `river-bridge` timeline gate proves rectangular building massing appears before building dissolve: partial massing progress, zero dissolve progress, and a present building layer at the `building-massing` checkpoint.
 - Building near/far LOD response and stepped no-pop dissolve are gated for `micro-street`, `old-street`, and `landmark-pilot`.
@@ -167,7 +172,9 @@ Self-audit on 2026-06-23 after `codex/next-beta-visual-calibration`:
 - Repeated fallback low-poly building massing now uses `InstancedMesh`; direct renderer tests prove deterministic fallback rebuilds, authoritative footprint extrusion, and synthetic fallback for rejected unlocated footprints.
 - Licensed vegetation now reports density, chunk count, visible chunk count, and frustum-culled chunk count through `qa.budgets`.
 - Vegetation frustum telemetry now uses landcover chunk bounds, keeping camera-stress telemetry aligned with actual licensed vegetation areas.
-- The live 3D entry now starts on the same scene-profile overview orbit before terrain data loads, during entry, and after idle auto-rotate starts; it renders the 3D route as a narrow yellow guidance line.
+- The live 3D entry now starts on the same scene-profile overview orbit before terrain data loads,
+  during entry, and after idle auto-rotate starts; the next route-rendering contract is to project
+  the active 2D route style onto 3D surfaces instead of hard-coding yellow guidance.
 - The live off-route selection path now snaps to a location anchor instead of a bare long-route point,
   preventing a blank selected slab when the user clicks a map area without usable 3D context.
 - The off-route location-anchor behavior is now a blocking desktop smoke test, not only a manual
@@ -268,7 +275,9 @@ Self-audit after the full five-run visual stability stage:
    - `bridgeContinuity`;
    - `terrainCarvingDepthP50`;
    - `routeVisiblePixelRatio`;
-   - `routeYellowPixelRatio` now reads explicit `expectations.route.minYellowPixelRatio` per fixture;
+   - `routeYellowPixelRatio` currently reads explicit `expectations.route.minYellowPixelRatio` per
+     fixture as a legacy/default-style readability proxy;
+   - next route QA must add style parity, surface conformance, and no-route absence checks;
    - `routeGroundClearanceP95`;
    - `zFightingRisk`;
    - `bridgePierCount === 0` when no pier/support provenance exists.

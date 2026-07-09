@@ -29,14 +29,17 @@ The renderer is replaceable. The data contract is the product asset.
    guidance identity, rectangular building massing rises, then building outlines dissolve
    into detail.
 8. Desktop Web is the only active target. Mobile Web and Kotlin Android are deferred.
-9. Route and road are separate layers: roads are muted geographic context; the itinerary route is the persisted 2D route rendered in industrial safety yellow.
+9. Route and road are separate layers: roads are muted geographic context; the itinerary route is
+   the persisted 2D page route projected onto valid 3D surfaces with the same 2D color, width, dash
+   state, and selected-segment style.
 10. Production 3D data must move through provider-neutral BFF normalizers, cache keys, provenance, and attribution gates before being rendered as real-world facts.
 11. 3D V1 is a bounded local work area, not an unbounded route-wide map. The user must select a
     2D center point with the red-pin flow before 3D generation.
 12. V1 work-area span defaults to 800m, uses 600m / 1000m / 2000m for urban / scenic / hiking
     profiles, and hard-caps at 2000m.
-13. The 3D route must not use gray outline/bed geometry as route guidance. Only the industrial
-    safety-yellow route is the primary action layer.
+13. The 3D route must not use gray outline/bed geometry, raised tube geometry, or a hard-coded 3D
+    yellow identity as route guidance. If the selected work area contains no route segment, the 3D
+    scene shows no route layer.
 
 ## 3. Product capability tree
 
@@ -70,7 +73,7 @@ The renderer is replaceable. The data contract is the product asset.
      4.2 water surfaces reveal inside carved channels
      4.3 road ribbons emerge from the surface
      4.4 bridge decks emerge after roads/water
-     4.5 route guidance draws with the 2D industrial-yellow identity
+     4.5 route guidance projects the active 2D route style onto valid 3D surfaces
 
   5. Raise and dissolve semantic context
      5.1 deterministic rectangular building massing clusters
@@ -81,7 +84,7 @@ The renderer is replaceable. The data contract is the product asset.
 
   6. Control perception
      6.1 style tokens
-     6.2 industrial safety-yellow route guidance
+     6.2 2D route-style projection and surface conformance
      6.3 camera auto-orbit
      6.4 route focus camera
      6.5 user drag pause and recovery
@@ -201,11 +204,13 @@ Data tasks:
 Visual tasks:
 
 - Remove gray route outline/bed from 3D route guidance.
-- Keep the yellow route stable above terrain, roads, water, and bridges during camera movement.
+- Project the 2D page route style onto terrain, roads, water/bridge decks, and other valid
+  surfaces without floating or adding artificial undulation.
+- If no route segment intersects the selected work area, render no route layer.
 - Raise only the selected square work area and dim/simplify outside context.
 - During the first raise, keep the selected square top surface perfectly level; terrain variation
   appears only in `terrain-refine`.
-- Keep route guidance industrial safety yellow, not gold.
+- Keep route guidance color and width inherited from 2D, not hard-coded in 3D.
 - Keep the current planning-diorama palette and low-poly terrain style.
 - Use the fixed entry sequence: 2D freeze -> foundation raise -> water carving ->
   road/bridge emergence -> continuous route draw -> building massing -> building dissolve.
@@ -310,7 +315,7 @@ Engineering tasks:
 - Add water polygon rendering with `earcut`; add centerline-plus-width ribbon fallback only when width is provider-supplied.
 - Add road ribbons from licensed centerlines.
 - Add bridge deck rendering from bridge centerlines and terrain clearance.
-- Add z-offset rules for terrain, water, road, bridge, route bed, route outline, route stripe, and markers.
+- Add z-offset rules for terrain, water, road, bridge, projected route overlay, and markers.
 - Add `terrain-carving.js` as the only module allowed to mutate terrain height for water,
   road flattening, or crossing conflict resolution.
 - Change bridge defaults to deck-only. Piers require explicit `pier` / `support` geometry or
@@ -328,7 +333,8 @@ Visual tasks:
 
 - Water must be visible but quiet: blue-gray, not decorative saturated blue.
 - Bridges should read as crossing structures, but start deck-only if pier data is weak.
-- Roads stay neutral; only itinerary route receives industrial yellow.
+- Roads stay neutral; the itinerary route inherits the active 2D page route style and projects onto
+  valid 3D surfaces.
 
 QA gates:
 
@@ -643,7 +649,10 @@ Before expanding into commercial DEM or real landmarks, the project should pass 
 
 - 3D opens fast and never blanks.
 - 2D and 3D routes are provably the same route.
-- The route is readable in industrial safety yellow at overview and close-up distances.
+- The route is readable with the active 2D color, width, dash state, and selected-segment style at
+  overview and close-up distances.
+- Flat route segments stay flat; raised/depressed segments conform tightly to the 3D surface; work
+  areas with no route segment render no route layer.
 - Terrain foundation has real or fallback relief.
 - Existing water and bridge data render without gaps.
 - Missing water, bridge, vegetation, or landmark data produces no invented real-world object.

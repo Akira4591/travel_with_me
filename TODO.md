@@ -60,12 +60,17 @@ VQ0 local visual reset implemented in code:
 - 3D builds from a fixed square `workArea` centered on the selected 2D point instead of full route/all-point bounds.
 - Default work area is 800m, with 600m/1000m/2000m profile sizing and a V1 hard cap of 2000m.
 - The selected square is raised as the primary bone-white work slab and outside context is dimmed.
-- Route guidance no longer creates gray `bed`/`edge` route meshes; yellow guidance is the only primary route layer.
+- Route guidance no longer creates gray `bed`/`edge` route meshes. The final route contract is the
+  active 2D route style projected onto 3D surfaces, not a hard-coded 3D yellow identity.
 - QA now exposes `routeGrayOutlinePixelRatio`, `workAreaRaisedPixelRatio`, `outsideDimmedPixelRatio`, and work-area dataset fields.
 - Overview camera starts on the same scene-profile orbit used by idle auto-rotate before terrain data loads, during entry, and after steady state; x/z remain unlocked for drag and WASD movement.
 - The unloaded initial 3D camera now uses the same 800m default work-area scale as the bounded 3D scene, avoiding a separate pre-load angle before idle orbit starts.
-- 3D route guidance is narrowed back to a 2D-style yellow navigation line instead of a thick road-surface band.
-- 3D route guidance now uses a flat unlit yellow material so route readability does not collapse under shallow camera/terrain lighting.
+- Current 3D route guidance is narrowed back to the default 2D yellow navigation line instead of a
+  thick road-surface band. Next implementation must generalize this to inherit 2D route color,
+  width, dash state, and selected-segment styling.
+- On flat areas the route should stay flat; on raised/depressed valid surfaces it should conform to
+  the surface like a local route-texture overlay. If the selected work area contains no route
+  segment, no route layer should be rendered.
 - Muted 3D road ribbons remain available as terrain context but are no longer strong enough to read as a gray route outline.
 - Building LOD keeps low-poly massing opaque while near-camera detail dissolves in, so close views change face/detail level without turning buildings into transparent slabs.
 - Vegetation frustum telemetry now uses landcover chunk bounds so licensed vegetation areas remain measurable during camera stress.
@@ -178,19 +183,23 @@ Tasks:
      `syntheticMassing=true`.
    - Rollback: keep synthetic massing and frontage hints behind profile-level switches.
 
-4. Route dominance and focus-edge pack. **P1 after semantic density evidence.**
+4. Route projection and focus-edge pack. **P1 after semantic density evidence.**
    - Modules: route material policy, route visibility QA, work-area dimming/feather treatment.
-   - Acceptance: route remains the dominant yellow planning line with no gray route bed or outline;
-     work area separates from outside context without a harsh decorative border.
-   - Rollback: retain the current no-gray route material and existing outside dimming policy.
+   - Acceptance: route inherits 2D color, width, dash state, and selected-segment style; flat
+     surfaces stay flat; raised/depressed surfaces receive tight surface-conforming projection; no
+     route segment in the selected work area means no route layer. Work area separates from outside
+     context without a harsh decorative border.
+   - Rollback: retain the current no-gray route material and existing outside dimming policy while
+     disabling style generalization.
 
 5. QA v2 and Gate 50 hygiene pack. **P1/P2 warn-first metrics.**
    - Modules: `window.__threeDebug__.qa`, `js/render/scene-quality-gates.js`,
      `docs/qa/debug-contract.md`, `docs/qa/visual-baseline.md`.
    - Acceptance: add warn-mode presentation metrics before making them blocking:
      `terrainReliefContrast`, `visibleSemanticLayerCount`, `routeContextAdjacency`,
-     `firstScreenRouteLegibility`, plus a cleared or explicitly explained
-     `MISSING_PROVENANCE_FIELDS` warning in Gate 50 QA.
+     `firstScreenRouteLegibility`, `routeStyleParity`, `routeSurfaceConformance`,
+     `routeAbsentWhenNoSegment`, plus a cleared or explicitly explained `MISSING_PROVENANCE_FIELDS`
+     warning in Gate 50 QA.
    - Rollback: keep metrics additive and non-blocking until thresholds are calibrated.
 
 Do not do in this batch:
@@ -261,7 +270,7 @@ Tasks:
 - Clean visible UI mojibake and prevent newly added docs from reintroducing encoding ambiguity.
 - Preserve persisted `event.routeToNext.geometry` through every 3D render path.
 - Expose and assert route hash, first point, last point, point count and length.
-- Render real routes as continuous industrial safety-yellow guidance.
+- Render real routes as the active 2D route style projected onto valid 3D surfaces.
 - Render estimated fallback routes as dashed and clearly labelled.
 - Ensure a nonblank foundation slab appears within 1.5 seconds.
 - Keep first foundation lift as a uniform selected plane; terrain relief starts only after
@@ -327,7 +336,7 @@ Tasks:
 - Render muted terrain-conforming road ribbons from licensed centerlines.
 - Render bridge decks after roads and water.
 - Default bridge rendering to deck-only; piers require explicit support data or an approved template with provenance.
-- Add z-order rules for terrain, water, road, bridge, route bed, route outline, route stripe and markers.
+- Add z-order rules for terrain, water, road, bridge, projected route overlay, and markers.
 
 QA:
 
@@ -359,8 +368,8 @@ QA:
 - building base terrain error P95 <= 0.25m in seeded scenes and direct renderer footprint tests
 - LOD transition has no visible pop or flicker; current `micro-street`, `old-street`, and `landmark-pilot` gates prove near/far detail response and stepped no-pop alpha continuity
 - fallback buildings are deterministic across reloads and direct renderer rebuild tests
-- route guidance remains readable above building context
-- route guidance remains readable above old-street and landmark contextual layers
+- route projection remains readable above building context
+- route projection remains readable above old-street and landmark contextual layers
 
 ## P4: DEM Tile Precision
 

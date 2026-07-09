@@ -84,16 +84,23 @@ low-key boundary direction cue instead of extending the scene.
 
 Immediate visual correction decisions:
 
-- Remove the gray 3D route outline. It currently competes with and visually swallows the yellow
-  guidance line.
-- Keep the itinerary route as the only primary 3D guidance layer, using the same industrial safety
-  yellow identity as 2D.
+- Remove any independent gray 3D route outline, bed, shadow, or support stripe. These layers compete
+  with the 2D route style and must not become separate guidance geometry.
+- The itinerary route is a 3D projection of the 2D page route, not a new 3D-only yellow route
+  identity. In flat areas, its color, width, dash state, and selected-segment style match the 2D
+  route exactly and have no artificial vertical undulation.
+- Where the projected route crosses terrain, water/bridge decks, roads, or other valid 3D surfaces,
+  it follows that surface as a terrain-conforming surface overlay. Treat it like replacing the
+  underlying surface texture along the route corridor: the line remains visually tight to the
+  surface, keeps the 2D route color and width, and does not float above the scene as a raised tube.
+- If the selected work area contains no route segment, render no route guidance at all. Do not
+  fabricate a local fallback line just to keep the 3D view visually busy.
 - Treat road bed and road context as muted geographic layers, not route-outline layers.
-- Apply strict route render ordering and z-fighting controls: route geometry above terrain/roads,
-  `depthWrite=false`, stable `renderOrder`, controlled `polygonOffset`, higher route sampling, and
-  no unnecessary transparent `DoubleSide` route passes.
-- Add visual QA that can fail the build when a gray outline, route flicker, unbounded span, or
-  missing work-area dimming returns.
+- Apply strict route render ordering and z-fighting controls so the projected route reads as part of
+  the surface: stable `renderOrder`, controlled `polygonOffset`, sufficient terrain sampling, and no
+  unnecessary transparent `DoubleSide` route passes.
+- Add visual QA that can fail the build when a gray outline, route-style drift from 2D, route
+  flicker, fabricated no-route line, unbounded span, or missing work-area dimming returns.
 
 ## 2. Fixed Product Sequence
 
@@ -218,10 +225,13 @@ Roads and itinerary route are different layers:
 
 ```text
 licensed road = muted neutral terrain-conforming ribbon
-itinerary route = persisted 2D route polyline, industrial safety yellow
+itinerary route = persisted 2D route polyline projected onto valid 3D surfaces with the same 2D style
 ```
 
-The 3D route must preserve route hash, first point, last point, and approximate length consistency with the persisted route. A real route is continuous. Estimated fallback remains dashed.
+The 3D route must preserve route hash, first point, last point, approximate length consistency, color,
+width, dash state, and selected-segment style from the persisted 2D route. A real route is
+continuous. Estimated fallback remains dashed because it is dashed in 2D. If the selected work area
+does not intersect any route segment, the 3D scene renders without a route layer.
 
 ### Bridges
 
@@ -316,8 +326,13 @@ Visual gates:
 - The selected square is visually raised and readable; outside context is dimmed or simplified.
 - The transition starts from foundation rise, not instant final-layer reveal.
 - Water channels read as carved/depressed when data exists.
-- Roads are muted; route guidance is industrial safety yellow, not gold.
-- The 3D route has no gray outline or thick gray bed competing with the yellow guidance line.
+- Roads are muted; route guidance inherits the active 2D page route style instead of using a
+  hard-coded 3D yellow.
+- The 3D route has no gray outline, thick gray bed, raised tube, or independent support layer
+  competing with the projected 2D-style route.
+- In flat areas, the projected route is flat. On raised or depressed surfaces, it conforms tightly
+  to the surface like a route-texture overlay.
+- If the selected work area contains no route segment, no route layer appears.
 - The route remains stable during camera movement with no visible z-fighting or line jitter.
 - Close view shows building detail dissolve without popping or hiding route guidance.
 - Overview ignores unnecessary detail while keeping route, terrain, water, and bridge relationships legible.
@@ -399,9 +414,9 @@ Three.js bounded-diorama engine.
 
 Current evidence-based conclusion:
 
-- Structural contracts are present: red-pin 2D selection, bounded `workArea`, yellow-only route
-  guidance, outside dimming, generation timeline, water/bridge fixtures, building massing, and QA
-  v1.
+- Structural contracts are present: red-pin 2D selection, bounded `workArea`, route projection
+  without gray 3D route outline, outside dimming, generation timeline, water/bridge fixtures,
+  building massing, and QA v1.
 - The manual risk is visual composition: hiking can still read as a white slab, old-street and
   landmark inspect can lack enough local semantic density, and water/bridge value is not yet visible
   in the Gate 50 manual packet.
@@ -459,8 +474,9 @@ The minimum manual evidence set is eight shots:
 4. Route dominance and focus-edge pack:
    - Target modules: route material policy, route visibility QA, outside-context dimming and
      work-area falloff.
-   - Keep no gray route bed or outline. Improve yellow route readability through material/camera
-     policy before considering heavier geometry.
+   - Keep no gray route bed or outline. Preserve 2D route color, width, dash state, and
+     selected-segment style when projecting onto 3D surfaces; no-route work areas must render no
+     route layer.
    - Metrics: `routeOcclusionRatio`, `firstScreenRouteLegibility`,
      `workAreaFigureGroundContrast`.
 

@@ -40,27 +40,34 @@ Required VQ0 evidence:
   height.
 - Outside context is dimmer or lower detail than the selected square.
 - The 3D route does not render a gray outline or thick gray bed as route guidance.
-- The 3D route uses the same visual intent as the 2D guidance: a narrow industrial-yellow
-  navigation line, not a road-surface band.
+- The 3D route uses the same visual state as the 2D page route: color, width, dash state, and
+  selected-segment styling must match the active 2D route. The current default 2D style may be
+  yellow, but 3D must inherit it instead of hard-coding yellow.
+- On flat terrain the projected route is flat. On raised or depressed surfaces it conforms tightly
+  to the surface, reading like a local texture replacement rather than a floating tube.
+- A selected work area with no route segment must render no route layer.
 - Muted 3D road ribbons may exist as terrain context, but their opacity must stay low enough that
   they cannot be read as route outline.
 - Building LOD must preserve opaque low-poly massing while adding near-camera detail; it must not
   use full-building transparency as the primary dissolve cue.
-- The yellow route remains stable during drag, WASD, and wheel interaction.
+- The projected route remains stable during drag, WASD, and wheel interaction.
 - The first 3D frame starts on the same scene-profile overview orbit used by idle auto-rotate; there
   is no separate initial camera angle that later snaps into orbit.
 
 Current VQ0 blocking metrics:
 
-| Metric                           | Initial target                                                                  |
-| -------------------------------- | ------------------------------------------------------------------------------- |
-| `routeGrayOutlinePixelRatio`     | `0` for route guidance mesh roles; gray road context is allowed as road layer.  |
-| `routeYellowPixelRatio`          | Remains above the fixture-specific readable threshold.                          |
-| `routePixelVarianceDuringStress` | Does not spike during camera stress sampling.                                   |
-| `workArea.spanMeters`            | `<= 2000`.                                                                      |
-| `workAreaRaisedPixelRatio`       | Above the calibrated selected-square visibility threshold.                      |
-| `slabRiseTopHeightVariance`      | `<= 0.01m` during `slab-rise`; terrain variation starts after `terrain-refine`. |
-| `outsideDimmedPixelRatio`        | Proves outside context is lower brightness/detail than the selected square.     |
+| Metric                           | Initial target                                                                   |
+| -------------------------------- | -------------------------------------------------------------------------------- |
+| `routeGrayOutlinePixelRatio`     | `0` for route guidance mesh roles; gray road context is allowed as road layer.   |
+| `routeStyleParity`               | 3D route color, width, dash state, and selected state match the 2D route.        |
+| `routeSurfaceConformance`        | Projected route stays tight to terrain, road, water/bridge deck, or surface.     |
+| `routeAbsentWhenNoSegment`       | No route layer appears when the selected work area contains no route segment.    |
+| `routeYellowPixelRatio`          | Legacy/current-default readability sample while 2D default route remains yellow. |
+| `routePixelVarianceDuringStress` | Does not spike during camera stress sampling.                                    |
+| `workArea.spanMeters`            | `<= 2000`.                                                                       |
+| `workAreaRaisedPixelRatio`       | Above the calibrated selected-square visibility threshold.                       |
+| `slabRiseTopHeightVariance`      | `<= 0.01m` during `slab-rise`; terrain variation starts after `terrain-refine`.  |
+| `outsideDimmedPixelRatio`        | Proves outside context is lower brightness/detail than the selected square.      |
 
 ## Fixture Scope
 
@@ -348,14 +355,17 @@ The next metrics are presentation-quality indicators, not immediate hard gates. 
 `window.__threeDebug__.qa` in warning mode, collect local samples in Gate 50 packets, and only make
 thresholds blocking after repeated fixture evidence.
 
-| Metric                         | First use                                                          |
-| ------------------------------ | ------------------------------------------------------------------ |
-| `terrainReliefContrast`        | Hiking anti-white-board review; prove relief cue without dirtiness |
-| `nonBackgroundPixelRatio`      | Detect visually blank first screens                                |
-| `visibleSemanticLayerCount`    | Count route, terrain, water, road, building, POI/landmark layers   |
-| `firstScreenRouteLegibility`   | Camera/presentation score for default overview or route-focus      |
-| `routeContextAdjacency`        | Route visible near roads, buildings, POIs, water, or terrain cues  |
-| `workAreaFigureGroundContrast` | Selected square separates from outside context without hard border |
+| Metric                         | First use                                                                |
+| ------------------------------ | ------------------------------------------------------------------------ |
+| `terrainReliefContrast`        | Hiking anti-white-board review; prove relief cue without dirtiness       |
+| `nonBackgroundPixelRatio`      | Detect visually blank first screens                                      |
+| `visibleSemanticLayerCount`    | Count route, terrain, water, road, building, POI/landmark layers         |
+| `firstScreenRouteLegibility`   | Camera/presentation score for default overview or route-focus            |
+| `routeContextAdjacency`        | Route visible near roads, buildings, POIs, water, or terrain cues        |
+| `routeStyleParity`             | 3D route inherits active 2D route color, width, dash, and selected state |
+| `routeSurfaceConformance`      | Route projection stays visually attached to valid 3D surfaces            |
+| `routeAbsentWhenNoSegment`     | Empty work areas do not fabricate route geometry                         |
+| `workAreaFigureGroundContrast` | Selected square separates from outside context without hard border       |
 
 Initial calibration command:
 
@@ -376,7 +386,10 @@ Current blocking `river-bridge` timeline stage metrics:
 - `route-highlight` must remain in `route-highlight`, expose route layer diagnostics, and have route draw progress `>= 0.95`;
 - `building-massing` must remain in `building-massing`, expose partial building massing progress, and keep dissolve progress at `0`;
 - `building-dissolve` must remain in `building-dissolve`, expose completed massing plus active dissolve progress;
-- `route-focus` must finish emergence, enter `camera.mode === "route-focus"`, and retain `routeYellowPixelRatio >= expectations.route.minYellowPixelRatio`.
+- `route-focus` must finish emergence, enter `camera.mode === "route-focus"`, and retain readable
+  projected route styling. While the 2D default route remains yellow, the legacy
+  `routeYellowPixelRatio >= expectations.route.minYellowPixelRatio` sample remains a readability
+  proxy.
 
 Current blocking scenario precision metrics:
 
@@ -394,13 +407,14 @@ Current live-entry browser QA metrics:
 - `qaRouteClearanceP95 <= 0.3`;
 - the initial screenshot must show the bounded square from the overview orbit instead of a low
   horizon view;
-- the yellow route must read as a narrow navigation line.
+- the projected route must read with the same color and width as the active 2D route style.
 
-## Beta Route Yellow Calibration
+## Beta Route Style Calibration
 
-Each maintained visual fixture must declare `expectations.route.minYellowPixelRatio`. The visual
-tests intentionally fail when the value is missing, so a new scene cannot silently inherit a global
-default.
+Each maintained visual fixture currently declares `expectations.route.minYellowPixelRatio` because
+the current default 2D route style is yellow. This is a legacy readability proxy, not the final style
+contract. The next QA update should add style-parity and surface-conformance metrics so future 2D
+route colors or widths can propagate to 3D without rewriting fixture thresholds.
 
 Calibration sample from 2026-06-23:
 

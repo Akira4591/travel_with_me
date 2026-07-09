@@ -252,7 +252,7 @@ buildTripShareImage(trip, { includeRoutes })
 - 2D/3D 切换入口固定在地图右下角控制区，桌面 Web 为当前唯一产品主线
 - 固定生成状态机：`freeze-2d -> derive-scene-envelope -> slab-rise -> terrain-refine -> water-carve -> road-emerge -> bridge-resolve -> route-highlight -> building-massing -> building-dissolve`
 - 先抬升地面基础，再融化出水面/道路/山体/桥梁，最后抬升建筑体块并溶解出近景外轮廓
-- 路线与道路分层：道路是中性地理上下文，行程路线复用 2D 导引线身份并使用工业安全黄
+- 路线与道路分层：道路是中性地理上下文，行程路线复用当前 2D 页面路线的颜色、宽度、虚线状态和选中态，并投影贴合到 3D 有效表面
 - 所有真实世界资产必须有 `source`、`licence`、`attribution`、`updatedAt`
 - 缺失数据失败关闭：不凭空生成真实河道、桥梁、植被、地标或真实建筑外观
 - 所有 3D 对象通过统一 `sampleHeight()` / `TerrainModel.heightAt(x,z)` 贴地

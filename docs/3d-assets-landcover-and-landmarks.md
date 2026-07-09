@@ -39,7 +39,12 @@ The renderer chooses one of five reusable cluster templates (`conifer-cluster`, 
 
 ## 4. Roads
 
-The current client uses the selected route's travel mode only to set a visual road width. Production road geometry needs an actual licensed road graph/centerline with `highway`, surface, bridge, tunnel, access, and footway/path attributes. Geometry priority is: route polyline -> licensed road centerline -> no road mesh. A road is a terrain-conforming ribbon; the industrial safety-yellow guidance stripe remains an itinerary overlay, never the road itself.
+The current client uses the selected route's travel mode only to set a visual road width. Production
+road geometry needs an actual licensed road graph/centerline with `highway`, surface, bridge,
+tunnel, access, and footway/path attributes. Geometry priority is: route polyline -> licensed road
+centerline -> no road mesh. A road is a terrain-conforming ribbon; the itinerary route is not the
+road itself. It is the persisted 2D page route projected onto valid 3D surfaces with the same 2D
+color, width, dash state, and selected-segment style.
 
 ## 5. Terrain foundation, waterways, and bridges
 
@@ -146,7 +151,19 @@ Candidate data classes to evaluate during provider onboarding: official municipa
 }
 ```
 
-Current renderer behavior: an authorized `buildings[].locationId` replaces that POI's fallback block with a footprint extrusion. An attributable building without `locationId` is rendered as surrounding context, capped to keep the frame and GPU budget stable. Rejected footprint extrusions fall back to neutral synthetic massing and are not presented as real exterior models. Repeated fallback low-poly massing is batched with `InstancedMesh`; close-range detail and dissolve LOD remain per building. Attributable roads become a muted terrain-conforming base layer, while the selected itinerary uses a warm road bed, graphite outline, and industrial safety-yellow guidance stripe. Authorized land-cover polygons generate deterministic vegetation clusters on the terrain; attributable waterways and bridges render on the same terrain model as roads. Landmark records are retained only after `js/render/landmark-assets.js` validates their release-gate metadata. The renderer still does not auto-load remote model URLs; the gate exists so future model loading cannot begin without allowlist, content-type/size validation, integrity metadata, LOD outputs, and GLTF/GLB optimization.
+Current renderer behavior: an authorized `buildings[].locationId` replaces that POI's fallback
+block with a footprint extrusion. An attributable building without `locationId` is rendered as
+surrounding context, capped to keep the frame and GPU budget stable. Rejected footprint extrusions
+fall back to neutral synthetic massing and are not presented as real exterior models. Repeated
+fallback low-poly massing is batched with `InstancedMesh`; close-range detail and dissolve LOD remain
+per building. Attributable roads become a muted terrain-conforming base layer, while the selected
+itinerary must be rendered as a 2D-style surface projection, not as a warm road bed, graphite
+outline, raised tube, or hard-coded yellow stripe. Authorized land-cover polygons generate
+deterministic vegetation clusters on the terrain; attributable waterways and bridges render on the
+same terrain model as roads. Landmark records are retained only after `js/render/landmark-assets.js`
+validates their release-gate metadata. The renderer still does not auto-load remote model URLs; the
+gate exists so future model loading cannot begin without allowlist, content-type/size validation,
+integrity metadata, LOD outputs, and GLTF/GLB optimization.
 
 ### OpenStreetMap context ingestion
 
@@ -154,4 +171,11 @@ The desktop 3D entry flow now queries the BFF endpoint `/_geo-assets` when no tr
 
 The route equivalent is `event.routeToNext.geometry`. Successful AMap Web Service routing is cached as `source: 'amap-web-service'` plus the real `paths`; legacy `amap-navigation` records remain readable during migration. 3D uses the longest valid cached route path regardless of its provider label before it considers a two-point fallback, so imported and future licensed route sources retain the same path contract.
 
-The 2D and 3D renderers share `js/route-guidance.js`: the renderer changes, but the route state does not. Both modes use the same industrial safety-yellow identity, white/neutral support layer, selected-segment halo, and `segmentId`. A 3D selected route receives terrain-conforming directional markers and a short camera focus transition from the same sidebar route card. A two-point fallback remains dashed in both modes and must never be presented as a verified road path.
+The 2D and 3D renderers share `js/route-guidance.js`: the renderer changes, but the route state does
+not. 3D must inherit the same route color, width, dash state, selected-segment style, and
+`segmentId` that the 2D page currently uses. On flat ground, the route is a flat 2D-style line on the
+surface. On terrain, roads, bridge decks, or other raised/depressed valid surfaces, it conforms to
+the surface like a local texture replacement. A 3D selected route receives terrain-conforming
+directional markers and a short camera focus transition from the same sidebar route card. A
+two-point fallback remains dashed in both modes and must never be presented as a verified road path.
+If the selected 3D work area does not intersect any route segment, no route layer is rendered.
