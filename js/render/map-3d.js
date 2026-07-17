@@ -61,10 +61,8 @@ const C = {
 
 // Render constants.
 
-const MARKER_STEM_HEIGHT = 8;
-const MARKER_HEAD_RADIUS = 1.45;
 const MARKER_RING_RADIUS = 2.7;
-const MARKER_RING_TUBE_RADIUS = 0.16;
+const MARKER_RING_TUBE_RADIUS = 0.22;
 const ANNOTATION_STEM_HEIGHT = 7;
 const ANNOTATION_HEAD_RADIUS = 1.45;
 const DIORAMA_SLICE_THICKNESS = 20;
@@ -960,20 +958,10 @@ function pointInPolygon(point, polygon) {
  */
 function buildMarkerGroup(proj, trip, activeDayId, terrainModel) {
   const group = new THREE.Group();
-  const stemMat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(C.markerStem),
-    roughness: 0.6,
-    metalness: 0.3
-  });
-  const headMat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(C.markerActive),
-    roughness: 0.25,
-    metalness: 0.2
-  });
   const ringMat = new THREE.MeshBasicMaterial({
     color: new THREE.Color(C.routeLine),
     transparent: true,
-    opacity: 0.4
+    opacity: 0.85
   });
 
   const day = activeDayId === 'all' ? null : trip.days.find(d => d.id === activeDayId);
@@ -987,31 +975,13 @@ function buildMarkerGroup(proj, trip, activeDayId, terrainModel) {
 
       const { x, z } = proj.toScene(loc.lnglat);
       const terrainY = terrainModel.heightAt(x, z);
-      const markerGroup = new THREE.Group();
-
-      // Stem.
-      const stemGeom = new THREE.CylinderGeometry(0.22, 0.3, MARKER_STEM_HEIGHT, 8);
-      const stem = new THREE.Mesh(stemGeom, stemMat);
-      stem.position.y = MARKER_STEM_HEIGHT / 2;
-      markerGroup.add(stem);
-
-      // Head.
-      const headGeom = new THREE.SphereGeometry(MARKER_HEAD_RADIUS, 16, 16);
-      const head = new THREE.Mesh(headGeom, headMat);
-      head.position.y = MARKER_STEM_HEIGHT + MARKER_HEAD_RADIUS;
-      head.castShadow = true;
-      markerGroup.add(head);
 
       const ringGeom = new THREE.TorusGeometry(MARKER_RING_RADIUS, MARKER_RING_TUBE_RADIUS, 8, 24);
       const ring = new THREE.Mesh(ringGeom, ringMat);
       ring.rotation.x = -Math.PI / 2;
-      ring.position.y = 0.1;
-      ring.userData = { baseScale: 1, phase: seededUnit(event.id || loc.name) * Math.PI * 2 };
-      markerGroup.add(ring);
-
-      markerGroup.position.set(x, terrainY, z);
-      markerGroup.userData = { eventId: event.id, globalIndex: globalIndex++ };
-      group.add(markerGroup);
+      ring.position.set(x, terrainY + 0.1, z);
+      ring.userData = { eventId: event.id, globalIndex: globalIndex++ };
+      group.add(ring);
     }
   }
 
