@@ -56,7 +56,7 @@ describe('3D map overview camera pose', () => {
     );
 
     expect(THREE.MathUtils.radToDeg(microPitch)).toBeCloseTo(58, 0);
-    expect(THREE.MathUtils.radToDeg(hikingPitch)).toBeCloseTo(68, 0);
+    expect(THREE.MathUtils.radToDeg(hikingPitch)).toBeCloseTo(62, 0);
   });
 
   it('keeps micro-street overview close enough for first-screen readability', () => {

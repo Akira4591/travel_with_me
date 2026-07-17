@@ -82,15 +82,15 @@ const OVERVIEW_CAMERA_ORBIT = {
 const OVERVIEW_DISTANCE_SCALE_BY_MODE = {
   'micro-street': 0.62,
   citywalk: 0.78,
-  'scenic-park': 1.05,
-  hiking: 1.2,
+  'scenic-park': 0.95,
+  hiking: 1.05,
   'region-overview': 1.35
 };
 const OVERVIEW_PITCH_BY_MODE = {
   'micro-street': 58,
   citywalk: 60,
-  'scenic-park': 64,
-  hiking: 68,
+  'scenic-park': 60,
+  hiking: 62,
   'region-overview': 70
 };
 
