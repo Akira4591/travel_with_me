@@ -1,7 +1,10 @@
 # Documentation
 
+> **辅助文件** | 权威开发文档: [DEVELOPMENT.md](../DEVELOPMENT.md)
+
 This directory is the maintained project documentation set. Commercial project documents are grouped
-by ownership so each decision has one source of truth.
+by ownership so each decision has one source of truth. All files here are **auxiliary** — the single
+authoritative development document is [DEVELOPMENT.md](../DEVELOPMENT.md).
 
 ## Product
 
@@ -23,6 +26,7 @@ by ownership so each decision has one source of truth.
 | [3D execution roadmap](architecture/3d/top-down-execution-roadmap.md)   | 3D P0-P6 implementation order                                                  |
 | [3D asset pipeline](architecture/3d/assets-landcover-and-landmarks.md)  | geoAssets, building, road, water, bridge, vegetation and landmark provenance   |
 | [3D visual baseline spec](architecture/3d/visual-baseline-spec.md)      | structured 3D QA, scenario fixtures and visual regression contract             |
+| [RAG upgrade plan](architecture/rag-upgrade-plan.md)                    | RAG architecture, phased implementation, embedding/vector store tech choices   |
 
 ## Engineering
 

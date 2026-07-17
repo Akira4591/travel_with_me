@@ -1,5 +1,7 @@
 # Gate 50 Manual Visual Review
 
+> **辅助文件** | 权威开发文档: [DEVELOPMENT.md](../../../DEVELOPMENT.md)
+
 ## Purpose
 
 Gate 50 is the product-quality acceptance gate for the live bounded 3D diorama. Automated tests can

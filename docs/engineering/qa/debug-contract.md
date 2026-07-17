@@ -1,5 +1,7 @@
 # 3D Debug QA Contract
 
+> **辅助文件** | 权威开发文档: [DEVELOPMENT.md](../../../DEVELOPMENT.md)
+
 ## Purpose
 
 `window.__threeDebug__.qa` is the structured evidence contract for 3D visual and geometry quality. It explains why a screenshot passed or failed and prevents visual review from becoming subjective.

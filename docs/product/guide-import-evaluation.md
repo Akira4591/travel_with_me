@@ -1,5 +1,7 @@
 # AI Guide Import Evaluation
 
+> **辅助文件** | 权威开发文档: [DEVELOPMENT.md](../../DEVELOPMENT.md)
+
 本文档定义 S2 阶段的 AI 攻略导入评测方法。目标是让 prompt、清洗规则、POI 匹配策略的调整都有可复现数字，而不是只靠人工主观判断。
 
 ## 当前状态

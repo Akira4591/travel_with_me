@@ -1,5 +1,7 @@
 # Travel With Me Commercialization Strategy
 
+> **辅助文件** | 权威开发文档: [DEVELOPMENT.md](../../DEVELOPMENT.md)
+
 本文档记录 Travel With Me 从验证产品价值走向商业化所需的能力、方案取舍和阶段路线。产品阶段与数据架构以 `docs/product/architecture-blueprint.md` 为准；3D 商业化前置条件以 `docs/architecture/3d/deep-research-integration.md` 和 `docs/architecture/3d/top-down-execution-roadmap.md` 为准。
 
 ## 1. 商业化判断

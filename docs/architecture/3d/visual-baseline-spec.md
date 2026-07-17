@@ -1,5 +1,7 @@
 # 3D Visual Baseline Specification
 
+> **辅助文件** | 权威开发文档: [DEVELOPMENT.md](../../../DEVELOPMENT.md)
+
 ## Purpose
 
 The 3D map module must be validated as a geospatial scene pipeline, not only as a nonblank canvas. This specification defines the visual baseline system recommended by the latest map-module repair research.

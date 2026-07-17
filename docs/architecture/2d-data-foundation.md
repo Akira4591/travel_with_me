@@ -1,5 +1,7 @@
 # 2D Data Foundation
 
+> **辅助文件** | 权威开发文档: [DEVELOPMENT.md](../../DEVELOPMENT.md)
+
 ## Purpose
 
 The 2D map is the project's geographic source of truth. The 3D renderer may reinterpret this data, but it must never invent a coordinate, route, waterway, bridge, or building geometry that is absent from the persisted trip.

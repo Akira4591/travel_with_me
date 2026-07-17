@@ -1,5 +1,7 @@
 # AGENTS.md
 
+> **辅助文件** | 权威开发文档: [DEVELOPMENT.md](DEVELOPMENT.md)
+
 ## Codex Workflow
 
 Use this lightweight workflow only for this repository. It does not change global Codex configuration, install hooks, or write long-term memory.

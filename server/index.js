@@ -19,6 +19,11 @@ import { bodyLimit } from 'hono/body-limit';
 import { secureHeaders } from 'hono/secure-headers';
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
+import { initDB } from './rag/db.js';
+import { saveGuide, listGuides, softDeleteGuide, getActiveGuideCount } from './rag/store.js';
+import { BM25Index } from './rag/bm25.js';
+import { retrieveGuides, formatRetrievedContext } from './rag/retrieve.js';
+import { tokenize } from './rag/tokenizer.js';
 
 // 本地加载 .env：Zeabur 等部署环境本身就会注入 process.env，找不到 .env 时静默跳过。
 loadDotenv();
@@ -69,6 +74,16 @@ const GEO_ASSETS_CACHE_TTL_MS = readPositiveInt(
   24 * 60 * 60 * 1000
 );
 const GEO_ASSETS_TIMEOUT_MS = readPositiveInt(process.env.GEO_ASSETS_TIMEOUT_MS, 15000);
+const RAG_PREFIX = '/_rag';
+const RAG_ENABLED = process.env.RAG_ENABLED !== 'false';
+const RAG_DB_PATH =
+  process.env.RAG_DB_PATH ||
+  resolve(dirname(fileURLToPath(import.meta.url)), '..', 'data', 'rag.db');
+const RAG_TOP_K = readPositiveInt(process.env.RAG_TOP_K, 3);
+const RAG_MAX_CONTEXT_CHARS = readPositiveInt(process.env.RAG_MAX_CONTEXT_CHARS, 1500);
+const RAG_MIN_DOCS = readPositiveInt(process.env.RAG_MIN_DOCS, 3);
+const RAG_SEARCH_RATE_LIMIT = readPositiveInt(process.env.RAG_SEARCH_RATE_LIMIT, 20);
+const RAG_SEARCH_RATE_WINDOW_MS = 60 * 60 * 1000;
 const rateBuckets = new Map();
 const geoAssetCache = new Map();
 
@@ -86,7 +101,22 @@ if (!AMAP_WEB_SERVICE_KEY) {
 if (!DEEPSEEK_KEY) {
   console.warn('[trip-app] DEEPSEEK_API_KEY 未设置：AI 攻略导入功能将不可用。');
 }
-// V5：DEEPSEEK_KEY 仅在此读取声明，具体路由（/_ai/extract-guide）在 V6 实现攻略提取时再加
+
+let bm25Index = null;
+if (RAG_ENABLED) {
+  try {
+    initDB(RAG_DB_PATH);
+    bm25Index = new BM25Index();
+    const count = bm25Index.rebuildFromDB();
+    console.log(`[trip-app] RAG 已初始化：BM25 索引 ${count} 篇文档`);
+  } catch (e) {
+    console.warn('[trip-app] RAG 初始化失败，RAG 功能将被禁用:', e.message);
+    bm25Index = null;
+  }
+}
+function isRagReady() {
+  return bm25Index !== null && bm25Index.docCount >= RAG_MIN_DOCS;
+}
 
 const app = new Hono();
 
@@ -107,7 +137,8 @@ app.get('/readyz', c => {
         amapJsSecurity: Boolean(JSCODE),
         amapJsKey: Boolean(AMAP_JS_KEY),
         amapWebService: Boolean(AMAP_WEB_SERVICE_KEY),
-        aiGuideImport: Boolean(DEEPSEEK_KEY && GUIDE_PROMPT_TEMPLATE)
+        aiGuideImport: Boolean(DEEPSEEK_KEY && GUIDE_PROMPT_TEMPLATE),
+        rag: Boolean(bm25Index)
       }
     },
     ready ? 200 : 503
@@ -244,12 +275,29 @@ app.post(`${AI_PREFIX}/extract-guide`, async c => {
     return c.json({ error: 'TEXT_TOO_LONG', message: '文字过长，请分段处理。' }, 400);
 
   try {
+    let retrievedContextSection = '';
+    if (isRagReady()) {
+      try {
+        const results = retrieveGuides(bm25Index, text, {
+          topK: RAG_TOP_K,
+          maxSnippetLength: Math.floor(RAG_MAX_CONTEXT_CHARS / RAG_TOP_K)
+        });
+        retrievedContextSection = formatRetrievedContext(results);
+        if (results.length) {
+          console.log(`[trip-app] RAG 检索到 ${results.length} 篇相似攻略`);
+        }
+      } catch (e) {
+        console.warn('[trip-app] RAG 检索失败，继续无上下文提取:', e.message);
+      }
+    }
+
     let lastDebug = null;
     for (let attempt = 1; attempt <= DEEPSEEK_JSON_ATTEMPTS; attempt += 1) {
       const upstreamResp = await fetchDeepSeekWithTimeout({
         text,
         cityHint,
-        signalTimeoutMs: DEEPSEEK_TIMEOUT_MS
+        signalTimeoutMs: DEEPSEEK_TIMEOUT_MS,
+        retrievedContextSection
       });
 
       const data = await upstreamResp.json().catch(() => null);
@@ -261,7 +309,28 @@ app.post(`${AI_PREFIX}/extract-guide`, async c => {
       const choice = data?.choices?.[0];
       const content = choice?.message?.content || '';
       const parsed = parseGuideJSON(content);
-      if (parsed) return c.json(normalizeExtractedGuide(parsed));
+      if (parsed) {
+        const normalized = normalizeExtractedGuide(parsed);
+
+        if (RAG_ENABLED && bm25Index) {
+          try {
+            const tokens = tokenize(text);
+            const guideId = saveGuide({
+              city: normalized.city || cityHint || null,
+              guide_type: normalized.guide_type || null,
+              source_text: text,
+              extracted: JSON.stringify(normalized),
+              token_count: tokens.length
+            });
+            bm25Index.addDocument(guideId, tokens);
+            console.log(`[trip-app] RAG 文档已保存: ${guideId}, tokens: ${tokens.length}`);
+          } catch (e) {
+            console.warn('[trip-app] RAG 文档保存失败:', e.message);
+          }
+        }
+
+        return c.json(normalized);
+      }
 
       const debug = {
         attempt,
@@ -304,6 +373,85 @@ app.post(`${AI_PREFIX}/extract-guide`, async c => {
     console.error('[trip-app] AI 攻略导入失败：', err);
     return c.json({ error: 'AI_FAILED', message: 'AI 暂时不可用，请稍后重试。' }, 502);
   }
+});
+
+// ─── RAG 检索 ────────────────────────────────────────────
+
+app.get(`${RAG_PREFIX}/status`, c => {
+  if (!RAG_ENABLED || !bm25Index) {
+    return c.json({ available: false, reason: 'rag_disabled', documentCount: 0 });
+  }
+  return c.json({
+    available: true,
+    ready: isRagReady(),
+    documentCount: bm25Index.stats.docCount,
+    avgDocLength: bm25Index.stats.avgDocLength,
+    indexBuiltAt: bm25Index.stats.indexBuiltAt,
+    minDocs: RAG_MIN_DOCS
+  });
+});
+
+app.post(`${RAG_PREFIX}/search`, async c => {
+  const sourceRejected = rejectUntrustedSource(c);
+  if (sourceRejected) return sourceRejected;
+  const limited = enforceRateLimit(
+    c,
+    'rag-search',
+    RAG_SEARCH_RATE_LIMIT,
+    RAG_SEARCH_RATE_WINDOW_MS
+  );
+  if (limited) return limited;
+
+  if (!RAG_ENABLED || !bm25Index) {
+    return c.json({ error: 'RAG_UNAVAILABLE', message: 'RAG 检索功能未启用。' }, 503);
+  }
+
+  let payload;
+  try {
+    payload = await c.req.json();
+  } catch {
+    return c.json({ error: 'BAD_REQUEST', message: '请求格式错误。' }, 400);
+  }
+
+  const query = String(payload?.query || '').trim();
+  const topK = Math.min(Math.max(Number(payload?.top_k) || RAG_TOP_K, 1), 20);
+  if (query.length < 2) {
+    return c.json({ error: 'QUERY_TOO_SHORT', message: '查询文本过短。' }, 400);
+  }
+
+  try {
+    const results = retrieveGuides(bm25Index, query, {
+      topK,
+      maxSnippetLength: Math.floor(RAG_MAX_CONTEXT_CHARS / topK)
+    });
+    return c.json({ results, count: results.length });
+  } catch (e) {
+    console.error('[trip-app] RAG 检索失败：', e);
+    return c.json({ error: 'RAG_SEARCH_FAILED', message: '检索失败，请稍后重试。' }, 500);
+  }
+});
+
+app.get(`${RAG_PREFIX}/guides`, c => {
+  if (!RAG_ENABLED || !bm25Index) {
+    return c.json({ guides: [], total: 0 });
+  }
+  const limit = Math.min(Math.max(Number(c.req.query('limit')) || 50, 1), 200);
+  const offset = Math.max(Number(c.req.query('offset')) || 0, 0);
+  const guides = listGuides({ limit, offset });
+  const total = getActiveGuideCount();
+  return c.json({ guides, total });
+});
+
+app.delete(`${RAG_PREFIX}/guides/:id`, c => {
+  const sourceRejected = rejectUntrustedSource(c);
+  if (sourceRejected) return sourceRejected;
+
+  const id = c.req.param('id');
+  const deleted = softDeleteGuide(id);
+  if (!deleted) {
+    return c.json({ error: 'NOT_FOUND', message: '文档不存在。' }, 404);
+  }
+  return c.json({ deleted: id });
 });
 
 // ─── 高德 Web 服务代理 ────────────────────────────────────
@@ -658,12 +806,20 @@ function loadGuidePromptTemplate() {
   }
 }
 
-function renderGuidePrompt(template, text, cityHint) {
+function renderGuidePrompt(template, text, cityHint, retrievedContextSection = '') {
   const city = cityHint || '由你识别';
-  return template.replace('{user_specified_city 或 "由你识别"}', city).replace('{user_text}', text);
+  return template
+    .replace('{retrieved_context_section}', retrievedContextSection)
+    .replace('{user_specified_city 或 "由你识别"}', city)
+    .replace('{user_text}', text);
 }
 
-async function fetchDeepSeekWithTimeout({ text, cityHint, signalTimeoutMs }) {
+async function fetchDeepSeekWithTimeout({
+  text,
+  cityHint,
+  signalTimeoutMs,
+  retrievedContextSection = ''
+}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), signalTimeoutMs);
   try {
@@ -688,7 +844,12 @@ async function fetchDeepSeekWithTimeout({ text, cityHint, signalTimeoutMs }) {
           },
           {
             role: 'user',
-            content: renderGuidePrompt(GUIDE_PROMPT_TEMPLATE, text, cityHint)
+            content: renderGuidePrompt(
+              GUIDE_PROMPT_TEMPLATE,
+              text,
+              cityHint,
+              retrievedContextSection
+            )
           }
         ]
       })

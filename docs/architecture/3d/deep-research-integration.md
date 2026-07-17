@@ -1,5 +1,7 @@
 # 3D Deep Research Integration
 
+> **辅助文件** | 权威开发文档: [DEVELOPMENT.md](../../../DEVELOPMENT.md)
+
 ## 1. Decision Summary
 
 The deep research result confirms the current strategic direction:

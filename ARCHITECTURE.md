@@ -1,5 +1,7 @@
 # Architecture
 
+> **辅助文件** | 权威开发文档: [DEVELOPMENT.md](DEVELOPMENT.md)
+
 Travel With Me 是一个中文旅行路线规划 Web App。本文档记录当前系统架构、关键架构决策和设计原则。产品方向、阶段口径和 2D/3D 同源边界以 [产品与架构总纲](docs/product/architecture-blueprint.md) 为准。
 
 文档边界：
@@ -285,6 +287,40 @@ buildTripShareImage(trip, { includeRoutes })
 **核心战略判断**: 3D diorama + 地形感知 + 标记放置是视觉化、体验化的付费锚点，比"离线地图"（Wanderlog Pro 锚点）更有说服力。
 
 **竞品分析、市场数据、能力对标、分阶段路线图、技术方案矩阵、权益定价**: 见 `docs/product/commercialization.md`。
+
+---
+
+### ADR-8: RAG 知识检索层
+
+**日期**: 2026-07
+**状态**: 已采纳（R0-R1 先行，R2-R5 待排期）
+
+**背景**: AI 导入一次性提取后丢弃原文，无法跨攻略复用知识。当前 `similarityScore()` 是字符重叠启发式，无法语义匹配。
+
+**决策**: BFF 层增加 RAG 检索能力，分阶段实施：
+
+- R0: SQLite 文档持久层（存储攻略原文 + 提取结果）
+- R1: BM25 稀疏检索（`@node-rs/jieba` 中文分词 + 倒排索引）
+- R2: 本地 BGE-M3 ONNX embedding 语义检索（待排期）
+- R3: Self-Reflective 提取（评分 + 重试，待排期）
+- R4: 旅行知识库（待排期）
+- R5: Agentic RAG（待排期）
+
+**核心约束**:
+
+- 检索失败时降级到无 RAG 模式，不阻塞核心提取流程
+- 冷启动保护: 文档数 < `RAG_MIN_DOCS`（默认 3）时不启用检索
+- 软删除: guides 表 `deleted=1` 的文档不参与检索
+- R0-R1 不引入 embedding API，零外部 API 成本
+- R2 选用本地 BGE-M3 ONNX 模型，避免 embedding API 依赖
+
+**新增模块**: `server/rag/`（db.js, store.js, tokenizer.js, bm25.js, retrieve.js）
+
+**新增端点**: `GET /_rag/status`、`POST /_rag/search`、`GET /_rag/guides`、`DELETE /_rag/guides/:id`
+
+**新增依赖**: `better-sqlite3`（文档存储）、`@node-rs/jieba`（中文分词）
+
+**权衡**: better-sqlite3 和 @node-rs/jieba 是服务端首批 native 依赖，Docker 构建从 alpine 切换到 slim + multi-stage。BM25 以整篇文档为检索单元，R2 后按段落分块。
 
 ---
 

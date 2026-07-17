@@ -1,5 +1,7 @@
 # Development Workflow Foundation
 
+> **辅助文件** | 权威开发文档: [DEVELOPMENT.md](../../DEVELOPMENT.md)
+
 本文档定义 Travel With Me 按高效率、可持续、可商业化工程方式继续推进时，需要准备的软件、账号、环境变量和工作流。目标是让项目从“本地能跑”变成“多人/AI 协作也能稳定迭代”。
 
 ## 1. 当前本机状态

@@ -1,5 +1,7 @@
 # Changelog
 
+> **辅助文件** | 权威开发文档: [DEVELOPMENT.md](DEVELOPMENT.md)
+
 ## [Unreleased]
 
 - 文档体系收敛

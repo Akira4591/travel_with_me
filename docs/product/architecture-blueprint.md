@@ -1,5 +1,7 @@
 # Product and Architecture Blueprint
 
+> **辅助文件** | 权威开发文档: [DEVELOPMENT.md](../../DEVELOPMENT.md)
+
 ## Product definition
 
 Travel With Me is a desktop-first travel planning workspace. It turns Chinese travel notes and selected places into an editable multi-day itinerary, proves that itinerary on a real 2D map, then offers 3D only when it adds planning value. It is not turn-by-turn navigation or a generic 3D city viewer.

@@ -1,5 +1,7 @@
 # 3D Assets, Landcover, and Landmarks
 
+> **辅助文件** | 权威开发文档: [DEVELOPMENT.md](../../../DEVELOPMENT.md)
+
 ## 1. Product boundary
 
 The 3D view is a planning diorama, not a claim that every building is a survey-grade model. Real geometry always wins over generated geometry. Generated geometry must be visibly neutral and may not be labelled as a real building model.

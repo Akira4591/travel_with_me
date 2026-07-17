@@ -1,5 +1,7 @@
 # Contributing
 
+> **辅助文件** | 权威开发文档: [DEVELOPMENT.md](DEVELOPMENT.md)
+
 ## 本地开发
 
 ```bash

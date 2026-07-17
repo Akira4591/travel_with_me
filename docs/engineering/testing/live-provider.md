@@ -1,5 +1,7 @@
 # Live Provider Smoke
 
+> **辅助文件** | 权威开发文档: [DEVELOPMENT.md](../../../DEVELOPMENT.md)
+
 Live provider checks are explicit opt-in only. Default CI and local regression commands must use fixtures, mocks, or local fallback data.
 
 ## Local Command

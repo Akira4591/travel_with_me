@@ -1,5 +1,7 @@
 # 3D Top-Down Execution Roadmap
 
+> **辅助文件** | 权威开发文档: [DEVELOPMENT.md](../../../DEVELOPMENT.md)
+
 ## 1. North star
 
 3D is a desktop Web planning diorama. It must help users understand itinerary order, terrain pressure, waterways, bridges, and nearby spatial context. It is not a survey-grade city replica.

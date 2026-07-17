@@ -1,5 +1,7 @@
 # 3D Generation Process Alignment
 
+> **辅助文件** | 权威开发文档: [DEVELOPMENT.md](../../../DEVELOPMENT.md)
+
 ## 1. Correct Design Intent
 
 3D mode is not a layer switch that directly places terrain, water, roads, bridges, and buildings into a Three.js scene.

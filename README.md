@@ -1,5 +1,7 @@
 # Trip App
 
+> **辅助文件** | 权威开发文档: [DEVELOPMENT.md](DEVELOPMENT.md)
+
 ## Current next-stage focus
 
 The active desktop Web branch is now Gate 50 presentation productization:

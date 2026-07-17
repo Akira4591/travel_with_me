@@ -1,5 +1,7 @@
 # Visual Baseline QA Plan
 
+> **辅助文件** | 权威开发文档: [DEVELOPMENT.md](../../../DEVELOPMENT.md)
+
 ## Purpose
 
 The next 3D iteration must prove visual quality through deterministic evidence, not manual memory. Visual baselines are the prerequisite for P2 visual fixes and P3 building refinement.

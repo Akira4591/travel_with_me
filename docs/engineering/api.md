@@ -1,5 +1,7 @@
 # API Reference
 
+> **辅助文件** | 权威开发文档: [DEVELOPMENT.md](../../DEVELOPMENT.md)
+
 Travel With Me 的 BFF 层提供以下端点：
 
 ## 基础信息
@@ -224,25 +226,123 @@ BFF 会返回基础安全响应头，包括 `X-Content-Type-Options`、`X-Frame-
 
 ---
 
+## `GET /_rag/status`
+
+检查 RAG 检索功能是否可用。
+
+**响应**
+
+```json
+{
+  "available": true,
+  "ready": false,
+  "documentCount": 2,
+  "avgDocLength": 45,
+  "indexBuiltAt": "2026-07-16T09:00:00.000Z",
+  "minDocs": 3
+}
+```
+
+`ready` 为 `false` 表示文档数不足 `minDocs`，检索尚未启用（冷启动保护）。
+
+---
+
+## `POST /_rag/search`
+
+BM25 稀疏检索相似攻略。Origin / Referer 检查 + 限流（默认 20 次/小时）。
+
+**请求**
+
+```json
+{
+  "query": "北京故宫三日游",
+  "top_k": 3
+}
+```
+
+**成功响应 (200)**
+
+```json
+{
+  "results": [
+    {
+      "id": "guide-xxx",
+      "score": 5.21,
+      "city": "北京",
+      "guideType": "daily_itinerary",
+      "snippet": "北京三日游攻略，第一天故宫..."
+    }
+  ],
+  "count": 1
+}
+```
+
+---
+
+## `GET /_rag/guides`
+
+列出已存储的攻略文档。
+
+**查询参数**
+
+| 参数   | 类型   | 默认 | 说明     |
+| ------ | ------ | ---- | -------- |
+| limit  | number | 50   | 最多 200 |
+| offset | number | 0    | -        |
+
+**响应**
+
+```json
+{
+  "guides": [
+    {
+      "id": "guide-xxx",
+      "city": "北京",
+      "guide_type": "daily_itinerary",
+      "token_count": 30,
+      "created_at": 1721100000000,
+      "deleted": 0
+    }
+  ],
+  "total": 1
+}
+```
+
+---
+
+## `DELETE /_rag/guides/:id`
+
+软删除指定攻略文档（`deleted` 标记为 1，不从 BM25 索引物理移除，但检索结果会过滤）。
+
+**响应**: `{ "deleted": "guide-xxx" }` 或 `404`
+
+---
+
 ## 环境变量
 
-| 变量                        | 必填 | 默认值     | 说明                                   |
-| --------------------------- | ---- | ---------- | -------------------------------------- |
-| `AMAP_JSCODE`               | 是   | —          | 高德 JS API 安全密钥，仅服务端使用     |
-| `AMAP_WEB_SERVICE_KEY`      | 是   | —          | 高德 Web Service Key，BFF 注入         |
-| `DEEPSEEK_API_KEY`          | 否   | —          | DeepSeek API Key，留空则 AI 导入不可用 |
-| `DEEPSEEK_TIMEOUT_MS`       | 否   | `90000`    | AI 请求超时（毫秒）                    |
-| `ALLOWED_ORIGINS`           | 否   | 空         | 额外允许来源，默认只允许同源显式来源   |
-| `MAX_AI_BODY_BYTES`         | 否   | `24000`    | AI 导入请求体最大字节数                |
-| `AI_RATE_LIMIT`             | 否   | `10`       | 单 IP 每个 AI 窗口最大请求数           |
-| `AI_RATE_WINDOW_MS`         | 否   | `3600000`  | AI 限流窗口（毫秒）                    |
-| `AMAP_RATE_LIMIT`           | 否   | `600`      | 单 IP 每个高德代理窗口最大请求数       |
-| `AMAP_RATE_WINDOW_MS`       | 否   | `60000`    | 高德代理限流窗口（毫秒）               |
-| `TILE_RATE_LIMIT`           | 否   | `1200`     | 单 IP 每个瓦片窗口最大请求数           |
-| `TILE_RATE_WINDOW_MS`       | 否   | `60000`    | 瓦片限流窗口（毫秒）                   |
-| `ELEVATION_RATE_LIMIT`      | 否   | `120`      | 单 IP 每个高程窗口最大请求数           |
-| `ELEVATION_RATE_WINDOW_MS`  | 否   | `60000`    | 高程限流窗口（毫秒）                   |
-| `GEO_ASSETS_RATE_LIMIT`     | 否   | `24`       | 单 IP 每个 geoAssets 窗口最大请求数    |
-| `GEO_ASSETS_RATE_WINDOW_MS` | 否   | `3600000`  | geoAssets 限流窗口（毫秒）             |
-| `GEO_ASSETS_CACHE_TTL_MS`   | 否   | `86400000` | geoAssets 内存缓存时间（毫秒）         |
-| `PORT`                      | 否   | `8080`     | 服务监听端口                           |
+| 变量                        | 必填 | 默认值        | 说明                                   |
+| --------------------------- | ---- | ------------- | -------------------------------------- |
+| `AMAP_JSCODE`               | 是   | —             | 高德 JS API 安全密钥，仅服务端使用     |
+| `AMAP_WEB_SERVICE_KEY`      | 是   | —             | 高德 Web Service Key，BFF 注入         |
+| `DEEPSEEK_API_KEY`          | 否   | —             | DeepSeek API Key，留空则 AI 导入不可用 |
+| `DEEPSEEK_TIMEOUT_MS`       | 否   | `90000`       | AI 请求超时（毫秒）                    |
+| `ALLOWED_ORIGINS`           | 否   | 空            | 额外允许来源，默认只允许同源显式来源   |
+| `MAX_AI_BODY_BYTES`         | 否   | `24000`       | AI 导入请求体最大字节数                |
+| `AI_RATE_LIMIT`             | 否   | `10`          | 单 IP 每个 AI 窗口最大请求数           |
+| `AI_RATE_WINDOW_MS`         | 否   | `3600000`     | AI 限流窗口（毫秒）                    |
+| `AMAP_RATE_LIMIT`           | 否   | `600`         | 单 IP 每个高德代理窗口最大请求数       |
+| `AMAP_RATE_WINDOW_MS`       | 否   | `60000`       | 高德代理限流窗口（毫秒）               |
+| `TILE_RATE_LIMIT`           | 否   | `1200`        | 单 IP 每个瓦片窗口最大请求数           |
+| `TILE_RATE_WINDOW_MS`       | 否   | `60000`       | 瓦片限流窗口（毫秒）                   |
+| `ELEVATION_RATE_LIMIT`      | 否   | `120`         | 单 IP 每个高程窗口最大请求数           |
+| `ELEVATION_RATE_WINDOW_MS`  | 否   | `60000`       | 高程限流窗口（毫秒）                   |
+| `GEO_ASSETS_RATE_LIMIT`     | 否   | `24`          | 单 IP 每个 geoAssets 窗口最大请求数    |
+| `GEO_ASSETS_RATE_WINDOW_MS` | 否   | `3600000`     | geoAssets 限流窗口（毫秒）             |
+| `GEO_ASSETS_CACHE_TTL_MS`   | 否   | `86400000`    | geoAssets 内存缓存时间（毫秒）         |
+| `PORT`                      | 否   | `8080`        | 服务监听端口                           |
+| `RAG_ENABLED`               | 否   | `true`        | 设为 false 完全关闭 RAG 检索           |
+| `RAG_DB_PATH`               | 否   | `data/rag.db` | SQLite 数据库文件路径                  |
+| `RAG_TOP_K`                 | 否   | `3`           | 检索返回的相似攻略数量                 |
+| `RAG_MAX_CONTEXT_CHARS`     | 否   | `1500`        | 注入 prompt 的检索上下文最大字符数     |
+| `RAG_MIN_DOCS`              | 否   | `3`           | 启用检索的最低文档数（冷启动保护）     |
+| `RAG_SEARCH_RATE_LIMIT`     | 否   | `20`          | /\_rag/search 每小时限流次数           |

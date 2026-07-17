@@ -1,5 +1,7 @@
 # Travel With Me UI Visual Style Guide
 
+> **辅助文件** | 权威开发文档: [DEVELOPMENT.md](../../DEVELOPMENT.md)
+
 本文档用于锁定当前成熟 UI 风格。后续新增功能时，默认保持此风格，不另起一套视觉语言。
 
 3D 视觉细节同时受 `docs/architecture/3d/deep-research-integration.md`、`docs/architecture/3d/generation-process-alignment.md` 和 `docs/architecture/3d/top-down-execution-roadmap.md` 约束。本文档只负责颜色、布局、图标、控件和视觉一致性。

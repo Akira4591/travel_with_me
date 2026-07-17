@@ -3,7 +3,13 @@ import js from '@eslint/js';
 export default [
   js.configs.recommended,
   {
-    ignores: ['**/node_modules/**', '**/.git/**', '**/*.min.js', 'js/__tests__/**']
+    ignores: [
+      '**/node_modules/**',
+      '**/.git/**',
+      '**/*.min.js',
+      'js/__tests__/**',
+      'server/__tests__/**'
+    ]
   },
   {
     languageOptions: {

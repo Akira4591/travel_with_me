@@ -1,5 +1,7 @@
 # Release Playbook
 
+> **辅助文件** | 权威开发文档: [DEVELOPMENT.md](../../DEVELOPMENT.md)
+
 ## Deployment contract
 
 - Runtime: Node.js 18+ using `npm start`.

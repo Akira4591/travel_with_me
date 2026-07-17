@@ -1,5 +1,7 @@
 # Travel With Me Roadmap
 
+> **辅助文件** | 权威开发文档: [DEVELOPMENT.md](DEVELOPMENT.md)
+
 Last updated: 2026-06-23
 
 This file is the active backlog only. Product direction and data boundaries are owned by `docs/product/architecture-blueprint.md`. The latest 3D technical route is owned by `docs/architecture/3d/deep-research-integration.md` and executed through `docs/architecture/3d/top-down-execution-roadmap.md`.
