@@ -151,16 +151,17 @@ main.js → {state.js, render/*.js, api/*.js} → {utils, config, data}
 
 ### 3.3 架构决策记录 (ADR)
 
-| ADR   | 决策                      | 要点                                                 |
-| ----- | ------------------------- | ---------------------------------------------------- |
-| ADR-1 | Hono + 原生 ES Modules    | 非 Next.js，无构建步骤                               |
-| ADR-2 | localStorage              | 非后端数据库，计划后续升级                           |
-| ADR-3 | Canvas 分享图             | 非服务端渲染                                         |
-| ADR-4 | DeepSeek 作为 AI 导入引擎 | `deepseek-v4-flash`                                  |
-| ADR-5 | BFF 代理隔离安全密钥      | Key 不出服务端                                       |
-| ADR-6 | 3D Diorama                | 2D 事实层驱动的生成式规划沙盘                        |
-| ADR-7 | 分阶段商业化              | S1→S2→S3→S4                                          |
-| ADR-8 | RAG 知识检索层            | R0-R5 路线：SQLite→BM25→BGE-M3→自反思→知识库→Agentic |
+| ADR   | 决策                      | 要点                                                                                                                                                                                                                 |
+| ----- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ADR-1 | Hono + 原生 ES Modules    | 非 Next.js，无构建步骤                                                                                                                                                                                               |
+| ADR-2 | localStorage              | 非后端数据库，计划后续升级                                                                                                                                                                                           |
+| ADR-3 | Canvas 分享图             | 非服务端渲染                                                                                                                                                                                                         |
+| ADR-4 | DeepSeek 作为 AI 导入引擎 | `deepseek-v4-flash`                                                                                                                                                                                                  |
+| ADR-5 | BFF 代理隔离安全密钥      | Key 不出服务端                                                                                                                                                                                                       |
+| ADR-6 | 3D Diorama                | 2D 事实层驱动的生成式规划沙盘                                                                                                                                                                                        |
+| ADR-7 | 分阶段商业化              | S1→S2→S3→S4                                                                                                                                                                                                          |
+| ADR-8 | RAG 知识检索层            | R0-R5 路线：SQLite→BM25→DashScope embedding→自反思→知识库→Agentic                                                                                                                                                    |
+| ADR-9 | RAG embedding 路线选型    | 选 Route B（DashScope text-embedding-v3 + hnswlib-node），弃 Route A（本地 BGE-M3 ONNX）。理由：中文质量最优、实现复杂度低、生态一致（AMap+DeepSeek 同为中文云生态）、已有完整 spec。BM25 保留为 hybrid 检索补充层。 |
 
 ### 3.4 核心规则
 
@@ -430,12 +431,12 @@ CREATE TABLE rag_metadata (
 | ---- | --------- | ----------------------------------- |
 | R0   | ✅ 已实现 | SQLite 文档持久层                   |
 | R1   | ✅ 已实现 | BM25 + jieba 中文分词               |
-| R2   | 待定      | BGE-M3 ONNX 本地 embedding          |
+| R2   | 待定      | DashScope embedding + hnswlib-node  |
 | R3   | 待定      | Self-Reflective RAG (CRAG/Self-RAG) |
 | R4   | 待定      | 旅行知识库                          |
 | R5   | 待定      | Agentic RAG                         |
 
-> **注意**: `docs/architecture/rag-upgrade-plan.md` 是一个更激进的提案（DashScope embedding + hnswlib-node），与已实现的 R0-R1（本地 BM25）是两条不同路线，仅为参考提案。
+> **决策**: 采用 `docs/architecture/rag-upgrade-plan.md` 的 Route B（DashScope text-embedding-v3 + hnswlib-node）作为 R2 实现路线。BM25 (R1) 保留为 hybrid 检索补充层。详见 ADR-9。
 
 ---
 
