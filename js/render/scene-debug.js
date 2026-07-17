@@ -82,7 +82,8 @@ export function createDioramaDebugSnapshot(diorama, sceneContext) {
       workAreaRaisedPixelRatio: diorama.terrainMesh && diorama.workArea ? 1 : 0,
       outsideDimmedPixelRatio:
         diorama.contextGround && diorama.contextGround.visible !== false ? 1 : 0,
-      slabRiseTopHeightVariance: 0
+      slabRiseTopHeightVariance: 0,
+      terrainReliefContrast: computeTerrainReliefContrast(diorama.terrainMesh)
     },
     vegetationMetrics: {
       areaCount: Number(diorama.vegetationGroup?.userData?.areaCount || 0),
@@ -181,6 +182,34 @@ export function countVisibleMeshes(root) {
   return count;
 }
 
+function computeTerrainReliefContrast(terrainMesh) {
+  const colorAttr = terrainMesh?.geometry?.attributes?.color;
+  if (!colorAttr) return 0;
+  const count = colorAttr.count;
+  if (count === 0) return 0;
+
+  let sum = 0;
+  const luminances = [];
+  for (let i = 0; i < count; i += 1) {
+    const r = colorAttr.getX(i);
+    const g = colorAttr.getY(i);
+    const b = colorAttr.getZ(i);
+    const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+    luminances.push(lum);
+    sum += lum;
+  }
+
+  const mean = sum / count;
+  let variance = 0;
+  for (let i = 0; i < luminances.length; i += 1) {
+    variance += (luminances[i] - mean) ** 2;
+  }
+  variance /= count;
+  const stdDev = Math.sqrt(variance);
+
+  return Number(Math.min(1, stdDev / 0.15).toFixed(3));
+}
+
 function countBuildingMassings(root) {
   if (!root) return 0;
   const declaredCount = Number(root.userData?.count || 0);
@@ -271,6 +300,8 @@ function syncDebugDataset(container, debug) {
   dataset.qaBridgeContinuity = String(debug.qa?.geometry?.bridgeContinuity || 0);
   dataset.qaVersion = String(debug.qa?.version || 0);
   dataset.qaZFightingRisk = String(debug.qa?.geometry?.zFightingRisk || 0);
+  dataset.qaTerrainReliefContrast = String(debug.qa?.geometry?.terrainReliefContrast || 0);
+  dataset.qaVisibleSemanticLayerCount = String(debug.qa?.geometry?.visibleSemanticLayerCount || 0);
   dataset.qaRouteVisiblePixelRatio = String(debug.qa?.geometry?.routeVisiblePixelRatio || 0);
   dataset.qaRouteGrayOutlinePixelRatio = String(
     debug.qa?.geometry?.routeGrayOutlinePixelRatio || 0

@@ -9,6 +9,7 @@ export function evaluateSceneQuality(debug = {}) {
   const provenance = normalizeProvenance(debug);
   const layers = normalizeLayers(debug);
   const lod = normalizeLod(debug);
+  geometry.visibleSemanticLayerCount = countVisibleLayers(layers);
   const warnings = [];
   const errors = [];
 
@@ -58,6 +59,13 @@ export function evaluateSceneQuality(debug = {}) {
   }
   if (provenance.missingRequiredFieldCount > 0) {
     warnings.push(`MISSING_PROVENANCE_FIELDS:${provenance.missingRequiredFieldCount}`);
+  }
+  const TERRAIN_RELIEF_CONTRAST_MIN = 0.02;
+  if (
+    debug.terrainMode === 'hiking' &&
+    geometry.terrainReliefContrast < TERRAIN_RELIEF_CONTRAST_MIN
+  ) {
+    warnings.push(`TERRAIN_RELIEF_CONTRAST_LOW:${geometry.terrainReliefContrast}`);
   }
   if (provenance.landmarkCount > 0 && provenance.landmarkAllowlisted < provenance.landmarkCount) {
     errors.push(
@@ -124,6 +132,7 @@ function normalizeGeometryMetrics(debug) {
     workAreaRaisedPixelRatio: toFixedNumber(metrics.workAreaRaisedPixelRatio),
     outsideDimmedPixelRatio: toFixedNumber(metrics.outsideDimmedPixelRatio),
     slabRiseTopHeightVariance: toFixedNumber(metrics.slabRiseTopHeightVariance),
+    terrainReliefContrast: toFixedNumber(metrics.terrainReliefContrast),
     bridgePierCount: Number(counts.bridgePiers || 0),
     bridgeCount: Number(counts.bridgeDecks || 0),
     buildingFloatingCount: 0,
@@ -229,4 +238,14 @@ function toFixedNumber(value) {
 
 function uniqueStrings(items) {
   return [...new Set(items.map(item => String(item)).filter(Boolean))];
+}
+
+function countVisibleLayers(layers) {
+  if (!layers) return 0;
+  const keys = ['water', 'roads', 'bridges', 'route', 'buildings', 'vegetation'];
+  let count = 0;
+  for (const key of keys) {
+    if (layers[key]?.visible) count += 1;
+  }
+  return count;
 }

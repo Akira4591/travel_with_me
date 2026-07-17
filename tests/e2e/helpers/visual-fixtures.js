@@ -291,7 +291,8 @@ export async function measureWaterVisualMetrics(page) {
       sampledPixels,
       waterBluePixelRatio: ratio(waterPixels, sampledPixels),
       waterBluePixelCount: waterPixels,
-      terrainBlankPixelRatio: ratio(terrainBlankPixels, sampledPixels)
+      terrainBlankPixelRatio: ratio(terrainBlankPixels, sampledPixels),
+      nonBackgroundPixelRatio: ratio(sampledPixels - terrainBlankPixels, sampledPixels)
     };
   });
 }

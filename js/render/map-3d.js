@@ -39,9 +39,9 @@ const BONE_WHITE = '#FCFAF5';
 
 const C = {
   terrainBase: BONE_WHITE,
-  terrainLow: BONE_WHITE,
-  terrainMid: BONE_WHITE,
-  terrainHigh: BONE_WHITE,
+  terrainLow: '#FCFAF5',
+  terrainMid: '#F2EBDB',
+  terrainHigh: '#E0D4BE',
   water: '#A8B8C8',
   shadow: '#9E9685',
   contour: '#D9D2C5',
@@ -641,6 +641,57 @@ function getTerrainClickPoint(raycaster, diorama) {
 
 // Terrain geometry.
 
+// Relief shading toggle (rollback switch: set false to restore flat bone-white).
+const TERRAIN_RELIEF_SHADING = true;
+
+function applyTerrainVertexColors(geom) {
+  const positions = geom.attributes.position;
+  const normals = geom.attributes.normal;
+  const count = positions.count;
+  const colors = new Float32Array(count * 3);
+
+  let minY = Infinity;
+  let maxY = -Infinity;
+  for (let i = 0; i < count; i += 1) {
+    const y = positions.getY(i);
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  }
+  const yRange = Math.max(0.001, maxY - minY);
+
+  const lowColor = new THREE.Color(C.terrainLow);
+  const midColor = new THREE.Color(C.terrainMid);
+  const highColor = new THREE.Color(C.terrainHigh);
+
+  const lightDir = new THREE.Vector3(-0.35, 0.78, -0.52).normalize();
+  const ambient = 0.72;
+  const diffuseStrength = 0.28;
+
+  const tmpColor = new THREE.Color();
+  const tmpNormal = new THREE.Vector3();
+
+  for (let i = 0; i < count; i += 1) {
+    const y = positions.getY(i);
+    const t = Math.min(1, Math.max(0, (y - minY) / yRange));
+
+    if (t < 0.5) {
+      tmpColor.copy(lowColor).lerp(midColor, t * 2);
+    } else {
+      tmpColor.copy(midColor).lerp(highColor, (t - 0.5) * 2);
+    }
+
+    tmpNormal.set(normals.getX(i), normals.getY(i), normals.getZ(i));
+    const lambert = Math.max(0, tmpNormal.dot(lightDir));
+    const shade = ambient + lambert * diffuseStrength;
+
+    colors[i * 3] = tmpColor.r * shade;
+    colors[i * 3 + 1] = tmpColor.g * shade;
+    colors[i * 3 + 2] = tmpColor.b * shade;
+  }
+
+  geom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+}
+
 function buildTerrainMesh(terrainModel) {
   const { bounds } = terrainModel;
   const width = bounds.maxX - bounds.minX;
@@ -658,8 +709,13 @@ function buildTerrainMesh(terrainModel) {
   }
   geom.computeVertexNormals();
 
+  if (TERRAIN_RELIEF_SHADING) {
+    applyTerrainVertexColors(geom);
+  }
+
   const mat = new THREE.MeshBasicMaterial({
-    color: new THREE.Color(C.terrainBase),
+    color: new THREE.Color(TERRAIN_RELIEF_SHADING ? '#FFFFFF' : C.terrainBase),
+    vertexColors: TERRAIN_RELIEF_SHADING,
     toneMapped: false
   });
 
