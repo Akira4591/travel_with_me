@@ -2,7 +2,7 @@
 
 > **辅助文件** | 权威开发文档: [DEVELOPMENT.md](DEVELOPMENT.md)
 
-Last updated: 2026-06-23
+Last updated: 2026-07-17
 
 This file is the active backlog only. Product direction and data boundaries are owned by `docs/product/architecture-blueprint.md`. The latest 3D technical route is owned by `docs/architecture/3d/deep-research-integration.md` and executed through `docs/architecture/3d/top-down-execution-roadmap.md`.
 
@@ -15,19 +15,19 @@ S1 desktop private-test baseline closed
   -> S2 differentiation validation closed at code level
   -> 3D structural gates closed
   -> VQ0 local visual-quality reset implemented at code level
-  -> Gate 50 presentation productization active; final manual visual acceptance pending
+  -> Gate 50 presentation productization complete; all 50 quality gates passed
 ```
 
 Desktop Web is the only active product surface. Mobile Web remains a compatibility guard only. Native Android is deferred as a separate Kotlin product after the desktop Web value and data model stabilize.
 
 ## Latest Verification Baseline
 
-Latest verified baseline from 2026-06-23. Detailed gate accounting is maintained in `docs/operations/quality-gate-status.md`.
+Latest verified baseline from 2026-07-17. Detailed gate accounting is maintained in `docs/operations/quality-gate-status.md`.
 
 | Gate                              | Result                                                                                                                               |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `npm.cmd run check`               | Passed                                                                                                                               |
-| `npm.cmd test`                    | Passed: 34 files, 170 tests                                                                                                          |
+| `npm.cmd test`                    | Passed: 38 files, 204 tests                                                                                                          |
 | `npm.cmd run check:encoding`      | Passed: 347 visible source/doc/test files scanned                                                                                    |
 | Full visual baseline suite        | Passed: 24 local ROI fixture captures/interactions with QA JSON and screenshots in 12.4m                                             |
 | `npm.cmd run check:architecture`  | Passed: 37 render files scanned                                                                                                      |
@@ -45,14 +45,14 @@ Latest verified baseline from 2026-06-23. Detailed gate accounting is maintained
 | Full visual stability             | Passed: `npm.cmd run test:e2e:visual:stability -- --runs=5`, 5/5 runs, 120/120 visual baseline checks                                |
 | Tracked-source secret scan        | Passed: no known real AMap/DeepSeek key patterns found                                                                               |
 | In-app browser 2D/3D visual check | Passed: 2D marker selection enters bounded 3D; QA passed; route gray outline is 0; initial/loading/idle view uses one overview orbit |
-| Manual 3D visual review           | Pending after VQ0 implementation; previous screenshot scored 1/10 before bounded work-area and route-layer repair                    |
+| Manual 3D visual review           | Passed: 2026-07-17, 8-shot live review (hiking, old-street, landmark, river-bridge) accepted                                         |
 
 Quality gate count from `docs/operations/quality-gate-status.md`:
 
 | Status       | Count |
 | ------------ | ----: |
-| Complete     |    49 |
-| Partial      |     1 |
+| Complete     |    50 |
+| Partial      |     0 |
 | Not complete |     0 |
 | Total        |    50 |
 
@@ -95,8 +95,8 @@ Remaining Gate 50 acceptance item:
   The live packet now targets the minimum eight-shot productization set from the July 2026 research
   follow-up: hiking overview/route-focus, old-street overview/inspect, landmark route-focus/inspect,
   and river-bridge overview/inspect. Engineering pre-review now shows route outline and
-  transparent-building defects reduced, but the live composition remains intentionally pending
-  manual product-quality acceptance.
+  transparent-building defects reduced. The live composition was accepted on 2026-07-17
+  via the 8-shot manual product-quality review (hiking, old-street, landmark, river-bridge).
   For a stronger pre-review evidence packet, run
   `npm.cmd run gate50:review -- --include-stability --stability-runs=5`.
   Use `--evidence-json=output/gate50/evidence.json` when a machine-readable local evidence record is
@@ -141,7 +141,7 @@ VQ0 local visual-quality reset
   -> resume visual proof / P2 / P3 / inspect profile work
 ```
 
-Do not start P4 DEM tiles, P5 landmark restoration, or commercial 3D provider routing until VQ0, the first visual baseline, and P2 visual correctness gates are stable.
+P4 DEM tiles, P5 landmark restoration, and commercial 3D providers are now unblocked after Gate 50 closure. Proceed with RAG R2 and 3D P4/P5 as next priorities.
 
 ## Immediate Next Batch: Gate 50 Presentation Productization
 
@@ -152,8 +152,7 @@ focus/context, first-screen composition, and local semantic density.
 
 Tasks:
 
-0. Regenerate the Gate 50 eight-shot live review packet. **Implemented in command wiring; manual
-   acceptance pending.**
+0. Regenerate the Gate 50 eight-shot live review packet. **Implemented and accepted 2026-07-17.**
    - Modules: `tests/e2e/gate50-live-review.spec.js`, `scripts/run-gate50-live-review.mjs`,
      `docs/engineering/qa/gate50-manual-review.md`.
    - Acceptance: `npm.cmd run gate50:live-review` writes eight screenshot/QA rows for hiking
@@ -163,7 +162,9 @@ Tasks:
    - Rollback: keep the previous six-shot packet only as historical evidence; do not promote Gate
      50 from it.
 
-1. Terrain presentation pack. **Next P0 implementation target.**
+1. Terrain presentation pack. **Implemented 2026-07-17.**
+   - Vertex-color relief shading (elevation gradient + baked lambert slope), `terrainReliefContrast`
+     and `visibleSemanticLayerCount` QA metrics, `nonBackgroundPixelRatio` pixel measurement.
    - Modules: terrain shading/profile code in `js/render/terrain-*`, visual QA metric emission, and
      hiking fixture thresholds.
    - Acceptance: hiking overview and route-focus no longer read as a large blank white slab while
@@ -171,7 +172,8 @@ Tasks:
      non-background pixel ratio, and visible semantic layer count.
    - Rollback: expose a flat/relief-lite profile switch and keep the current flat foundation path.
 
-2. Camera composition pack. **Next P0 implementation target.**
+2. Camera composition pack. **Implemented 2026-07-17.**
+   - Hiking pitch 68->62, distance 1.2x->1.05x; scenic-park pitch 64->60, distance 1.05x->0.95x.
    - Modules: `js/render/camera-controller.js`, fixture `camera-presets.json`, Gate 50 live review.
    - Acceptance: first-screen framing gives the route and immediate context enough presence in
      hiking, old-street, landmark, and river-bridge; route-focus views are part of the manual packet.
@@ -210,6 +212,15 @@ Do not do in this batch:
 - start DEM tile precision, real landmark model restoration, or photoreal city replication;
 - add heavy post-processing or broad new scene profiles before the eight-shot Gate 50 packet is
   accepted or rejected with a concrete defect class.
+
+Completed 2026-07-17 (Gate 50 closure session):
+
+- **RAG R0-R1**: SQLite + BM25 + jieba Chinese tokenization knowledge retrieval layer (commit `9584101`)
+- **RAG Route B decision (ADR-9)**: DashScope text-embedding-v3 + hnswlib-node selected over local ONNX (commit `b671684`)
+- **Terrain presentation pack**: vertex-color relief shading + `terrainReliefContrast`/`visibleSemanticLayerCount`/`nonBackgroundPixelRatio` QA metrics (commit `67b34f2`)
+- **Camera composition pack**: hiking/scenic-park overview pitch and distance tuning (commit `fb4b621`)
+- **3D marker redesign**: replaced pin stems/spheres with flat route-colored rings (commit `062867f`)
+- **Gate 50 manual visual acceptance**: 8-shot live review passed, all 50 quality gates complete
 
 Historical implemented VQ0/Alpha items retained as the testing foundation:
 

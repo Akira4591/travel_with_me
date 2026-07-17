@@ -4,19 +4,14 @@
 
 ## Current next-stage focus
 
-The active desktop Web branch is now Gate 50 presentation productization:
+Gate 50 visual acceptance passed on 2026-07-17. All 50 quality gates are now complete.
 
-```text
-bounded 3D work area
-  -> 2D route-style surface projection
-  -> terrain presentation
-  -> camera composition
-  -> urban semantic density
-  -> QA v2 / Gate 50 manual decision
-```
+Current active workstreams:
 
-Do not start P4 DEM tiles, P5 landmark restoration, commercial 3D providers, or mobile-first work
-until Gate 50 accepts the bounded local diorama.
+- **RAG R2**: DashScope embedding + hnswlib-node (per ADR-9, Route B)
+- **3D P4**: DEM tile terrain (unblocked now that Gate 50 is closed)
+- **3D P5**: Landmark restoration (unblocked)
+- **Commercialization Phase 1**: security hardening, API rate limits, data export
 
 Current 3D route design: the 3D route is not a hard-coded industrial-yellow line. It is the active
 2D page route projected onto valid 3D surfaces with the same color, width, dash state, and selected
@@ -119,7 +114,7 @@ npm run dev
 
 ```bash
 npm run check       # Prettier 格式检查 + ESLint
-npm test            # 运行单元测试（当前基线 21 files, 103 tests）
+npm test            # 运行单元测试（当前基线 38 files, 204 tests）
 npm run test:guide-import # 运行 AI 攻略导入离线评测
 npm run test:e2e    # 运行 Playwright 桌面主线 smoke + 移动端基础回归
 npm run test:watch  # 测试持续监听模式
