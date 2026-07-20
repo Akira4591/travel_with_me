@@ -20,6 +20,13 @@ const EXIT_DURATION = 900;
 
 export { EXIT_DURATION };
 
+function prefersReducedMotion() {
+  return (
+    typeof window !== 'undefined' &&
+    window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches
+  );
+}
+
 export function shouldFreezeEmergenceForVisualQa() {
   return Boolean(globalThis.window?.__visualFreezeEmergence);
 }
@@ -31,6 +38,13 @@ function updateThreeDebug(diorama) {
 
 export function animateEmergence(diorama, bounds) {
   return new Promise(resolve => {
+    if (prefersReducedMotion()) {
+      applyEmergenceProgress(diorama, bounds, 1);
+      updateGenerationTimeline(diorama, 1, true);
+      resolve();
+      return;
+    }
+
     const startTime = performance.now();
     diorama.generationTimeline = createGenerationTimeline();
     applyEmergenceProgress(diorama, bounds, 0);
@@ -128,6 +142,19 @@ export function animateExit(diorama) {
   const { dioramaGroup } = diorama;
 
   return new Promise(resolve => {
+    if (prefersReducedMotion()) {
+      dioramaGroup.position.y = 0;
+      setTerrainReveal(diorama.terrainMesh, 1);
+      setGroundAssetReveal(diorama.waterGroup, 1);
+      setGroundAssetReveal(diorama.roadGroup, 1);
+      setGroundAssetReveal(diorama.routeGroup, 1);
+      setStaticGroupReveal(diorama.bridgeGroup, 1);
+      setBuildingReveal(diorama, 1);
+      setOverlayVisibility(diorama, true);
+      resolve();
+      return;
+    }
+
     const startTime = performance.now();
     const startY = dioramaGroup.position.y;
 

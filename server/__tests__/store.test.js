@@ -3,6 +3,7 @@ import { initDB, closeDB } from '../rag/db.js';
 import {
   saveGuide,
   getGuide,
+  getGuidesByIds,
   listGuides,
   softDeleteGuide,
   getAllActiveGuides,
@@ -109,5 +110,55 @@ describe('store', () => {
     saveGuide({ city: 'A', guide_type: 't', source_text: 'a', extracted: '{}', token_count: 1 });
     saveGuide({ city: 'B', guide_type: 't', source_text: 'b', extracted: '{}', token_count: 1 });
     expect(getActiveGuideCount()).toBe(2);
+  });
+
+  it('getGuidesByIds fetches multiple guides in one query', () => {
+    const id1 = saveGuide({
+      city: 'A',
+      guide_type: 't',
+      source_text: 'a',
+      extracted: '{}',
+      token_count: 1
+    });
+    const id2 = saveGuide({
+      city: 'B',
+      guide_type: 't',
+      source_text: 'b',
+      extracted: '{}',
+      token_count: 1
+    });
+    const id3 = saveGuide({
+      city: 'C',
+      guide_type: 't',
+      source_text: 'c',
+      extracted: '{}',
+      token_count: 1
+    });
+
+    const guides = getGuidesByIds([id1, id2, id3]);
+    expect(guides).toHaveLength(3);
+    expect(guides[0].id).toBe(id1);
+    expect(guides[1].id).toBe(id2);
+    expect(guides[2].id).toBe(id3);
+  });
+
+  it('getGuidesByIds returns null for non-existent ids and preserves order', () => {
+    const id1 = saveGuide({
+      city: 'A',
+      guide_type: 't',
+      source_text: 'a',
+      extracted: '{}',
+      token_count: 1
+    });
+    const fakeId = 'guide-nonexistent-123';
+
+    const guides = getGuidesByIds([id1, fakeId]);
+    expect(guides).toHaveLength(2);
+    expect(guides[0].id).toBe(id1);
+    expect(guides[1]).toBeNull();
+  });
+
+  it('getGuidesByIds returns empty array for empty input', () => {
+    expect(getGuidesByIds([])).toEqual([]);
   });
 });

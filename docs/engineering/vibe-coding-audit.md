@@ -210,42 +210,42 @@ Delete entirely:
 
 ### P0 - Critical/High (do first)
 
-| #   | Action                                                                     | Issue ID     | Effort |
-| --- | -------------------------------------------------------------------------- | ------------ | ------ |
-| 1   | Rotate API keys in .env                                                    | C-1          | 30min  |
-| 2   | Add AMAP_WEB_SERVICE_KEY to .env.example, make DEEPSEEK_MODEL configurable | H-3, M-3     | 1h     |
-| 3   | Add process-level error handlers                                           | H-2          | 1h     |
-| 4   | Add integration tests for server/index.js                                  | H-4          | 4h     |
-| 5   | Split map-3d.js into focused modules                                       | H-5          | 8h     |
-| 6   | Throttle updateThreeDebug()                                                | H-6          | 2h     |
-| 7   | Remove dead code (safe-timer.js, \_buildSliceEdge, etc.)                   | H-1, L-1~L-6 | 2h     |
+| #   | Action                                                                     | Issue ID     | Effort | Status       |
+| --- | -------------------------------------------------------------------------- | ------------ | ------ | ------------ |
+| 1   | Rotate API keys in .env                                                    | C-1          | 30min  | User action  |
+| 2   | Add AMAP_WEB_SERVICE_KEY to .env.example, make DEEPSEEK_MODEL configurable | H-3, M-3     | 1h     | ✅ `c683648` |
+| 3   | Add process-level error handlers                                           | H-2          | 1h     | ✅ `c683648` |
+| 4   | Add integration tests for server/index.js                                  | H-4          | 4h     | ✅ `eb148c8` |
+| 5   | Split map-3d.js into focused modules                                       | H-5          | 8h     | ✅ `2ecf0b7` |
+| 6   | Throttle updateThreeDebug()                                                | H-6          | 2h     | ✅ `467632f` |
+| 7   | Remove dead code (safe-timer.js, \_buildSliceEdge, etc.)                   | H-1, L-1~L-6 | 2h     | ✅ `346a1ad` |
 
 ### P1 - Medium (do next)
 
-| #   | Action                                       | Issue ID  | Effort |
-| --- | -------------------------------------------- | --------- | ------ |
-| 8   | Extract shared math-utils.js                 | M-8       | 2h     |
-| 9   | Add coverage thresholds to vitest.config.js  | M-10      | 30min  |
-| 10  | Add geoAssetCache size limit (LRU)           | M-4       | 1h     |
-| 11  | Add Dockerfile HEALTHCHECK + non-root user   | M-12      | 1h     |
-| 12  | Add focus trap to modals                     | M-13      | 2h     |
-| 13  | Make 3D canvas keyboard accessible           | M-14      | 1h     |
-| 14  | Implement or remove 3 QA metric stubs        | M-2       | 2h     |
-| 15  | Remove terrainMode.cameraPitchDeg dead code  | M-1       | 30min  |
-| 16  | Add eslint rules for test files (not ignore) | L-9, L-18 | 1h     |
+| #   | Action                                       | Issue ID  | Effort | Status       |
+| --- | -------------------------------------------- | --------- | ------ | ------------ |
+| 8   | Extract shared math-utils.js                 | M-8       | 2h     | ✅ `378f61a` |
+| 9   | Add coverage thresholds to vitest.config.js  | M-10      | 30min  | ✅ `2b141c1` |
+| 10  | Add geoAssetCache size limit (LRU)           | M-4       | 1h     | ✅ `2b141c1` |
+| 11  | Add Dockerfile HEALTHCHECK + non-root user   | M-12      | 1h     | ✅ `2b141c1` |
+| 12  | Add focus trap to modals                     | M-13      | 2h     | ✅ `2b141c1` |
+| 13  | Make 3D canvas keyboard accessible           | M-14      | 1h     | ✅ `2b141c1` |
+| 14  | Implement or remove 3 QA metric stubs        | M-2       | 2h     | ✅ `2b141c1` |
+| 15  | Remove terrainMode.cameraPitchDeg dead code  | M-1       | 30min  | ✅ `2b141c1` |
+| 16  | Add eslint rules for test files (not ignore) | L-9, L-18 | 1h     | ✅ `2b141c1` |
 
 ### P2 - Low (batch cleanup)
 
-| #   | Action                                    | Issue ID | Effort |
-| --- | ----------------------------------------- | -------- | ------ |
-| 17  | Add prefers-reduced-motion for 3D         | L-14     | 1h     |
-| 18  | Add skip-to-content link                  | L-15     | 30min  |
-| 19  | Expand .dockerignore                      | L-16     | 30min  |
-| 20  | Add jscpd + knip to CI                    | -        | 2h     |
-| 21  | Add E2E test for 3D mode toggle           | M-11     | 2h     |
-| 22  | Optimize RAG N+1 query pattern            | L-10     | 1h     |
-| 23  | Cache computeTerrainReliefContrast result | L-11     | 30min  |
-| 24  | Add user-facing error recovery UI         | M-7      | 2h     |
+| #   | Action                                    | Issue ID | Effort | Status       |
+| --- | ----------------------------------------- | -------- | ------ | ------------ |
+| 17  | Add prefers-reduced-motion for 3D         | L-14     | 1h     | ✅ Done      |
+| 18  | Add skip-to-content link                  | L-15     | 30min  | ✅ Done      |
+| 19  | Expand .dockerignore                      | L-16     | 30min  | ✅ Done      |
+| 20  | Add jscpd + knip to CI                    | -        | 2h     | ✅ Done      |
+| 21  | Add E2E test for 3D mode toggle           | M-11     | 2h     | ✅ Done      |
+| 22  | Optimize RAG N+1 query pattern            | L-10     | 1h     | ✅ Done      |
+| 23  | Cache computeTerrainReliefContrast result | L-11     | 30min  | ✅ `467632f` |
+| 24  | Add user-facing error recovery UI         | M-7      | 2h     | ✅ Done      |
 
 ---
 

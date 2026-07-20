@@ -1,5 +1,5 @@
 import { tokenizeQuery } from './tokenizer.js';
-import { getGuide } from './store.js';
+import { getGuidesByIds } from './store.js';
 
 export function retrieveGuides(bm25Index, queryText, { topK = 3, maxSnippetLength = 500 } = {}) {
   if (!queryText || bm25Index.docCount === 0) return [];
@@ -10,14 +10,16 @@ export function retrieveGuides(bm25Index, queryText, { topK = 3, maxSnippetLengt
   const results = bm25Index.search(tokens, { topK: topK * 2 });
   if (!results.length) return [];
 
+  const guides = getGuidesByIds(results.map(r => r.docId));
+
   const formatted = [];
-  for (const result of results) {
-    const guide = getGuide(result.docId);
+  for (let i = 0; i < results.length; i += 1) {
+    const guide = guides[i];
     if (!guide || guide.deleted) continue;
 
     formatted.push({
-      id: result.docId,
-      score: result.score,
+      id: results[i].docId,
+      score: results[i].score,
       city: guide.city,
       guideType: guide.guide_type,
       snippet: guide.source_text.substring(0, maxSnippetLength)

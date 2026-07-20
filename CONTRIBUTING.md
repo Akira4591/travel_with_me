@@ -65,7 +65,7 @@ npm run check    # 格式 + lint 一并检查
 ### 测试
 
 ```bash
-npm test            # 单元测试（当前基线 38 files, 204 tests）
+npm test            # 单元测试（当前基线 39 files, 244 tests）
 npm run test:watch  # 持续监听
 npm run test:e2e    # 浏览器级 E2E 测试（Playwright）
 ```

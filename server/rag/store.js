@@ -18,6 +18,15 @@ export function getGuide(id) {
   return db.prepare('SELECT * FROM guides WHERE id = ?').get(id);
 }
 
+export function getGuidesByIds(ids) {
+  if (!ids.length) return [];
+  const db = getDB();
+  const placeholders = ids.map(() => '?').join(', ');
+  const rows = db.prepare(`SELECT * FROM guides WHERE id IN (${placeholders})`).all(...ids);
+  const map = new Map(rows.map(r => [r.id, r]));
+  return ids.map(id => map.get(id) || null);
+}
+
 export function listGuides({ limit = 50, offset = 0 } = {}) {
   const db = getDB();
   return db

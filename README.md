@@ -114,7 +114,7 @@ npm run dev
 
 ```bash
 npm run check       # Prettier 格式检查 + ESLint
-npm test            # 运行单元测试（当前基线 38 files, 204 tests）
+npm test            # 运行单元测试（当前基线 39 files, 244 tests）
 npm run test:guide-import # 运行 AI 攻略导入离线评测
 npm run test:e2e    # 运行 Playwright 桌面主线 smoke + 移动端基础回归
 npm run test:watch  # 测试持续监听模式
