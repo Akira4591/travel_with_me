@@ -50,7 +50,7 @@ const ELEVATION_PREFIX = '/_elevation';
 const GEO_ASSETS_PREFIX = '/_geo-assets';
 const AI_PREFIX = '/_ai';
 const OVERPASS_ENDPOINT = 'https://overpass-api.de/api/interpreter';
-const DEEPSEEK_MODEL = 'deepseek-v4-flash';
+const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
 const DEEPSEEK_JSON_ATTEMPTS = 2;
 const DEEPSEEK_TIMEOUT_MS = readPositiveInt(process.env.DEEPSEEK_TIMEOUT_MS, 90000);
 const GUIDE_PROMPT_TEMPLATE = loadGuidePromptTemplate();
@@ -770,6 +770,14 @@ app.use('/three/*', serveStatic({ root: './node_modules' }));
 
 serve({ fetch: app.fetch, port: PORT }, info => {
   console.log(`[trip-app] 已启动：http://localhost:${info.port}`);
+});
+
+process.on('uncaughtException', err => {
+  console.error('[trip-app] uncaughtException:', err);
+});
+
+process.on('unhandledRejection', reason => {
+  console.error('[trip-app] unhandledRejection:', reason);
 });
 
 function loadDotenv() {
