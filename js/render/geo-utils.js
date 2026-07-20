@@ -109,3 +109,37 @@ export function disposeSceneObject(object) {
     materials.filter(Boolean).forEach(material => material.dispose?.());
   });
 }
+
+const DIORAMA_DATASET_KEYS = [
+  'annotationCount',
+  'buildingDetailCount',
+  'buildingCount',
+  'elevationRange',
+  'vegetationTemplateCount',
+  'waterwayCount',
+  'bridgeCount',
+  'roadCount',
+  'waterCarveCount',
+  'routeGeometryCount',
+  'routeHash',
+  'routeLengthMeters',
+  'routeEndpointKey',
+  'workAreaSource',
+  'workAreaSpanMeters',
+  'workAreaHardCapMeters',
+  'workAreaCenter',
+  'workAreaAnchorAdjusted',
+  'workAreaAnchorDistanceMeters',
+  'workAreaAnchorType',
+  'firstSlabMs',
+  'provenanceSourceCount',
+  'terrainMode',
+  'terrainConfidence'
+];
+
+export function clearDioramaDataset(container) {
+  for (const key of DIORAMA_DATASET_KEYS) {
+    delete container.dataset[key];
+  }
+  container.querySelector('.terrain-insight-panel')?.remove();
+}

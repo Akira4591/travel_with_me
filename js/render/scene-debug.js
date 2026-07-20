@@ -173,6 +173,11 @@ export function publishDioramaDebug(diorama, sceneContext) {
   return debug;
 }
 
+export function updateThreeDebug(diorama) {
+  const debug = publishDioramaDebug(diorama, diorama.sceneBuildContext);
+  diorama.debug = debug;
+}
+
 export function countVisibleMeshes(root) {
   if (!root) return 0;
   let count = 0;

@@ -107,3 +107,27 @@ export function getCameraControlDistances(sceneSpan, terrainMode) {
     maxDistance: Math.max(minDistance * 4, sceneSpan * 2.1)
   };
 }
+
+export function animateCameraFocus(
+  camera,
+  controls,
+  startPosition,
+  startTarget,
+  endPosition,
+  endTarget
+) {
+  const duration = 520;
+  const start = performance.now();
+  return new Promise(resolve => {
+    const frame = now => {
+      const t = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3);
+      camera.position.lerpVectors(startPosition, endPosition, eased);
+      controls.target.lerpVectors(startTarget, endTarget, eased);
+      controls.update();
+      if (t < 1) requestAnimationFrame(frame);
+      else resolve();
+    };
+    requestAnimationFrame(frame);
+  });
+}

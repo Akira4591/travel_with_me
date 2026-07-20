@@ -1,7 +1,9 @@
 // js/render/map-3d.js
-// Three.js planning diorama renderer.
+// Three.js planning diorama renderer — core orchestration.
 //
 // Design contract: see ARCHITECTURE.md ADR-6 and docs/architecture/3d/top-down-execution-roadmap.md.
+// Extracted modules: camera-pose, terrain-renderer, marker-renderer, vegetation-renderer,
+// emergence-animation, lighting, scene-builder, route-interaction, visual-debug, math-utils, geo-utils.
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -9,29 +11,20 @@ import { createGeoProjection } from './geo-project.js';
 import { createLogger } from '../logger.js';
 import { chooseTerrainMode } from './terrain-mode.js?v=20260621-region-grid-v2';
 import { createTerrainModel } from './terrain-model.js';
-import { getAppState } from '../state.js';
 import { createSceneBuildContext } from './scene-build-context.js';
-import { publishDioramaDebug } from './scene-debug.js';
-import { buildBridgeGroup, buildRoadGroup, buildWaterGroup } from './geo-asset-renderer.js';
-import { buildRouteGroup, set3DRouteHighlight } from './route-guidance-renderer.js';
-import { buildBuildingGroup } from './building-massing-renderer.js';
-import {
-  didBuildingLodSignatureChange,
-  getBuildingDetailAlpha,
-  updateBuildingLod
-} from './building-dissolve-renderer.js';
+import { updateThreeDebug } from './scene-debug.js';
+import { didBuildingLodSignatureChange, updateBuildingLod } from './building-dissolve-renderer.js';
 import {
   animateEmergence,
   applyEmergenceProgress,
   animateExit,
-  shouldFreezeEmergenceForVisualQa,
-  updateGenerationTimeline
+  shouldFreezeEmergenceForVisualQa
 } from './emergence-animation.js';
-import { createCameraController, getCameraProfile } from './camera-controller.js';
+import { createCameraController } from './camera-controller.js';
 import { createGenerationTimeline } from './generation-timeline.js';
 import { applyTerrainCarving } from './terrain-carving.js';
 import { setupLighting } from './lighting.js';
-import { clamp, withTimeout } from './math-utils.js';
+import { withTimeout } from './math-utils.js';
 import {
   getBoundsSpan,
   getInitialOverviewCameraPose,
@@ -39,8 +32,6 @@ import {
   getCameraControlDistances
 } from './camera-pose.js';
 import {
-  buildTerrainMesh,
-  buildContextGround,
   getTerrainBounds,
   getTerrainHeightScale,
   renderTerrainInsight
@@ -48,61 +39,35 @@ import {
 import {
   normalizeWorkArea,
   computeRouteLength,
-  formatRouteDistance,
+  collectDayLocations,
   disposeSceneObject,
-  collectDayLocations
+  clearDioramaDataset
 } from './geo-utils.js';
-import { buildMarkerGroup, buildAnnotationGroup } from './marker-renderer.js';
-import { buildVegetationGroup } from './vegetation-renderer.js';
+import { buildAnnotationGroup } from './marker-renderer.js';
+import { buildSceneLayers } from './scene-builder.js';
+import { getTerrainClickPoint } from './route-interaction.js';
+import { installVisualDebugControls } from './visual-debug.js';
 
-export { set3DRouteHighlight };
-export { getBuildingDetailAlpha };
+export { set3DRouteHighlight } from './route-guidance-renderer.js';
+export { getBuildingDetailAlpha } from './building-dissolve-renderer.js';
+export { focus3DRoute } from './route-interaction.js';
 
 const log = createLogger('map-3d');
 
-// Color constants.
-
 const BONE_WHITE = '#FCFAF5';
 
-const C = {
-  building: '#EDE7DC',
-  bgTop: BONE_WHITE,
-  bgBottom: BONE_WHITE
-};
-
-// Render constants.
-
-// Auto orbit resumes after user drag only in overview-like modes.
 const IDLE_RESUME_DELAY = 25000;
 const AUTO_ROTATE_SPEED = 0.5;
-
 const CLICK_MOVE_TOLERANCE = 6;
 const FIRST_SLAB_ELEVATION_BUDGET_MS = 1200;
 
 let instance = null;
 
 /**
- * @typedef {object} DioramaInstance
- * @property {HTMLElement} container
- * @property {THREE.Scene} scene
- * @property {THREE.PerspectiveCamera} camera
- * @property {THREE.WebGLRenderer} renderer
- * @property {OrbitControls} controls
- * @property {THREE.Group} dioramaGroup lifted scene container
- * @property {THREE.Mesh} terrainMesh
- * @property {THREE.Group} buildingGroup
- * @property {THREE.Group} markerGroup
- * @property {THREE.Group} annotationGroup
- * @property {THREE.Group} routeGroup
- * @property {import('./geo-project.js').GeoProjection} proj
- * @property {Function} dispose
- */
-
-/**
  * Create a 3D diorama instance without entering 3D mode immediately.
  * @param {object} options
  * @param {HTMLElement} options.container #map-3d container
- * @returns {Promise<DioramaInstance>}
+ * @returns {Promise<object>}
  */
 export async function initDiorama({ container }) {
   if (instance) return instance;
@@ -110,18 +75,15 @@ export async function initDiorama({ container }) {
   const width = container.clientWidth || 800;
   const height = container.clientHeight || 600;
 
-  // Scene
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(C.bgBottom);
-  scene.fog = new THREE.Fog(C.bgBottom, 220, 900);
+  scene.background = new THREE.Color(BONE_WHITE);
+  scene.fog = new THREE.Fog(BONE_WHITE, 220, 900);
 
-  // Camera
   const camera = new THREE.PerspectiveCamera(50, width / height, 0.5, 2000);
   const initialCameraPose = getInitialOverviewCameraPose();
   camera.position.copy(initialCameraPose.position);
   camera.lookAt(initialCameraPose.target);
 
-  // Renderer
   const renderer = new THREE.WebGLRenderer({
     antialias: true,
     alpha: true,
@@ -135,7 +97,6 @@ export async function initDiorama({ container }) {
   renderer.toneMappingExposure = 1.16;
   container.appendChild(renderer.domElement);
 
-  // Controls
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
@@ -175,14 +136,11 @@ export async function initDiorama({ container }) {
     });
   });
 
-  // Root group lifted by the entrance animation.
   const dioramaGroup = new THREE.Group();
   scene.add(dioramaGroup);
 
-  // 鍏夌収
   setupLighting(scene);
 
-  // 鍔ㄧ敾寰幆
   let animId;
   let lastFrameTime = performance.now();
   const DEBUG_THROTTLE_MS = 500;
@@ -259,11 +217,9 @@ export async function initDiorama({ container }) {
   return instance;
 }
 
-// withTimeout is imported from math-utils.js.
-
 /**
  * Enter 3D mode by loading terrain, building layers, and running emergence animation.
- * @param {DioramaInstance} diorama
+ * @param {object} diorama
  * @param {object} options
  * @param {import('../data/trip.js').Trip} options.trip current trip
  * @param {string} options.activeDayId current day id ('all' | day.id)
@@ -279,7 +235,6 @@ export async function enter3DMode(
   diorama.cameraController?.setEnabled(false);
   diorama.cameraController?.setPhase('emerging');
 
-  // 1. Collect coordinates.
   const locations = collectDayLocations(trip, activeDayId);
   const lnglats = locations.map(loc => loc.lnglat);
   if (!lnglats.length) {
@@ -287,10 +242,9 @@ export async function enter3DMode(
     throw new Error('No valid coordinates; cannot enter 3D mode');
   }
 
-  // 2. Compute projection and scene span.
   const selectedWorkArea = normalizeWorkArea(workArea, lnglats);
   const center = selectedWorkArea.center;
-  const proj = createGeoProjection({ center, scale: 0.5 }); // 1 scene unit ~= 2m
+  const proj = createGeoProjection({ center, scale: 0.5 });
   diorama.proj = proj;
   diorama.workArea = selectedWorkArea;
   const span = selectedWorkArea.spanMeters;
@@ -302,9 +256,6 @@ export async function enter3DMode(
   });
   log.debug('projection center', center, 'span', span, 'terrain mode', terrainMode.id);
 
-  // 3. Load elevation data.
-  // The public DEM endpoint accepts 100 coordinates per request. Cap the remote grid at 28x28
-  // so scenic and hiking views stay below eight paced batches instead of degrading to a flat map.
   const grid = await withTimeout(
     typeof loadElevationGrid === 'function'
       ? loadElevationGrid({
@@ -318,7 +269,6 @@ export async function enter3DMode(
   );
   log.debug('elevation grid', grid ? `${grid.rows}x${grid.cols}` : 'none');
 
-  // 4. Build terrain model and carve water before rendering surfaces.
   const bounds = getTerrainBounds(proj, span);
   const terrainModel = createTerrainModel({
     bounds,
@@ -358,112 +308,21 @@ export async function enter3DMode(
   container.dataset.waterCarveCount = String(terrainModel.carving?.waterwayCount || 0);
   renderTerrainInsight(container, terrainMode, terrainModel, locations.length);
 
-  if (diorama.contextGround) {
-    dioramaGroup.remove(diorama.contextGround);
-  }
-  diorama.contextGround = buildContextGround(terrainModel);
-  dioramaGroup.add(diorama.contextGround);
-
-  if (diorama.terrainMesh) {
-    dioramaGroup.remove(diorama.terrainMesh);
-  }
-  diorama.terrainMesh = buildTerrainMesh(terrainModel);
-  terrainModel.mesh = diorama.terrainMesh;
-  dioramaGroup.add(diorama.terrainMesh);
-
-  if (diorama.waterGroup) dioramaGroup.remove(diorama.waterGroup);
-  diorama.waterGroup = buildWaterGroup(proj, terrainModel, sceneContext.geoAssets.waterways);
-  dioramaGroup.add(diorama.waterGroup);
-  container.dataset.waterwayCount = String(diorama.waterGroup.userData.count || 0);
-
-  if (diorama.roadGroup) dioramaGroup.remove(diorama.roadGroup);
-  diorama.roadGroup = buildRoadGroup(proj, terrainModel, sceneContext.geoAssets.roads);
-  dioramaGroup.add(diorama.roadGroup);
-  container.dataset.roadCount = String(diorama.roadGroup.userData.count || 0);
-
-  if (diorama.bridgeGroup) dioramaGroup.remove(diorama.bridgeGroup);
-  diorama.bridgeGroup = buildBridgeGroup(proj, terrainModel, sceneContext.geoAssets.bridges);
-  dioramaGroup.add(diorama.bridgeGroup);
-  container.dataset.bridgeCount = String(diorama.bridgeGroup.userData.count || 0);
-
-  // 5. Build route before buildings so the guidance line remains the visual anchor.
-  if (diorama.routeGroup) {
-    dioramaGroup.remove(diorama.routeGroup);
-  }
-  diorama.routeGroup = buildRouteGroup(
+  buildSceneLayers(diorama, {
     proj,
     trip,
     activeDayId,
     terrainModel,
     terrainMode,
-    getAppState().activeRouteSegmentId
-  );
-  container.dataset.routeGeometryCount = String(diorama.routeGroup.userData.realGeometryCount || 0);
-  container.dataset.routeHash = diorama.routeGroup.userData.routeHashes?.join(',') || '';
-  container.dataset.routeLengthMeters = String(diorama.routeGroup.userData.routeLengthMeters || 0);
-  container.dataset.routeEndpointKey =
-    diorama.routeGroup.userData.routeEndpointKeys?.join('|') || '';
-  dioramaGroup.add(diorama.routeGroup);
-
-  // 6. Build buildings after the terrain/asset/route skeleton has emerged.
-  if (diorama.buildingGroup) {
-    dioramaGroup.remove(diorama.buildingGroup);
-  }
-  diorama.buildingGroup = buildBuildingGroup(
-    proj,
-    locations,
-    terrainModel,
-    sceneContext.geoAssets,
-    {
-      buildingColor: C.building
-    }
-  );
-  diorama.buildingLodEntries = diorama.buildingGroup.userData.lodEntries || [];
-  container.dataset.buildingCount = String(diorama.buildingGroup.userData.count || 0);
-  dioramaGroup.add(diorama.buildingGroup);
-
-  // Vegetation is data-gated and appears after the route to avoid hiding guidance.
-  if (diorama.vegetationGroup) dioramaGroup.remove(diorama.vegetationGroup);
-  diorama.vegetationGroup = buildVegetationGroup(
-    proj,
-    terrainModel,
-    sceneContext.geoAssets.landcover
-  );
-  dioramaGroup.add(diorama.vegetationGroup);
-  container.dataset.vegetationTemplateCount = String(
-    diorama.vegetationGroup.userData.templateCount || 0
-  );
-
-  // 7. Build POI markers.
-  if (diorama.markerGroup) {
-    dioramaGroup.remove(diorama.markerGroup);
-  }
-  diorama.markerGroup = buildMarkerGroup(proj, trip, activeDayId, terrainModel);
-  dioramaGroup.add(diorama.markerGroup);
-
-  // 8. Build 3D annotations.
-  if (diorama.annotationGroup) {
-    dioramaGroup.remove(diorama.annotationGroup);
-  }
-  diorama.annotationGroup = buildAnnotationGroup(proj, trip, terrainModel);
-  container.dataset.annotationCount = String(diorama.annotationGroup.userData.count || 0);
-  container.dataset.buildingDetailCount = '0';
-  dioramaGroup.add(diorama.annotationGroup);
+    sceneContext,
+    locations
+  });
   updateThreeDebug(diorama);
 
-  // 9. Keep terrain unboxed; do not render finite slice edges.
-  if (diorama.sliceEdge) {
-    dioramaGroup.remove(diorama.sliceEdge);
-  }
-  diorama.sliceEdge = null;
-  terrainModel.sideSkirts = null;
-
-  // 10. Show container and start emergence animation.
   container.hidden = false;
   container.dataset.firstSlabMs = String(Math.round(performance.now() - enterStartedAt));
   renderer.setSize(container.clientWidth, container.clientHeight);
 
-  // Initialize camera on the same orbit used by idle overview mode.
   const sceneSpan = getBoundsSpan(bounds);
   camera.far = Math.max(2000, sceneSpan * 6);
   camera.updateProjectionMatrix();
@@ -489,10 +348,8 @@ export async function enter3DMode(
     return;
   }
 
-  // Run emergence animation.
   await animateEmergence(diorama, bounds);
 
-  // Keep the first steady frame on the same orbit as the entry frame.
   applyOverviewCameraPose(diorama, bounds);
   diorama.cameraController?.setSceneContext({
     terrainModel,
@@ -510,7 +367,7 @@ export async function enter3DMode(
 
 /**
  * Exit 3D mode with a reverse animation and geometry cleanup.
- * @param {DioramaInstance} diorama
+ * @param {object} diorama
  */
 export async function exit3DMode(diorama) {
   const { dioramaGroup, controls, container } = diorama;
@@ -518,10 +375,8 @@ export async function exit3DMode(diorama) {
   diorama.cameraController?.setPhase('exiting');
   controls.autoRotate = false;
 
-  // Reverse animation: lower the lifted group and hide layers.
   await animateExit(diorama);
 
-  // Cleanup scene layers.
   [
     diorama.terrainMesh,
     diorama.waterGroup,
@@ -545,29 +400,7 @@ export async function exit3DMode(diorama) {
   diorama.contextGround = null;
   diorama.annotationGroup = null;
   diorama.sliceEdge = null;
-  delete container.dataset.annotationCount;
-  delete container.dataset.buildingDetailCount;
-  delete container.dataset.buildingCount;
-  delete container.dataset.elevationRange;
-  delete container.dataset.vegetationTemplateCount;
-  delete container.dataset.waterwayCount;
-  delete container.dataset.bridgeCount;
-  delete container.dataset.roadCount;
-  delete container.dataset.waterCarveCount;
-  delete container.dataset.routeGeometryCount;
-  delete container.dataset.routeHash;
-  delete container.dataset.routeLengthMeters;
-  delete container.dataset.routeEndpointKey;
-  delete container.dataset.workAreaSource;
-  delete container.dataset.workAreaSpanMeters;
-  delete container.dataset.workAreaHardCapMeters;
-  delete container.dataset.workAreaCenter;
-  delete container.dataset.workAreaAnchorAdjusted;
-  delete container.dataset.workAreaAnchorDistanceMeters;
-  delete container.dataset.workAreaAnchorType;
-  delete container.dataset.firstSlabMs;
-  delete container.dataset.provenanceSourceCount;
-  container.querySelector('.terrain-insight-panel')?.remove();
+  clearDioramaDataset(container);
   if (typeof window !== 'undefined') delete window.__threeDebug__;
   container.hidden = true;
 }
@@ -583,182 +416,3 @@ export function refresh3DAnnotations(diorama, { trip }) {
   updateThreeDebug(diorama);
   return diorama.annotationGroup.userData.count || 0;
 }
-
-function getTerrainClickPoint(raycaster, diorama) {
-  const [hit] = raycaster.intersectObject(diorama.terrainMesh, false);
-  if (hit?.point) return hit.point.clone();
-
-  const ray = raycaster.ray;
-  const targetY = Number(diorama.controls?.target?.y);
-  if (!Number.isFinite(targetY) || Math.abs(ray.direction.y) < 0.001) return null;
-  const t = (targetY - ray.origin.y) / ray.direction.y;
-  if (t < 0) return null;
-
-  const point = ray.origin.clone().addScaledVector(ray.direction, t);
-  const bounds = diorama.terrainModel?.bounds;
-  if (!bounds) return null;
-
-  point.x = clamp(point.x, bounds.minX, bounds.maxX);
-  point.z = clamp(point.z, bounds.minZ, bounds.maxZ);
-  point.y =
-    (Number(diorama.terrainModel?.heightAt?.(point.x, point.z)) || 0) +
-    (Number(diorama.dioramaGroup?.position?.y) || 0);
-  return point;
-}
-
-// Terrain geometry is imported from terrain-renderer.js.
-
-/**
- * Reuse the 2D route segmentId in 3D and focus the camera on the rendered route.
- */
-export function focus3DRoute(diorama, segmentId) {
-  if (!set3DRouteHighlight(diorama, segmentId)) return Promise.resolve(false);
-  const segmentGroup = diorama.routeGroup.getObjectByName(segmentId);
-  const focusPoint = segmentGroup?.userData?.focusPoint;
-  if (!focusPoint) return Promise.resolve(false);
-
-  const { camera, controls } = diorama;
-  diorama.cameraController?.setMode('route-focus');
-  const startPosition = camera.position.clone();
-  const startTarget = controls.target.clone();
-  const offset = startPosition.clone().sub(startTarget);
-  const segmentSpan = segmentGroup.userData.focusSpan || controls.minDistance;
-  const distance = THREE.MathUtils.clamp(
-    Math.max(segmentSpan * 0.36, controls.minDistance * 1.15),
-    controls.minDistance,
-    controls.maxDistance
-  );
-  const direction = offset.normalize();
-  const target = focusPoint.clone();
-  target.y += diorama.dioramaGroup.position.y;
-  const endPosition = target.clone().addScaledVector(direction, distance);
-  endPosition.y = Math.max(endPosition.y, target.y + distance * 0.48);
-
-  controls.autoRotate = false;
-  renderRouteInsight(diorama, segmentGroup);
-  return animateCameraFocus(camera, controls, startPosition, startTarget, endPosition, target).then(
-    () => true
-  );
-}
-
-function animateCameraFocus(camera, controls, startPosition, startTarget, endPosition, endTarget) {
-  const duration = 520;
-  const start = performance.now();
-  return new Promise(resolve => {
-    const frame = now => {
-      const t = Math.min((now - start) / duration, 1);
-      const eased = 1 - Math.pow(1 - t, 3);
-      camera.position.lerpVectors(startPosition, endPosition, eased);
-      controls.target.lerpVectors(startTarget, endTarget, eased);
-      controls.update();
-      if (t < 1) requestAnimationFrame(frame);
-      else resolve();
-    };
-    requestAnimationFrame(frame);
-  });
-}
-
-// renderTerrainInsight is imported from terrain-renderer.js.
-
-function updateThreeDebug(diorama) {
-  const debug = publishDioramaDebug(diorama, diorama.sceneBuildContext);
-  diorama.debug = debug;
-}
-
-function renderRouteInsight(diorama, segmentGroup) {
-  const panel = diorama.container.querySelector('.terrain-insight-panel');
-  if (!panel) return;
-  const metrics = segmentGroup.userData.metrics || {};
-  const confidence = diorama.terrainModel?.terrainConfidence;
-  const distance = formatRouteDistance(metrics.distanceMeters);
-  const ascent =
-    confidence === 'flat-fallback'
-      ? '高程估算'
-      : `累计爬升 +${Math.max(0, metrics.ascentMeters || 0)}m`;
-  const pathState = segmentGroup.userData.isEstimated ? '估算路径' : '真实路径';
-  panel.innerHTML = `
-    <div class="terrain-insight-title">路线地形引导</div>
-    <div class="terrain-insight-meta">
-      <span>${pathState}</span>
-      <span>${distance}</span>
-      <span>${ascent}</span>
-    </div>
-  `;
-}
-
-// Visual debug controls (test/exposure hooks).
-
-function installVisualDebugControls(diorama, bounds, { allowEmergenceProgress = false } = {}) {
-  if (typeof window === 'undefined' || !window.__visualExpose3DControls) return;
-  const controls = {
-    async focusRoute(segmentId) {
-      const focused = await focus3DRoute(diorama, segmentId);
-      updateThreeDebug(diorama);
-      return { focused, debug: window.__threeDebug };
-    },
-    setCameraPreset(name, preset = {}) {
-      const applied = applyVisualCameraPreset(diorama, bounds, name, preset);
-      updateThreeDebug(diorama);
-      return { applied, debug: window.__threeDebug };
-    }
-  };
-  if (allowEmergenceProgress) {
-    controls.setEmergenceProgress = progress => {
-      applyEmergenceProgress(diorama, bounds, progress);
-      return window.__threeDebug;
-    };
-    controls.finishEmergence = () => {
-      applyEmergenceProgress(diorama, bounds, 1);
-      updateGenerationTimeline(diorama, 1, true);
-      updateThreeDebug(diorama);
-      return window.__threeDebug;
-    };
-  }
-  window.__threeDebugControls = controls;
-}
-
-function applyVisualCameraPreset(diorama, bounds, name, preset = {}) {
-  if (!diorama?.camera || !diorama?.controls) return false;
-  const { camera, controls, dioramaGroup, proj } = diorama;
-  const span = getBoundsSpan(bounds);
-  const cx = (bounds.minX + bounds.maxX) / 2;
-  const cz = (bounds.minZ + bounds.maxZ) / 2;
-  const targetY = dioramaGroup.position.y + span * 0.04;
-  const distanceMeters = Number(preset.distanceMeters);
-  const requestedDistance = Number.isFinite(distanceMeters)
-    ? proj.metersToUnits(distanceMeters)
-    : span * (name === 'inspect' ? 0.32 : 0.95);
-  const profile = getCameraProfile(diorama.sceneBuildContext?.terrainMode);
-  const inspectDistance = Number(profile.inspectDistance) || 180;
-  const distance =
-    name === 'inspect'
-      ? Math.min(requestedDistance, inspectDistance * 0.85)
-      : Math.max(requestedDistance, inspectDistance * 1.45);
-  const heading = THREE.MathUtils.degToRad(Number(preset.heading) || 38);
-  const pitch = THREE.MathUtils.degToRad(THREE.MathUtils.clamp(Number(preset.pitch) || 52, 18, 72));
-  const horizontalBase = Math.max(controls.minDistance, distance) * Math.cos(pitch);
-  const horizontal =
-    name === 'inspect' ? horizontalBase : Math.max(horizontalBase, inspectDistance * 1.45);
-  const target = new THREE.Vector3(cx, targetY, cz);
-  const position = new THREE.Vector3(
-    cx + Math.sin(heading) * horizontal,
-    targetY + Math.max(controls.minDistance * 0.35, distance * Math.sin(pitch)),
-    cz + Math.cos(heading) * horizontal
-  );
-
-  camera.position.copy(position);
-  controls.target.copy(target);
-  diorama.cameraController?.setMode(
-    name === 'inspect' ? 'inspect' : name === 'route-focus' ? 'route-focus' : 'overview'
-  );
-  diorama.cameraController?.update(0);
-  controls.update();
-  updateBuildingLod(diorama);
-  diorama.renderer.render(diorama.scene, camera);
-  return true;
-}
-
-// Emergence animation functions are imported from emergence-animation.js.
-// Geo utilities are imported from geo-utils.js.
-// Camera pose functions are imported from camera-pose.js.
-// Easing and math utilities are imported from math-utils.js.

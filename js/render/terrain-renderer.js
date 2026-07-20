@@ -5,6 +5,7 @@
 
 import * as THREE from 'three';
 import { getBoundsSpan } from './camera-pose.js';
+import { formatRouteDistance } from './geo-utils.js';
 
 const BONE_WHITE = '#FCFAF5';
 
@@ -181,4 +182,25 @@ export function renderTerrainInsight(container, terrainMode, terrainModel, poiCo
     </div>
   `;
   container.appendChild(panel);
+}
+
+export function renderRouteInsight(diorama, segmentGroup) {
+  const panel = diorama.container.querySelector('.terrain-insight-panel');
+  if (!panel) return;
+  const metrics = segmentGroup.userData.metrics || {};
+  const confidence = diorama.terrainModel?.terrainConfidence;
+  const distance = formatRouteDistance(metrics.distanceMeters);
+  const ascent =
+    confidence === 'flat-fallback'
+      ? '高程估算'
+      : `累计爬升 +${Math.max(0, metrics.ascentMeters || 0)}m`;
+  const pathState = segmentGroup.userData.isEstimated ? '估算路径' : '真实路径';
+  panel.innerHTML = `
+    <div class="terrain-insight-title">路线地形引导</div>
+    <div class="terrain-insight-meta">
+      <span>${pathState}</span>
+      <span>${distance}</span>
+      <span>${ascent}</span>
+    </div>
+  `;
 }
