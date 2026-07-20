@@ -270,6 +270,42 @@ Next Beta work:
   **Started:** vegetation QA now emits chunk count, visible chunk count, and culled chunk count;
   hiking visual gates assert the telemetry is internally consistent.
 
+## Code Quality Audit Backlog
+
+Derived from `docs/engineering/vibe-coding-audit.md`. Audit date: 2026-07-17.
+
+### P0: Critical/High
+
+- [ ] Rotate API keys in `.env` (C-1)
+- [ ] Add `AMAP_WEB_SERVICE_KEY` to `.env.example`; make `DEEPSEEK_MODEL` configurable via env var (H-3, M-3)
+- [ ] Add process-level error handlers (`uncaughtException`, `unhandledRejection`) to server (H-2)
+- [ ] Add integration tests for `server/index.js` HTTP endpoints (H-4)
+- [ ] Split `map-3d.js` (1731 lines) into focused modules: `dijkstra-init`, `terrain-renderer`, `marker-renderer`, `annotation-renderer`, `vegetation-renderer`, `emergence-animation`, `camera-pose`, `math-utils` (H-5)
+- [ ] Throttle `updateThreeDebug()` to at most once per 500ms; cache `computeTerrainReliefContrast` result (H-6)
+- [ ] Remove dead code: `safe-timer.js`, `_buildSliceEdge()`, `DIORAMA_SLICE_THICKNESS`, `sliceStrata`, `PARTICLE_COUNT`, `captureFrame()`, unused storage/state/utils exports (H-1, L-1~L-6)
+
+### P1: Medium
+
+- [ ] Extract shared `js/render/math-utils.js`: `clamp`, `smoothstep`, `seededUnit`, `percentile`, `pointInPolygon`, `withTimeout`, `roundMetric` (M-8)
+- [ ] Add coverage thresholds to `vitest.config.js` (lines 70%, branches 60%) (M-10)
+- [ ] Add `geoAssetCache` LRU size limit (M-4)
+- [ ] Add Dockerfile `HEALTHCHECK` + non-root `USER` (M-12)
+- [ ] Add focus trap to modals (M-13)
+- [ ] Make 3D canvas keyboard accessible (`tabindex`, `aria-label`) (M-14)
+- [ ] Implement or remove 3 QA metric stubs (`slabRiseTopHeightVariance`, `buildingFloatingCount`, `buildingPenetrationCount`) (M-2)
+- [ ] Remove `terrainMode.cameraPitchDeg` dead code or consolidate with `OVERVIEW_PITCH_BY_MODE` (M-1)
+- [ ] Add eslint rule set for test files instead of fully ignoring them (L-9, L-18)
+
+### P2: Low
+
+- [ ] Add `prefers-reduced-motion` for 3D animations (L-14)
+- [ ] Add skip-to-content link (L-15)
+- [ ] Expand `.dockerignore` (tests/, docs/, scripts/, work/) (L-16)
+- [ ] Add `jscpd` (duplicate detection) and `knip` (dead code) to CI (L-9, L-18)
+- [ ] Add E2E test for 3D mode toggle (M-11)
+- [ ] Optimize RAG N+1 query: add `getGuidesByIds()` batch query (L-10)
+- [ ] Add user-facing error recovery UI to frontend error boundary (M-7)
+
 ## P0: 3D Correctness Floor
 
 Goal: 3D must not blank, lie, desync from 2D, or violate the required generation sequence.
