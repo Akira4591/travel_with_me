@@ -43,6 +43,13 @@ import {
   applyOverviewCameraPose,
   getCameraControlDistances
 } from './camera-pose.js';
+import {
+  buildTerrainMesh,
+  buildContextGround,
+  getTerrainBounds,
+  getTerrainHeightScale,
+  renderTerrainInsight
+} from './terrain-renderer.js';
 
 export { set3DRouteHighlight };
 export { getBuildingDetailAlpha };
@@ -54,10 +61,6 @@ const log = createLogger('map-3d');
 const BONE_WHITE = '#FCFAF5';
 
 const C = {
-  terrainBase: BONE_WHITE,
-  terrainLow: '#FCFAF5',
-  terrainMid: '#F2EBDB',
-  terrainHigh: '#E0D4BE',
   water: '#A8B8C8',
   shadow: '#9E9685',
   contour: '#D9D2C5',
@@ -624,135 +627,7 @@ function getTerrainClickPoint(raycaster, diorama) {
   return point;
 }
 
-// Terrain geometry.
-
-// Relief shading toggle (rollback switch: set false to restore flat bone-white).
-const TERRAIN_RELIEF_SHADING = true;
-
-function applyTerrainVertexColors(geom) {
-  const positions = geom.attributes.position;
-  const normals = geom.attributes.normal;
-  const count = positions.count;
-  const colors = new Float32Array(count * 3);
-
-  let minY = Infinity;
-  let maxY = -Infinity;
-  for (let i = 0; i < count; i += 1) {
-    const y = positions.getY(i);
-    if (y < minY) minY = y;
-    if (y > maxY) maxY = y;
-  }
-  const yRange = Math.max(0.001, maxY - minY);
-
-  const lowColor = new THREE.Color(C.terrainLow);
-  const midColor = new THREE.Color(C.terrainMid);
-  const highColor = new THREE.Color(C.terrainHigh);
-
-  const lightDir = new THREE.Vector3(-0.35, 0.78, -0.52).normalize();
-  const ambient = 0.72;
-  const diffuseStrength = 0.28;
-
-  const tmpColor = new THREE.Color();
-  const tmpNormal = new THREE.Vector3();
-
-  for (let i = 0; i < count; i += 1) {
-    const y = positions.getY(i);
-    const t = Math.min(1, Math.max(0, (y - minY) / yRange));
-
-    if (t < 0.5) {
-      tmpColor.copy(lowColor).lerp(midColor, t * 2);
-    } else {
-      tmpColor.copy(midColor).lerp(highColor, (t - 0.5) * 2);
-    }
-
-    tmpNormal.set(normals.getX(i), normals.getY(i), normals.getZ(i));
-    const lambert = Math.max(0, tmpNormal.dot(lightDir));
-    const shade = ambient + lambert * diffuseStrength;
-
-    colors[i * 3] = tmpColor.r * shade;
-    colors[i * 3 + 1] = tmpColor.g * shade;
-    colors[i * 3 + 2] = tmpColor.b * shade;
-  }
-
-  geom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-}
-
-function buildTerrainMesh(terrainModel) {
-  const { bounds } = terrainModel;
-  const width = bounds.maxX - bounds.minX;
-  const depth = bounds.maxZ - bounds.minZ;
-  const cols = terrainModel.grid?.cols || 18;
-  const rows = terrainModel.grid?.rows || 18;
-  const geom = new THREE.PlaneGeometry(width, depth, cols - 1, rows - 1);
-  geom.rotateX(-Math.PI / 2);
-
-  const positions = geom.attributes.position;
-  for (let i = 0; i < positions.count; i += 1) {
-    const x = positions.getX(i);
-    const z = positions.getZ(i);
-    positions.setY(i, terrainModel.heightAt(x, z));
-  }
-  geom.computeVertexNormals();
-
-  if (TERRAIN_RELIEF_SHADING) {
-    applyTerrainVertexColors(geom);
-  }
-
-  const mat = new THREE.MeshBasicMaterial({
-    color: new THREE.Color(TERRAIN_RELIEF_SHADING ? '#FFFFFF' : C.terrainBase),
-    vertexColors: TERRAIN_RELIEF_SHADING,
-    toneMapped: false
-  });
-
-  const mesh = new THREE.Mesh(geom, mat);
-  const wire = new THREE.Mesh(
-    geom,
-    new THREE.MeshBasicMaterial({
-      color: new THREE.Color('#E3DCCF'),
-      transparent: true,
-      opacity: 0.24,
-      wireframe: true,
-      depthWrite: false,
-      toneMapped: false
-    })
-  );
-  wire.renderOrder = 4;
-  wire.userData.terrainFacetOverlay = true;
-  mesh.add(wire);
-  mesh.receiveShadow = false;
-  mesh.castShadow = false;
-  mesh.userData.restHeights = Float32Array.from({ length: positions.count }, (_, index) =>
-    positions.getY(index)
-  );
-  mesh.userData.foundationHeights = Float32Array.from(
-    { length: positions.count },
-    () => terrainModel.foundationHeight
-  );
-  return mesh;
-}
-
-function buildContextGround(terrainModel) {
-  const { bounds } = terrainModel;
-  const span = getBoundsSpan(bounds);
-  const geometry = new THREE.PlaneGeometry(span * 3, span * 3, 1, 1);
-  geometry.rotateX(-Math.PI / 2);
-  const material = new THREE.MeshBasicMaterial({
-    color: new THREE.Color('#F0ECE3'),
-    transparent: true,
-    opacity: 0.82,
-    toneMapped: false,
-    depthWrite: false
-  });
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.position.set(
-    (bounds.minX + bounds.maxX) / 2,
-    terrainModel.foundationHeight - 0.08,
-    (bounds.minZ + bounds.maxZ) / 2
-  );
-  mesh.renderOrder = -10;
-  mesh.userData.contextGround = true;
-  return mesh;
-}
+// Terrain geometry is imported from terrain-renderer.js.
 
 /**
  * Reuse the 2D route segmentId in 3D and focus the camera on the rendered route.
@@ -1019,32 +894,8 @@ function buildAnnotationGroup(proj, trip, terrainModel) {
   return group;
 }
 
-function renderTerrainInsight(container, terrainMode, terrainModel, poiCount) {
-  const existing = container.querySelector('.terrain-insight-panel');
-  if (existing) existing.remove();
-  const panel = document.createElement('div');
-  panel.className = 'terrain-insight-panel';
-  const range = Math.round(terrainModel.metrics.range || 0);
-  const confidence = terrainModel.terrainConfidence;
-  const confidenceLabel =
-    confidence === 'sampled'
-      ? '采样地形'
-      : confidence === 'low-relief'
-        ? '低起伏'
-        : confidence === 'estimated'
-          ? '估算地形'
-          : '平面降级';
-  const claim = confidence === 'flat-fallback' ? '不输出坡度结论' : `高差约 ${range}m`;
-  panel.innerHTML = `
-    <div class="terrain-insight-title">${terrainMode.label}</div>
-    <div class="terrain-insight-meta">
-      <span>${confidenceLabel}</span>
-      <span>${claim}</span>
-      <span>${poiCount} 点</span>
-    </div>
-  `;
-  container.appendChild(panel);
-}
+// renderTerrainInsight is imported from terrain-renderer.js.
+
 function updateThreeDebug(diorama) {
   const debug = publishDioramaDebug(diorama, diorama.sceneBuildContext);
   diorama.debug = debug;
@@ -1520,19 +1371,7 @@ function distanceMeters([lngA, latA], [lngB, latB]) {
   return Math.sqrt(dx * dx + dy * dy);
 }
 
-function getTerrainBounds(proj, span) {
-  const size = proj.metersToUnits(span);
-  const half = size / 2;
-  return { minX: -half, maxX: half, minZ: -half, maxZ: half };
-}
-
-function getTerrainHeightScale(proj, terrainMode) {
-  if (terrainMode.id === 'hiking') return proj.metersToUnits(70);
-  if (terrainMode.id === 'scenic-park') return proj.metersToUnits(45);
-  if (terrainMode.id === 'region-overview') return proj.metersToUnits(28);
-  if (terrainMode.id === 'micro-street') return proj.metersToUnits(10);
-  return proj.metersToUnits(30);
-}
+// getTerrainBounds, getTerrainHeightScale are imported from terrain-renderer.js.
 
 // Camera pose functions are imported from camera-pose.js.
 // Easing and math utilities are imported from math-utils.js.
