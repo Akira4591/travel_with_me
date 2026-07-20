@@ -82,7 +82,6 @@ export function createDioramaDebugSnapshot(diorama, sceneContext) {
       workAreaRaisedPixelRatio: diorama.terrainMesh && diorama.workArea ? 1 : 0,
       outsideDimmedPixelRatio:
         diorama.contextGround && diorama.contextGround.visible !== false ? 1 : 0,
-      slabRiseTopHeightVariance: 0,
       terrainReliefContrast: computeTerrainReliefContrast(diorama.terrainMesh)
     },
     vegetationMetrics: {

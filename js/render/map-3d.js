@@ -95,6 +95,8 @@ export async function initDiorama({ container }) {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.16;
+  renderer.domElement.tabIndex = 0;
+  renderer.domElement.setAttribute('aria-label', '3D 旅行路线沙盘，使用 WASD 键移动，鼠标拖拽旋转');
   container.appendChild(renderer.domElement);
 
   const controls = new OrbitControls(camera, renderer.domElement);

@@ -131,12 +131,9 @@ function normalizeGeometryMetrics(debug) {
     routeGrayOutlinePixelRatio: toFixedNumber(metrics.routeGrayOutlinePixelRatio),
     workAreaRaisedPixelRatio: toFixedNumber(metrics.workAreaRaisedPixelRatio),
     outsideDimmedPixelRatio: toFixedNumber(metrics.outsideDimmedPixelRatio),
-    slabRiseTopHeightVariance: toFixedNumber(metrics.slabRiseTopHeightVariance),
     terrainReliefContrast: toFixedNumber(metrics.terrainReliefContrast),
     bridgePierCount: Number(counts.bridgePiers || 0),
-    bridgeCount: Number(counts.bridgeDecks || 0),
-    buildingFloatingCount: 0,
-    buildingPenetrationCount: 0
+    bridgeCount: Number(counts.bridgeDecks || 0)
   };
 }
 

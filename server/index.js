@@ -73,6 +73,7 @@ const GEO_ASSETS_CACHE_TTL_MS = readPositiveInt(
   process.env.GEO_ASSETS_CACHE_TTL_MS,
   24 * 60 * 60 * 1000
 );
+const GEO_ASSETS_CACHE_MAX = readPositiveInt(process.env.GEO_ASSETS_CACHE_MAX, 200);
 const GEO_ASSETS_TIMEOUT_MS = readPositiveInt(process.env.GEO_ASSETS_TIMEOUT_MS, 15000);
 const RAG_PREFIX = '/_rag';
 const RAG_ENABLED = process.env.RAG_ENABLED !== 'false';
@@ -86,6 +87,23 @@ const RAG_SEARCH_RATE_LIMIT = readPositiveInt(process.env.RAG_SEARCH_RATE_LIMIT,
 const RAG_SEARCH_RATE_WINDOW_MS = 60 * 60 * 1000;
 const rateBuckets = new Map();
 const geoAssetCache = new Map();
+
+function evictGeoAssetCacheIfNeeded() {
+  if (geoAssetCache.size <= GEO_ASSETS_CACHE_MAX) return;
+  const now = Date.now();
+  const entries = [...geoAssetCache.entries()].sort(
+    (a, b) => (a[1].expiresAt || 0) - (b[1].expiresAt || 0)
+  );
+  const toRemove = entries.length - GEO_ASSETS_CACHE_MAX;
+  for (let i = 0; i < toRemove; i++) {
+    geoAssetCache.delete(entries[i][0]);
+  }
+  if (geoAssetCache.size > GEO_ASSETS_CACHE_MAX) {
+    const keys = geoAssetCache.keys();
+    for (let i = 0; i < toRemove; i++) geoAssetCache.delete(keys.next().value);
+  }
+  void now;
+}
 
 if (!JSCODE) {
   console.warn(
@@ -757,6 +775,7 @@ app.get(GEO_ASSETS_PREFIX, async c => {
     licence: 'ODbL 1.0'
   };
   geoAssetCache.set(cacheKey, { payload, expiresAt: Date.now() + GEO_ASSETS_CACHE_TTL_MS });
+  evictGeoAssetCacheIfNeeded();
   return c.json(payload, 200, { 'cache-control': 'private, max-age=86400' });
 });
 
