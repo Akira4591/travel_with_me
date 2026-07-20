@@ -9,9 +9,7 @@ import { createGeoProjection } from './geo-project.js';
 import { createLogger } from '../logger.js';
 import { chooseTerrainMode } from './terrain-mode.js?v=20260621-region-grid-v2';
 import { createTerrainModel } from './terrain-model.js';
-import { getAnnotationType } from '../annotations.js';
 import { getAppState } from '../state.js';
-import { ROUTE_GUIDANCE } from '../route-guidance.js';
 import { createSceneBuildContext } from './scene-build-context.js';
 import { publishDioramaDebug } from './scene-debug.js';
 import { buildBridgeGroup, buildRoadGroup, buildWaterGroup } from './geo-asset-renderer.js';
@@ -30,8 +28,6 @@ import { applyTerrainCarving } from './terrain-carving.js';
 import {
   clamp,
   smoothstep,
-  seededUnit,
-  pointInPolygon,
   withTimeout,
   easeOutBack,
   easeInOutCubic,
@@ -50,6 +46,15 @@ import {
   getTerrainHeightScale,
   renderTerrainInsight
 } from './terrain-renderer.js';
+import {
+  normalizeWorkArea,
+  computeRouteLength,
+  formatRouteDistance,
+  disposeSceneObject,
+  collectDayLocations
+} from './geo-utils.js';
+import { buildMarkerGroup, buildAnnotationGroup } from './marker-renderer.js';
+import { buildVegetationGroup } from './vegetation-renderer.js';
 
 export { set3DRouteHighlight };
 export { getBuildingDetailAlpha };
@@ -61,27 +66,12 @@ const log = createLogger('map-3d');
 const BONE_WHITE = '#FCFAF5';
 
 const C = {
-  water: '#A8B8C8',
-  shadow: '#9E9685',
-  contour: '#D9D2C5',
   building: '#EDE7DC',
-  routeBed: ROUTE_GUIDANCE.roadBed,
-  routeOutline: '#625C51',
-  routeLine: ROUTE_GUIDANCE.line,
-  markerActive: ROUTE_GUIDANCE.activeLine,
-  markerInactive: '#B0A590',
-  markerStem: '#9E9685',
-  annotationStem: '#EFE8D6',
   bgTop: BONE_WHITE,
   bgBottom: BONE_WHITE
 };
 
 // Render constants.
-
-const MARKER_RING_RADIUS = 2.7;
-const MARKER_RING_TUBE_RADIUS = 0.22;
-const ANNOTATION_STEM_HEIGHT = 7;
-const ANNOTATION_HEAD_RADIUS = 1.45;
 
 // Auto orbit resumes after user drag only in overview-like modes.
 const IDLE_RESUME_DELAY = 25000;
@@ -96,9 +86,6 @@ const BUILDING_MASSING_END = (EMERGE_PHASE_MS * 3) / EMERGE_DURATION;
 const EXIT_DURATION = 900;
 const CLICK_MOVE_TOLERANCE = 6;
 const FIRST_SLAB_ELEVATION_BUDGET_MS = 1200;
-const DEFAULT_WORK_AREA_SPAN_METERS = 800;
-const MIN_WORK_AREA_SPAN_METERS = 300;
-const WORK_AREA_HARD_CAP_METERS = 2000;
 
 let instance = null;
 
@@ -679,221 +666,6 @@ function animateCameraFocus(camera, controls, startPosition, startTarget, endPos
   });
 }
 
-function buildVegetationGroup(proj, terrainModel, vegetationAreas) {
-  const group = new THREE.Group();
-  const areas = Array.isArray(vegetationAreas) ? vegetationAreas : [];
-  const templates = [
-    { id: 'conifer-cluster', radius: 0.32, height: 1.8 },
-    { id: 'broadleaf-cluster', radius: 0.46, height: 1.35 },
-    { id: 'shrub-cluster', radius: 0.28, height: 0.58 },
-    { id: 'ridge-conifer', radius: 0.24, height: 2.2 },
-    { id: 'low-cover', radius: 0.52, height: 0.3 }
-  ];
-  const materials = templates.map(
-    (_, index) =>
-      new THREE.MeshStandardMaterial({
-        color: new THREE.Color(['#839177', '#96A386', '#A9B394', '#73866C', '#BBC1A6'][index]),
-        roughness: 0.9
-      })
-  );
-  let count = 0;
-  const areaBudgets = [];
-  const chunks = [];
-  for (const area of areas) {
-    if (!area || area.licensed !== true || !Array.isArray(area.polygon)) continue;
-    const points = createVegetationPoints(area, proj);
-    const densityCap = vegetationDensityForCover(area.cover);
-    const areaGroup = new THREE.Group();
-    areaGroup.userData.vegetationChunk = true;
-    areaGroup.userData.areaId = area.id || '';
-    areaGroup.userData.cover = area.cover || '';
-    areaGroup.userData.densityCap = densityCap;
-    areaGroup.userData.instances = points.length;
-    areaGroup.userData.sceneBounds = createVegetationAreaBounds(area, proj, terrainModel);
-    areaBudgets.push({
-      id: area.id || '',
-      cover: area.cover || '',
-      densityCap,
-      instances: points.length
-    });
-    for (const point of points) {
-      const template =
-        templates[
-          Math.abs(Math.floor(seededUnit(`${area.id}:${point.x}:${point.z}`) * templates.length)) %
-            templates.length
-        ];
-      const geometry = template.id.includes('conifer')
-        ? new THREE.ConeGeometry(template.radius, template.height, 5)
-        : new THREE.DodecahedronGeometry(template.radius, 0);
-      const mesh = new THREE.Mesh(geometry, materials[templates.indexOf(template)]);
-      mesh.position.set(
-        point.x,
-        terrainModel.heightAt(point.x, point.z) + template.height / 2,
-        point.z
-      );
-      mesh.castShadow = false;
-      mesh.receiveShadow = true;
-      areaGroup.add(mesh);
-      count += 1;
-    }
-    group.add(areaGroup);
-    chunks.push(areaGroup);
-  }
-  group.userData.templateCount = count;
-  group.userData.areaBudgets = areaBudgets;
-  group.userData.chunks = chunks;
-  group.userData.chunkCount = chunks.length;
-  group.userData.visibleChunkCount = chunks.length;
-  group.userData.culledChunkCount = 0;
-  group.userData.maxInstancesPerArea = Math.max(0, ...areaBudgets.map(area => area.instances));
-  group.userData.densityCap = Math.max(0, ...areaBudgets.map(area => area.densityCap));
-  group.userData.areaCount = areaBudgets.length;
-  group.userData.requiresLicensedLandcover = true;
-  return group;
-}
-
-function createVegetationPoints(area, proj) {
-  const polygon = area.polygon.map(lnglat => proj.toScene(lnglat));
-  if (polygon.length < 3) return [];
-  const xs = polygon.map(point => point.x);
-  const zs = polygon.map(point => point.z);
-  const minX = Math.min(...xs),
-    maxX = Math.max(...xs),
-    minZ = Math.min(...zs),
-    maxZ = Math.max(...zs);
-  const density = vegetationDensityForCover(area.cover);
-  const points = [];
-  for (let index = 0; index < density; index += 1) {
-    const point = {
-      x: minX + (maxX - minX) * seededUnit(`${area.id}:x:${index}`),
-      z: minZ + (maxZ - minZ) * seededUnit(`${area.id}:z:${index}`)
-    };
-    if (pointInPolygon(point, polygon)) points.push(point);
-  }
-  return points;
-}
-
-function createVegetationAreaBounds(area, proj, terrainModel) {
-  const polygon = Array.isArray(area?.polygon)
-    ? area.polygon.map(lnglat => proj.toScene(lnglat))
-    : [];
-  if (polygon.length < 3) return null;
-  const xs = polygon.map(point => point.x);
-  const zs = polygon.map(point => point.z);
-  const minX = Math.min(...xs);
-  const maxX = Math.max(...xs);
-  const minZ = Math.min(...zs);
-  const maxZ = Math.max(...zs);
-  const centerX = (minX + maxX) / 2;
-  const centerZ = (minZ + maxZ) / 2;
-  const baseY = Number(terrainModel.heightAt(centerX, centerZ)) || 0;
-  return {
-    min: { x: minX, y: baseY - 2, z: minZ },
-    max: { x: maxX, y: baseY + 18, z: maxZ }
-  };
-}
-
-function vegetationDensityForCover(cover) {
-  return cover === 'forest' ? 12 : cover === 'scrub' ? 8 : 5;
-}
-
-// pointInPolygon is imported from math-utils.js.
-
-// Marker and annotation geometry.
-
-/**
- * @param {import('./geo-project.js').GeoProjection} proj
- * @param {import('../data/trip.js').Trip} trip
- * @param {string} activeDayId
- * @returns {THREE.Group}
- */
-function buildMarkerGroup(proj, trip, activeDayId, terrainModel) {
-  const group = new THREE.Group();
-  const ringMat = new THREE.MeshBasicMaterial({
-    color: new THREE.Color(C.routeLine),
-    transparent: true,
-    opacity: 0.85
-  });
-
-  const day = activeDayId === 'all' ? null : trip.days.find(d => d.id === activeDayId);
-  const days = day ? [day] : trip.days;
-
-  let globalIndex = 1;
-  for (const d of days) {
-    for (const event of d.events || []) {
-      const loc = trip.locations[event.locationId];
-      if (!loc?.lnglat) continue;
-
-      const { x, z } = proj.toScene(loc.lnglat);
-      const terrainY = terrainModel.heightAt(x, z);
-
-      const ringGeom = new THREE.TorusGeometry(MARKER_RING_RADIUS, MARKER_RING_TUBE_RADIUS, 8, 24);
-      const ring = new THREE.Mesh(ringGeom, ringMat);
-      ring.rotation.x = -Math.PI / 2;
-      ring.position.set(x, terrainY + 0.1, z);
-      ring.userData = { eventId: event.id, globalIndex: globalIndex++ };
-      group.add(ring);
-    }
-  }
-
-  return group;
-}
-
-function buildAnnotationGroup(proj, trip, terrainModel) {
-  const group = new THREE.Group();
-  const stemMat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(C.annotationStem),
-    roughness: 0.45,
-    metalness: 0.15
-  });
-  const annotations = Array.isArray(trip.annotations) ? trip.annotations : [];
-  const materialCache = new Map();
-  let count = 0;
-
-  for (const annotation of annotations) {
-    if (!isValidLngLat(annotation?.lnglat)) continue;
-    const type = getAnnotationType(annotation.type);
-    const { x, z } = proj.toScene(annotation.lnglat);
-    const terrainY = terrainModel.heightAt(x, z);
-    const marker = new THREE.Group();
-
-    const stem = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.25, 0.34, ANNOTATION_STEM_HEIGHT, 8),
-      stemMat
-    );
-    stem.position.y = ANNOTATION_STEM_HEIGHT / 2;
-    marker.add(stem);
-
-    const head = new THREE.Mesh(
-      createAnnotationHeadGeometry(type.id),
-      getAnnotationMaterial(materialCache, type)
-    );
-    head.position.y = ANNOTATION_STEM_HEIGHT + ANNOTATION_HEAD_RADIUS;
-    head.castShadow = true;
-    marker.add(head);
-
-    const halo = new THREE.Mesh(
-      new THREE.TorusGeometry(3.4, 0.18, 8, 24),
-      getAnnotationHaloMaterial(materialCache, type)
-    );
-    halo.rotation.x = -Math.PI / 2;
-    halo.position.y = 0.2;
-    marker.add(halo);
-
-    marker.position.set(x, terrainY, z);
-    marker.userData = {
-      annotationId: annotation.id,
-      type: type.id,
-      title: annotation.title
-    };
-    group.add(marker);
-    count += 1;
-  }
-
-  group.userData = { count };
-  return group;
-}
-
 // renderTerrainInsight is imported from terrain-renderer.js.
 
 function updateThreeDebug(diorama) {
@@ -921,49 +693,6 @@ function renderRouteInsight(diorama, segmentGroup) {
     </div>
   `;
 }
-
-function formatRouteDistance(distanceMeters) {
-  const meters = Number(distanceMeters) || 0;
-  return meters >= 1000 ? `路线 ${Math.round((meters / 1000) * 10) / 10}km` : `路线 ${meters}m`;
-}
-function createAnnotationHeadGeometry(typeId) {
-  if (typeId === 'risk') return new THREE.ConeGeometry(ANNOTATION_HEAD_RADIUS, 5, 3);
-  if (typeId === 'transfer') return new THREE.BoxGeometry(3.8, 3.8, 3.8);
-  if (typeId === 'entrance') return new THREE.CylinderGeometry(2.2, 2.2, 3.4, 6);
-  return new THREE.SphereGeometry(ANNOTATION_HEAD_RADIUS, 16, 16);
-}
-
-function getAnnotationMaterial(cache, type) {
-  const key = `head:${type.id}`;
-  if (!cache.has(key)) {
-    cache.set(
-      key,
-      new THREE.MeshStandardMaterial({
-        color: new THREE.Color(type.color),
-        roughness: 0.28,
-        metalness: 0.18
-      })
-    );
-  }
-  return cache.get(key);
-}
-
-function getAnnotationHaloMaterial(cache, type) {
-  const key = `halo:${type.id}`;
-  if (!cache.has(key)) {
-    cache.set(
-      key,
-      new THREE.MeshBasicMaterial({
-        color: new THREE.Color(type.color),
-        transparent: true,
-        opacity: 0.26
-      })
-    );
-  }
-  return cache.get(key);
-}
-
-// Slice edge geometry kept for experiments; production currently leaves terrain unboxed.
 
 // Lighting.
 
@@ -1272,106 +1001,7 @@ function setOverlayVisibility(diorama, visible) {
   if (diorama.annotationGroup) diorama.annotationGroup.visible = visible;
 }
 
-function disposeSceneObject(object) {
-  object.traverse(node => {
-    node.geometry?.dispose?.();
-    const materials = Array.isArray(node.material) ? node.material : [node.material];
-    materials.filter(Boolean).forEach(material => material.dispose?.());
-  });
-}
-
-// Export helpers.
-
-// Utility functions.
-
-function collectDayLocations(trip, activeDayId) {
-  const locations = [];
-  const days = activeDayId === 'all' ? trip.days : trip.days.filter(d => d.id === activeDayId);
-
-  for (const day of days) {
-    for (const event of day.events || []) {
-      const loc = trip.locations[event.locationId];
-      if (loc?.lnglat && isValidLngLat(loc.lnglat)) {
-        locations.push({ id: event.locationId, eventId: event.id, ...loc });
-      }
-    }
-  }
-  return locations;
-}
-
-function computeCenter(lnglats) {
-  let sumLng = 0,
-    sumLat = 0;
-  for (const [lng, lat] of lnglats) {
-    sumLng += lng;
-    sumLat += lat;
-  }
-  return [sumLng / lnglats.length, sumLat / lnglats.length];
-}
-
-function normalizeWorkArea(workArea, fallbackLnglats) {
-  const fallbackCenter = computeCenter(fallbackLnglats);
-  const hardCapMeters = clamp(
-    Number(workArea?.hardCapMeters) || WORK_AREA_HARD_CAP_METERS,
-    MIN_WORK_AREA_SPAN_METERS,
-    WORK_AREA_HARD_CAP_METERS
-  );
-  const requestedSpan = Number(workArea?.spanMeters);
-  const spanMeters = clamp(
-    Number.isFinite(requestedSpan) ? requestedSpan : DEFAULT_WORK_AREA_SPAN_METERS,
-    MIN_WORK_AREA_SPAN_METERS,
-    hardCapMeters
-  );
-  const center = isValidLngLat(workArea?.center) ? workArea.center.map(Number) : fallbackCenter;
-  return {
-    source: workArea?.source || 'fallback-trip-center',
-    center,
-    requestedCenter: isValidLngLat(workArea?.requestedCenter)
-      ? workArea.requestedCenter.map(Number)
-      : null,
-    anchorAdjusted: Boolean(workArea?.anchorAdjusted),
-    anchorReason: workArea?.anchorReason || '',
-    anchorDistanceMeters: Math.round(Number(workArea?.anchorDistanceMeters) || 0),
-    anchorType: workArea?.anchorType || '',
-    spanMeters: Math.round(spanMeters),
-    hardCapMeters: Math.round(hardCapMeters),
-    profile: workArea?.profile || 'default',
-    bounds: squareBounds(center, spanMeters)
-  };
-}
-
-function squareBounds(center, spanMeters) {
-  const half = spanMeters / 2;
-  const latDelta = half / 111320;
-  const lngDelta = half / (111320 * Math.cos((center[1] * Math.PI) / 180));
-  return {
-    minLng: center[0] - lngDelta,
-    maxLng: center[0] + lngDelta,
-    minLat: center[1] - latDelta,
-    maxLat: center[1] + latDelta
-  };
-}
-
-function isValidLngLat(v) {
-  return Array.isArray(v) && v.length >= 2 && Number.isFinite(v[0]) && Number.isFinite(v[1]);
-}
-
-function computeRouteLength(lnglats) {
-  let total = 0;
-  for (let i = 0; i < lnglats.length - 1; i += 1) {
-    total += distanceMeters(lnglats[i], lnglats[i + 1]);
-  }
-  return total;
-}
-
-function distanceMeters([lngA, latA], [lngB, latB]) {
-  const midLat = ((latA + latB) / 2) * (Math.PI / 180);
-  const dx = (lngB - lngA) * 111320 * Math.cos(midLat);
-  const dy = (latB - latA) * 111320;
-  return Math.sqrt(dx * dx + dy * dy);
-}
-
 // getTerrainBounds, getTerrainHeightScale are imported from terrain-renderer.js.
-
+// Geo utilities are imported from geo-utils.js.
 // Camera pose functions are imported from camera-pose.js.
 // Easing and math utilities are imported from math-utils.js.
