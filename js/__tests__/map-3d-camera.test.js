@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import * as THREE from 'three';
 
-import { getInitialOverviewCameraPose, getOverviewCameraPose } from '../render/map-3d.js';
+import { getInitialOverviewCameraPose, getOverviewCameraPose } from '../render/camera-pose.js';
 
 describe('3D map overview camera pose', () => {
   it('starts on the same lifted orbit target used by idle auto-orbit', () => {
