@@ -207,6 +207,9 @@ export async function initDiorama({ container }) {
   // 鍔ㄧ敾寰幆
   let animId;
   let lastFrameTime = performance.now();
+  const DEBUG_THROTTLE_MS = 500;
+  let lastDebugUpdate = 0;
+
   function animate(now = performance.now()) {
     animId = requestAnimationFrame(animate);
     const deltaSeconds = Math.min((now - lastFrameTime) / 1000, 0.08);
@@ -215,7 +218,10 @@ export async function initDiorama({ container }) {
       ? instance.cameraController.update(deltaSeconds)
       : controls.update();
     if ((moved || instance?.debug?.camera?.activeKeys?.length) && instance) {
-      updateThreeDebug(instance);
+      if (now - lastDebugUpdate >= DEBUG_THROTTLE_MS) {
+        lastDebugUpdate = now;
+        updateThreeDebug(instance);
+      }
     }
     updateBuildingLod(instance);
     if (instance && didBuildingLodSignatureChange(instance)) {

@@ -182,11 +182,22 @@ export function countVisibleMeshes(root) {
   return count;
 }
 
+let _cachedContrastMesh = null;
+let _cachedContrastValue = 0;
+
 function computeTerrainReliefContrast(terrainMesh) {
+  if (_cachedContrastMesh === terrainMesh) return _cachedContrastValue;
+  _cachedContrastMesh = terrainMesh;
   const colorAttr = terrainMesh?.geometry?.attributes?.color;
-  if (!colorAttr) return 0;
+  if (!colorAttr) {
+    _cachedContrastValue = 0;
+    return 0;
+  }
   const count = colorAttr.count;
-  if (count === 0) return 0;
+  if (count === 0) {
+    _cachedContrastValue = 0;
+    return 0;
+  }
 
   let sum = 0;
   const luminances = [];
@@ -207,7 +218,8 @@ function computeTerrainReliefContrast(terrainMesh) {
   variance /= count;
   const stdDev = Math.sqrt(variance);
 
-  return Number(Math.min(1, stdDev / 0.15).toFixed(3));
+  _cachedContrastValue = Number(Math.min(1, stdDev / 0.15).toFixed(3));
+  return _cachedContrastValue;
 }
 
 function countBuildingMassings(root) {
