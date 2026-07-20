@@ -1,7 +1,7 @@
 # Travel With Me — 开发控制文档
 
 > **本文件是项目唯一权威开发控制文档。** 其他文档均为辅助文件，仅作补充参考。
-> 如有冲突，以本文件为准。最后更新: 2026-07-16
+> 如有冲突，以本文件为准。最后更新: 2026-07-20
 
 ---
 
@@ -17,11 +17,11 @@
 | 3D       | Three.js 0.162.0      | importmap 加载                                          |
 | 2D 地图  | AMap JS API 2.0       | POI / 路线 / 地理编码                                   |
 | 持久化   | localStorage          | Schema v5，workspace JSON                               |
-| AI/LLM   | DeepSeek API          | `deepseek-v4-flash`，JSON 输出模式                      |
+| AI/LLM   | DeepSeek API          | `deepseek-chat`（env 可配），JSON 输出模式              |
 | RAG      | SQLite + BM25         | `better-sqlite3` + `@node-rs/jieba`（R0-R1 已实现）     |
 | 高程     | Open-Meteo API        | Open-Elevation fallback                                 |
 | 地理资产 | Overpass/OSM API      | 建筑/道路/水系/桥梁/植被                                |
-| 单元测试 | Vitest v4             | 38 文件，200 测试                                       |
+| 单元测试 | Vitest v4             | 39 文件，244 测试                                       |
 | E2E 测试 | Playwright v1.61      | Chromium + Pixel 5                                      |
 | Lint     | ESLint v9 flat config | render 模块不可 import api/server                       |
 | CI       | GitHub Actions        | Node 18+22 matrix                                       |
@@ -29,16 +29,16 @@
 
 ### 产品阶段
 
-| 阶段                 | 状态     | 说明                                        |
-| -------------------- | -------- | ------------------------------------------- |
-| D0: 数据基础         | 已关闭   | 2D 数据契约确立                             |
-| D1: 3D 路线与地形    | **当前** | Gate 50 产品化（49/50 complete, 1 partial） |
-| D2: 授权地点详情     | 待定     | —                                           |
-| D3: 私有测试与商业化 | 待定     | —                                           |
+| 阶段                 | 状态     | 说明                             |
+| -------------------- | -------- | -------------------------------- |
+| D0: 数据基础         | 已关闭   | 2D 数据契约确立                  |
+| D1: 3D 路线与地形    | **当前** | Gate 50 产品化（50/50 complete） |
+| D2: 授权地点详情     | 待定     | —                                |
+| D3: 私有测试与商业化 | 待定     | —                                |
 
 ### 质量门禁
 
-50 个质量门禁：**49 complete, 1 partial**。唯一阻塞项：Gate 50 人工视觉验收。
+50 个质量门禁：**50/50 complete**。Gate 50 人工视觉验收已于 2026-07-17 通过。
 
 ---
 
@@ -156,7 +156,7 @@ main.js → {state.js, render/*.js, api/*.js} → {utils, config, data}
 | ADR-1 | Hono + 原生 ES Modules    | 非 Next.js，无构建步骤                                                                                                                                                                                               |
 | ADR-2 | localStorage              | 非后端数据库，计划后续升级                                                                                                                                                                                           |
 | ADR-3 | Canvas 分享图             | 非服务端渲染                                                                                                                                                                                                         |
-| ADR-4 | DeepSeek 作为 AI 导入引擎 | `deepseek-v4-flash`                                                                                                                                                                                                  |
+| ADR-4 | DeepSeek 作为 AI 导入引擎 | `deepseek-chat`（env 可配）                                                                                                                                                                                          |
 | ADR-5 | BFF 代理隔离安全密钥      | Key 不出服务端                                                                                                                                                                                                       |
 | ADR-6 | 3D Diorama                | 2D 事实层驱动的生成式规划沙盘                                                                                                                                                                                        |
 | ADR-7 | 分阶段商业化              | S1→S2→S3→S4                                                                                                                                                                                                          |
@@ -358,7 +358,7 @@ openTripModal({ mode: 'create', handlers: { onCreate: title => { ... } } });
 用户粘贴攻略文本 (50-5000 字符)
   → POST /_ai/extract-guide
      → [RAG] isRagReady()? → retrieveGuides(text, topK) → formatRetrievedContext
-     → DeepSeek API (deepseek-v4-flash, JSON, temp 0.2, max_tokens 4096)
+     → DeepSeek API (deepseek-chat, JSON, temp 0.2, max_tokens 4096)
      → Prompt: server/prompts/guide-extract.md (272 行, 含 {retrieved_context_section})
      → LLM 提取: guide_type, city, events[{place_name, day, time_slot, note, source_quote}]
   → 客户端清洗 (guide-import-cleanup.js): 过滤噪声, 去重
@@ -520,7 +520,7 @@ window.__threeDebug__ = {
 
 ### 9.1 单元测试 (Vitest)
 
-- **38 文件, 200 测试**
+- **39 文件, 244 测试**
 - 位置: `js/__tests__/**/*.test.js` + `server/__tests__/**/*.test.js`
 - 环境: node (非 jsdom), `globals: false`
 
@@ -689,8 +689,8 @@ travel_with_me/
 1. **必须用 `npm.cmd`**：npm 有 install-scripts blocking，`npm` 命令无法正常安装 native 模块
 2. **native 模块**: `better-sqlite3` 需要 `npm install-scripts approve` + `npm rebuild`
 3. **`@node-rs/jieba`**: 导出 `Jieba` 类（不是独立函数），需 `new Jieba()` 实例化，调用 `jieba.cutForSearch(text, true)`
-4. **测试计数**: 当前基线 38 文件 / 200 测试（README.md 和 CONTRIBUTING.md 中的旧计数已 stale）
-5. **Gate 50**: 唯一阻塞项，需人工视觉验收后更新 `docs/operations/quality-gate-status.md`
+4. **测试计数**: 当前基线 39 文件 / 244 测试（README.md 和 CONTRIBUTING.md 已同步）
+5. **Gate 50**: 50/50 complete，人工视觉验收已于 2026-07-17 通过
 6. **RAG 冷启动**: docCount < 3 时不启用检索，新部署需要先导入 3 篇以上攻略
 7. **无构建步骤**: 浏览器直接加载 ES Modules，版本更新靠 URL query param (`?v=...`)
 8. **Docker**: alpine → slim multi-stage（因 better-sqlite3 需要 glibc + native 编译）
