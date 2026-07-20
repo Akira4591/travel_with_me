@@ -26,3 +26,4 @@ travel_with_me_merged_context.md
 
 # RAG database (runtime artifacts)
 data/
+test-tmp-integration/

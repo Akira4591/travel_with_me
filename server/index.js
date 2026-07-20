@@ -768,17 +768,23 @@ app.use('/css/*', serveStatic({ root: './' }));
 app.use('/js/*', serveStatic({ root: './' }));
 app.use('/three/*', serveStatic({ root: './node_modules' }));
 
-serve({ fetch: app.fetch, port: PORT }, info => {
-  console.log(`[trip-app] 已启动：http://localhost:${info.port}`);
-});
+const isMainModule = process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1]);
 
-process.on('uncaughtException', err => {
-  console.error('[trip-app] uncaughtException:', err);
-});
+if (isMainModule) {
+  serve({ fetch: app.fetch, port: PORT }, info => {
+    console.log(`[trip-app] 已启动：http://localhost:${info.port}`);
+  });
 
-process.on('unhandledRejection', reason => {
-  console.error('[trip-app] unhandledRejection:', reason);
-});
+  process.on('uncaughtException', err => {
+    console.error('[trip-app] uncaughtException:', err);
+  });
+
+  process.on('unhandledRejection', reason => {
+    console.error('[trip-app] unhandledRejection:', reason);
+  });
+}
+
+export { app };
 
 function loadDotenv() {
   const here = dirname(fileURLToPath(import.meta.url));
