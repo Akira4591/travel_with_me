@@ -54,9 +54,7 @@ const C = {
   markerStem: '#9E9685',
   annotationStem: '#EFE8D6',
   bgTop: BONE_WHITE,
-  bgBottom: BONE_WHITE,
-  particle: BONE_WHITE,
-  sliceStrata: ['#C4BBA8', '#B8B5A7', '#B0A590', '#A89D8C']
+  bgBottom: BONE_WHITE
 };
 
 // Render constants.
@@ -65,8 +63,6 @@ const MARKER_RING_RADIUS = 2.7;
 const MARKER_RING_TUBE_RADIUS = 0.22;
 const ANNOTATION_STEM_HEIGHT = 7;
 const ANNOTATION_HEAD_RADIUS = 1.45;
-const DIORAMA_SLICE_THICKNESS = 20;
-const PARTICLE_COUNT = 0;
 
 // Auto orbit resumes after user drag only in overview-like modes.
 const IDLE_RESUME_DELAY = 25000;
@@ -205,10 +201,6 @@ export async function initDiorama({ container }) {
   const dioramaGroup = new THREE.Group();
   scene.add(dioramaGroup);
 
-  // Ambient particles are currently disabled.
-  const particles = createParticles();
-  scene.add(particles);
-
   // 鍏夌収
   setupLighting(scene);
 
@@ -267,7 +259,6 @@ export async function initDiorama({ container }) {
     buildingRevealProgress: 1,
     onAnnotationRequest: null,
     proj: null,
-    particles,
     _animId: animId,
     dispose() {
       cancelAnimationFrame(animId);
@@ -1138,59 +1129,6 @@ function getAnnotationHaloMaterial(cache, type) {
 
 // Slice edge geometry kept for experiments; production currently leaves terrain unboxed.
 
-/**
- * @param {{ minX, maxX, minZ, maxZ }} bounds
- * @returns {THREE.Group}
- */
-function _buildSliceEdge(bounds) {
-  const group = new THREE.Group();
-  const thickness = DIORAMA_SLICE_THICKNESS;
-  const w = bounds.maxX - bounds.minX;
-  const d = bounds.maxZ - bounds.minZ;
-  const cx = (bounds.minX + bounds.maxX) / 2;
-  const cz = (bounds.minZ + bounds.maxZ) / 2;
-
-  const boxGeom = new THREE.BoxGeometry(w + 2, thickness, d + 2);
-  const edgeMat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(C.sliceStrata[0]),
-    roughness: 0.82,
-    metalness: 0.0
-  });
-
-  const edge = new THREE.Mesh(boxGeom, edgeMat);
-  edge.position.set(cx, -thickness / 2, cz);
-  edge.receiveShadow = true;
-  group.add(edge);
-
-  return group;
-}
-
-// Particles.
-
-function createParticles() {
-  const geom = new THREE.BufferGeometry();
-  const count = PARTICLE_COUNT;
-  const positions = new Float32Array(count * 3);
-
-  for (let i = 0; i < count; i++) {
-    positions[i * 3] = (Math.random() - 0.5) * 200;
-    positions[i * 3 + 1] = 10 + Math.random() * 80;
-    positions[i * 3 + 2] = (Math.random() - 0.5) * 200;
-  }
-
-  geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  const mat = new THREE.PointsMaterial({
-    color: new THREE.Color(C.particle),
-    size: 0.8,
-    transparent: true,
-    opacity: 0.2,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false
-  });
-
-  return new THREE.Points(geom, mat);
-}
-
 // Lighting.
 
 function setupLighting(scene) {
@@ -1507,16 +1445,6 @@ function disposeSceneObject(object) {
 }
 
 // Export helpers.
-
-/**
- * Export the current 3D frame as a PNG data URL.
- * @param {DioramaInstance} diorama
- * @returns {string}
- */
-export function captureFrame(diorama) {
-  diorama.renderer.render(diorama.scene, diorama.camera);
-  return diorama.renderer.domElement.toDataURL('image/png');
-}
 
 // Utility functions.
 
