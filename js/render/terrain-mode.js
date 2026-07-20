@@ -1,3 +1,5 @@
+import { clamp } from './math-utils.js';
+
 export const TERRAIN_MODES = {
   microStreet: {
     id: 'micro-street',
@@ -99,8 +101,4 @@ export function chooseTerrainMode(input = {}) {
     // 桌面端首版限制为 48x48：近景细节依赖局部重采样，而不是整幅地图无限加密。
     terrainGrid: clamp(mode.terrainGrid, 8, input.maxTerrainGrid || 48)
   };
-}
-
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
 }

@@ -27,6 +27,16 @@ import { createGenerationTimeline } from './generation-timeline.js';
 import { GENERATION_TIMING_MS } from './generation-timing.js';
 import { createFoundationMetrics } from './terrain-foundation.js';
 import { applyTerrainCarving } from './terrain-carving.js';
+import {
+  clamp,
+  smoothstep,
+  seededUnit,
+  pointInPolygon,
+  withTimeout,
+  easeOutBack,
+  easeInOutCubic,
+  easeInCubic
+} from './math-utils.js';
 
 export { set3DRouteHighlight };
 export { getBuildingDetailAlpha };
@@ -281,13 +291,7 @@ export async function initDiorama({ container }) {
   return instance;
 }
 
-function withTimeout(promise, ms, fallbackValue) {
-  let timerId;
-  const timeout = new Promise(resolve => {
-    timerId = setTimeout(() => resolve(fallbackValue), ms);
-  });
-  return Promise.race([promise, timeout]).finally(() => clearTimeout(timerId));
-}
+// withTimeout is imported from math-utils.js.
 
 /**
  * Enter 3D mode by loading terrain, building layers, and running emergence animation.
@@ -932,18 +936,7 @@ function vegetationDensityForCover(cover) {
   return cover === 'forest' ? 12 : cover === 'scrub' ? 8 : 5;
 }
 
-function pointInPolygon(point, polygon) {
-  let inside = false;
-  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i, i += 1) {
-    const a = polygon[i],
-      b = polygon[j];
-    const crosses =
-      a.z > point.z !== b.z > point.z &&
-      point.x < ((b.x - a.x) * (point.z - a.z)) / (b.z - a.z) + a.x;
-    if (crosses) inside = !inside;
-  }
-  return inside;
-}
+// pointInPolygon is imported from math-utils.js.
 
 // Marker and annotation geometry.
 
@@ -1630,36 +1623,4 @@ function getCameraControlDistances(sceneSpan, terrainMode) {
   };
 }
 
-function seededUnit(value) {
-  const text = String(value || '');
-  let hash = 2166136261;
-  for (let i = 0; i < text.length; i += 1) {
-    hash ^= text.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return (hash >>> 0) / 4294967295;
-}
-
-// Easing functions.
-
-function easeOutBack(t) {
-  const c1 = 1.70158;
-  const c3 = c1 + 1;
-  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
-}
-
-function easeInOutCubic(t) {
-  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-}
-
-function easeInCubic(t) {
-  return t * t * t;
-}
-
-function smoothstep(t) {
-  return t * t * (3 - 2 * t);
-}
-
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
-}
+// Easing and math utilities are imported from math-utils.js.

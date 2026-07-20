@@ -1,3 +1,5 @@
+import { clamp, smoothstep, percentile, roundMetric } from './math-utils.js';
+
 const BUILDING_DETAIL_NEAR_DISTANCE = 260;
 const BUILDING_DETAIL_FAR_DISTANCE = 760;
 const BUILDING_DETAIL_HYSTERESIS_DISTANCE = 18;
@@ -95,21 +97,4 @@ export function getBuildingDetailAlphaWithHysteresis(distance, previousAlpha = 0
   return getBuildingDetailAlpha(Number(distance) + distanceBias);
 }
 
-function smoothstep(t) {
-  return t * t * (3 - 2 * t);
-}
-
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
-}
-
-function percentile(values, ratio) {
-  const sorted = values.filter(Number.isFinite).sort((a, b) => a - b);
-  if (!sorted.length) return 0;
-  const index = Math.min(sorted.length - 1, Math.ceil(sorted.length * ratio) - 1);
-  return roundMetric(sorted[index]);
-}
-
-function roundMetric(value) {
-  return Number((Number(value) || 0).toFixed(3));
-}
+// Math utilities imported from math-utils.js.

@@ -1,3 +1,5 @@
+import { clamp } from './math-utils.js';
+
 const DEFAULT_HEIGHT_SCALE = 30;
 
 export function createTerrainModel({
@@ -131,10 +133,6 @@ function normalizeBounds(bounds = {}) {
     minZ: Number.isFinite(bounds.minZ) ? bounds.minZ : -100,
     maxZ: Number.isFinite(bounds.maxZ) ? bounds.maxZ : 100
   };
-}
-
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
 }
 
 function lerp(a, b, t) {
