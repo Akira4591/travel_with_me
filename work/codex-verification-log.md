@@ -30,6 +30,34 @@ Use this file to record verification for meaningful project changes. Keep entrie
 
 ## Log
 
+### 2026-07-22 - Refresh Codex project summary
+
+**Expected Observation**
+
+- The blackboard reflects the current `main` checkout, the isolated feature-branch commit, latest verification results, and known runtime artifacts.
+- No product code or untracked runtime output is modified.
+
+**Actual Result**
+
+- Updated `work/codex-blackboard.md` with current branch, commit, summary-bar behavior, tests, risks, and next queue.
+- Current checkout remains `main` at `6f8bda3`; `data/` and `test-tmp-integration/` remain untracked and untouched.
+
+**Deviation / Surprise**
+
+- Full E2E smoke previously exposed one whitespace-sensitive assertion and Overpass network resets; the corrected targeted test passed.
+
+**Verification Command**
+
+```powershell
+git status --short --branch
+git log --oneline --decorate -2
+Get-Content -Raw work/codex-blackboard.md
+```
+
+**Residual Risk**
+
+- The feature-branch summary-bar change is not merged into `main`, and the generated runtime directories still need ownership review.
+
 ### 2026-06-24 - Enable Codex SAPIEN-Lite local workflow
 
 **Expected Observation**
