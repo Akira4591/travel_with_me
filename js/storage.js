@@ -15,7 +15,6 @@
 //   - 不再静默丢弃旧 schema；加载旧版本时先保存 recovery snapshot，再交给 state 层规范化
 //   - 增加 workspace JSON 导出/导入封装
 //
-// 单 trip 接口（saveTrip/loadTrip）保留，方便以后做"草稿快照"或迁出 BFF；
 // 当前主存储是 saveWorkspace/loadWorkspace。
 
 const STORAGE_PREFIX = 'trip-app:';
@@ -34,14 +33,6 @@ function safeSet(key, value) {
     localStorage.setItem(STORAGE_PREFIX + key, value);
   } catch {
     memoryFallback.set(key, value);
-  }
-}
-
-function safeRemove(key) {
-  try {
-    localStorage.removeItem(STORAGE_PREFIX + key);
-  } catch {
-    memoryFallback.delete(key);
   }
 }
 
@@ -113,11 +104,6 @@ export function getLastWorkspaceLoadInfo() {
   return { ...lastWorkspaceLoadInfo };
 }
 
-export async function clearWorkspace() {
-  safeRemove(WORKSPACE_KEY);
-  return { ok: true };
-}
-
 export function buildWorkspaceExport(workspace) {
   return {
     format: EXPORT_FORMAT,
@@ -171,35 +157,6 @@ export async function importWorkspace(workspace) {
   const recoveryKey = currentRaw ? createRecoverySnapshot(currentRaw, 'before-import') : '';
   await saveWorkspace(workspace);
   return { ok: true, recoveryKey };
-}
-
-// ─── 单 trip 接口（保留，未在主流程使用） ──────────────
-
-export async function saveTrip(trip, slot = 'draft') {
-  const json = JSON.stringify({
-    version: 1,
-    savedAt: Date.now(),
-    trip
-  });
-  safeSet(slot, json);
-  return { ok: true };
-}
-
-export async function loadTrip(slot = 'draft') {
-  const raw = safeGet(slot);
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw);
-    return parsed.trip ?? null;
-  } catch {
-    console.warn('storage: trip JSON 解析失败');
-    return null;
-  }
-}
-
-export async function clearTrip(slot = 'draft') {
-  safeRemove(slot);
-  return { ok: true };
 }
 
 function createRecoverySnapshot(raw, reason) {

@@ -18,32 +18,60 @@ const REVIEW_SCENES = [
     scene: 'hiking-terrain',
     label: 'mountain route',
     routeSegmentId: 'day-hiking-route-0',
+    views: [
+      { name: 'overview', preset: 'overview', capturePoint: 'hiking-terrain-overview' },
+      { name: 'route-focus', preset: 'routeFocus', capturePoint: 'hiking-terrain-route-focus' }
+    ],
     minBuildings: 0,
     minLandmarks: 0,
-    requiresLandcover: true
+    requiresLandcover: true,
+    requiresWaterBridge: false
   },
   {
     scene: 'old-street',
     label: 'old-street storefront',
     routeSegmentId: 'day-old-street-route-0',
+    views: [
+      { name: 'overview', preset: 'overview', capturePoint: 'old-street-overview' },
+      { name: 'inspect', preset: 'inspect', capturePoint: 'old-street-inspect' }
+    ],
     minBuildings: 4,
     minLandmarks: 0,
-    requiresLandcover: false
+    requiresLandcover: false,
+    requiresWaterBridge: false
   },
   {
     scene: 'landmark-pilot',
     label: 'landmark route',
     routeSegmentId: 'day-landmark-route-0',
+    views: [
+      { name: 'route-focus', preset: 'routeFocus', capturePoint: 'landmark-pilot-route-focus' },
+      { name: 'inspect', preset: 'inspect', capturePoint: 'landmark-pilot-inspect' }
+    ],
     minBuildings: 2,
     minLandmarks: 1,
-    requiresLandcover: false
+    requiresLandcover: false,
+    requiresWaterBridge: false
+  },
+  {
+    scene: 'river-bridge',
+    label: 'river bridge crossing',
+    routeSegmentId: 'day-river-route-0',
+    views: [
+      { name: 'overview', preset: 'overview', capturePoint: 'river-bridge-overview' },
+      { name: 'inspect', preset: 'inspect', capturePoint: 'river-bridge-inspect' }
+    ],
+    minBuildings: 0,
+    minLandmarks: 0,
+    requiresLandcover: false,
+    requiresWaterBridge: true
   }
 ];
 
 test.describe('@gate50-live-review manual visual packet capture', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test('captures live Gate 50 overview and inspect review inputs', async ({ page, isMobile }) => {
+  test('captures live Gate 50 visual review inputs', async ({ page, isMobile }) => {
     test.skip(isMobile, 'Gate 50 live visual review captures are desktop-only.');
     test.setTimeout(220_000);
     mkdirSync(OUTPUT_DIR, { recursive: true });
@@ -55,8 +83,9 @@ test.describe('@gate50-live-review manual visual packet capture', () => {
       await page.addStyleTag({ path: 'tests/visual/styles/screenshot-normalize.css' });
       await focusFrozenRoute(page, reviewScene.routeSegmentId);
 
-      captures.push(await captureView(page, fixture, reviewScene, 'overview'));
-      captures.push(await captureView(page, fixture, reviewScene, 'inspect'));
+      for (const view of reviewScene.views) {
+        captures.push(await captureView(page, fixture, reviewScene, view));
+      }
     }
 
     const manifest = {
@@ -69,19 +98,22 @@ test.describe('@gate50-live-review manual visual packet capture', () => {
     writeFileSync(join(OUTPUT_DIR, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
     writeFileSync(join(OUTPUT_DIR, 'manifest.md'), renderManifestMarkdown(manifest));
 
-    expect(captures).toHaveLength(REVIEW_SCENES.length * 2);
+    expect(captures).toHaveLength(REVIEW_SCENES.flatMap(scene => scene.views).length);
   });
 });
 
 async function captureView(page, fixture, reviewScene, view) {
-  await setVisualCameraPreset(page, view, fixture.cameraPresets[view]);
+  if (view.name === 'route-focus') {
+    await focusFrozenRoute(page, reviewScene.routeSegmentId);
+  }
+  await setVisualCameraPreset(page, view.name, fixture.cameraPresets[view.preset]);
   await expect
     .poll(async () => page.evaluate(() => window.__threeDebug__?.camera?.mode || ''), {
       timeout: 8_000
     })
-    .toBe(view);
+    .toBe(view.name);
 
-  const capturePoint = `${reviewScene.scene}-${view}`;
+  const capturePoint = view.capturePoint;
   const qa = await exportVisualQa(page, fixture, capturePoint);
   qa.workArea = await page.evaluate(() => window.__threeDebug__?.workArea || {});
   assertManualReviewQa(qa, reviewScene, fixture);
@@ -99,7 +131,7 @@ async function captureView(page, fixture, reviewScene, view) {
   return {
     scene: reviewScene.scene,
     label: reviewScene.label,
-    view,
+    view: view.name,
     screenshotPath,
     qaPath,
     cameraMode: qa.camera.mode,
@@ -131,11 +163,32 @@ function assertManualReviewQa(qa, reviewScene, fixture) {
     expect(qa.geoAssetCounts.landcover).toBeGreaterThan(0);
     expect(qa.qa.budgets.vegetationAreaCount).toBeGreaterThan(0);
   }
+  if (reviewScene.requiresWaterBridge) {
+    assertWaterBridgeCoverage(qa, fixture);
+  }
 }
 
 function routeYellowPixelRatioMin(fixture) {
   const value = Number(fixture.expectations?.route?.minYellowPixelRatio);
   return Number.isFinite(value) ? value : 0.00008;
+}
+
+function assertWaterBridgeCoverage(qa, fixture) {
+  const water = fixture?.expectations?.water || {};
+  const bridge = fixture?.expectations?.bridge || {};
+  expect(qa.qa.geometry.waterCoverageRatio).toBeGreaterThanOrEqual(water.minCoverageRatio ?? 0.97);
+  expect(qa.qa.geometry.bridgeContinuity).toBeGreaterThanOrEqual(
+    bridge.minSpanCoverageRatio ?? 0.95
+  );
+  expect(qa.qa.geometry.terrainCarvingDepthP50).toBeGreaterThanOrEqual(water.minChannelDepthMeters);
+  expect(qa.qa.geometry.routeVisiblePixelRatio).toBeGreaterThanOrEqual(0.9);
+  expect(qa.waterVisual.readable).toBe(true);
+  expect(qa.waterVisual.waterBluePixelRatio).toBeGreaterThanOrEqual(
+    water.minBluePixelRatio ?? 0.00008
+  );
+  expect(qa.qa.geometry.bridgePierCount).toBe(0);
+  expect(qa.counts.waterMeshes).toBeGreaterThan(0);
+  expect(qa.counts.bridgeDecks).toBeGreaterThanOrEqual(bridge.minDeckCount ?? 1);
 }
 
 function renderManifestMarkdown(manifest) {

@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 
-const FILES = ['TODO.md', 'docs/quality-gate-status.md'];
+const FILES = ['TODO.md', 'docs/operations/quality-gate-status.md'];
 const STALE_PATTERNS = [
   { name: 'old unit-test count', regex: /30 files,\s*146 tests/u },
   { name: 'old unit-test count', regex: /3[12] files,\s*15[1-9] tests/u },
@@ -34,7 +34,7 @@ for (const file of FILES) {
   }
 }
 
-const quality = texts.get('docs/quality-gate-status.md') || '';
+const quality = texts.get('docs/operations/quality-gate-status.md') || '';
 const verificationUnit = matchFirst(
   quality,
   /\| `npm\.cmd test`\s+\|\s+Passed:\s+(\d+) files,\s+(\d+) tests\s+\|/u
@@ -44,10 +44,12 @@ const completedUnit = matchFirst(
   /\|\s+2\s+\| Unit tests pass\s+\|\s+`npm\.cmd test`:\s+(\d+) files,\s+(\d+) tests\s+\|/u
 );
 if (!verificationUnit || !completedUnit) {
-  findings.push('docs/quality-gate-status.md [unit-ledger] could not parse unit-test ledger rows');
+  findings.push(
+    'docs/operations/quality-gate-status.md [unit-ledger] could not parse unit-test ledger rows'
+  );
 } else if (verificationUnit.join('/') !== completedUnit.join('/')) {
   findings.push(
-    `docs/quality-gate-status.md [unit-ledger] verification ${verificationUnit.join('/')} != completed ${completedUnit.join('/')}`
+    `docs/operations/quality-gate-status.md [unit-ledger] verification ${verificationUnit.join('/')} != completed ${completedUnit.join('/')}`
   );
 }
 
@@ -60,10 +62,12 @@ const completedSmoke = matchFirst(
   /\|\s+3\s+\| Desktop browser smoke tests pass\s+\|\s+Smoke runner:\s+(\d+) Chromium desktop tests passed,\s+(\d+) scoped skips\s+\|/u
 );
 if (!verificationSmoke || !completedSmoke) {
-  findings.push('docs/quality-gate-status.md [smoke-ledger] could not parse smoke ledger rows');
+  findings.push(
+    'docs/operations/quality-gate-status.md [smoke-ledger] could not parse smoke ledger rows'
+  );
 } else if (verificationSmoke.join('/') !== completedSmoke.join('/')) {
   findings.push(
-    `docs/quality-gate-status.md [smoke-ledger] verification ${verificationSmoke.join('/')} != completed ${completedSmoke.join('/')}`
+    `docs/operations/quality-gate-status.md [smoke-ledger] verification ${verificationSmoke.join('/')} != completed ${completedSmoke.join('/')}`
   );
 }
 
@@ -77,11 +81,11 @@ const completedEncoding = matchFirst(
 );
 if (!verificationEncoding || !completedEncoding) {
   findings.push(
-    'docs/quality-gate-status.md [encoding-ledger] could not parse encoding ledger rows'
+    'docs/operations/quality-gate-status.md [encoding-ledger] could not parse encoding ledger rows'
   );
 } else if (verificationEncoding[0] !== completedEncoding[0]) {
   findings.push(
-    `docs/quality-gate-status.md [encoding-ledger] verification ${verificationEncoding[0]} != completed ${completedEncoding[0]}`
+    `docs/operations/quality-gate-status.md [encoding-ledger] verification ${verificationEncoding[0]} != completed ${completedEncoding[0]}`
   );
 }
 

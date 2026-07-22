@@ -1,11 +1,13 @@
 # Changelog
 
+> **辅助文件** | 权威开发文档: [DEVELOPMENT.md](DEVELOPMENT.md)
+
 ## [Unreleased]
 
 - 文档体系收敛
-  - 新增 `docs/documentation-index.md` 作为当前维护文档入口。
+  - 新增 `docs/README.md` 作为当前维护文档入口。
   - 删除被新主文档吸收的旧阶段评审、旧评分表、旧 3D 长研究稿和生成上下文汇总。
-  - README、ARCHITECTURE、TODO、API、商业化、工作流、贡献指南和 Codex 自用提示词同步到最新 3D 路线。
+  - README、ARCHITECTURE、TODO、API、商业化、工作流和贡献指南同步到最新 3D 路线。
 - 3D 路线同步
   - 当前 3D 主线固定为 AMap 2D/Web Service + BFF/geoAssets + Three.js planning diorama。
   - 固定生成顺序：2D 冻结、地基抬升、水路桥融化、路线高亮、建筑体块抬升、建筑细节溶解。
@@ -53,7 +55,7 @@
 - 项目文档
   - `ARCHITECTURE.md` + 5 个 ADR
   - `CONTRIBUTING.md`
-  - `docs/api.md`
+  - `docs/engineering/api.md`
   - `CHANGELOG.md`
 
 ### Changed

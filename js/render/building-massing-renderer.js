@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 
 import { chooseBuildingTemplate } from './building-templates.js';
+import { seededUnit, percentile, roundMetric } from './math-utils.js';
 
 const BUILDING_MIN_HEIGHT = 3;
 const BUILDING_MAX_HEIGHT = 14;
@@ -298,28 +299,9 @@ function getOverviewFeatureScale(bounds) {
   return THREE.MathUtils.clamp(span / 850, 1, 6);
 }
 
-function seededUnit(value) {
-  const text = String(value || '');
-  let hash = 2166136261;
-  for (let i = 0; i < text.length; i += 1) {
-    hash ^= text.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return (hash >>> 0) / 4294967295;
-}
-
-function percentile(values, ratio) {
-  const sorted = values.filter(Number.isFinite).sort((a, b) => a - b);
-  if (!sorted.length) return 0;
-  const index = Math.min(sorted.length - 1, Math.ceil(sorted.length * ratio) - 1);
-  return roundMetric(sorted[index]);
-}
-
 function maxMetric(values) {
   const finite = values.filter(Number.isFinite);
   return finite.length ? roundMetric(Math.max(...finite)) : 0;
 }
 
-function roundMetric(value) {
-  return Number((Number(value) || 0).toFixed(3));
-}
+// seededUnit, percentile, roundMetric are imported from math-utils.js.

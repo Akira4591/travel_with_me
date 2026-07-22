@@ -1,5 +1,7 @@
 # Contributing
 
+> **辅助文件** | 权威开发文档: [DEVELOPMENT.md](DEVELOPMENT.md)
+
 ## 本地开发
 
 ```bash
@@ -21,9 +23,9 @@ npm run dev
 
 Any change that affects 3D visual output, camera behavior, terrain, water, roads, bridges, buildings, or scene profiles must check these documents before implementation:
 
-- `docs/qa/visual-baseline.md`
-- `docs/qa/debug-contract.md`
-- `docs/3d-visual-baseline-spec.md`
+- `docs/engineering/qa/visual-baseline.md`
+- `docs/engineering/qa/debug-contract.md`
+- `docs/architecture/3d/visual-baseline-spec.md`
 
 The next active development order is:
 
@@ -63,7 +65,7 @@ npm run check    # 格式 + lint 一并检查
 ### 测试
 
 ```bash
-npm test            # 单元测试（当前基线 21 files, 103 tests）
+npm test            # 单元测试（当前基线 39 files, 244 tests）
 npm run test:watch  # 持续监听
 npm run test:e2e    # 浏览器级 E2E 测试（Playwright）
 ```
@@ -188,11 +190,10 @@ trip-app/
 │   └── e2e/
 │       └── smoke.spec.js
 └── docs/
-    ├── product-architecture-blueprint.md
-    ├── 3d-deep-research-integration.md
-    ├── 3d-generation-process-alignment.md
-    ├── 3d-top-down-execution-roadmap.md
-    ├── 3d-assets-landcover-and-landmarks.md
-    ├── api.md
-    └── ...                 # 其他当前维护文档
+    ├── README.md
+    ├── product/            # 产品、商业化、AI 导入评测
+    ├── architecture/       # 2D/3D 架构和资产边界
+    ├── engineering/        # API、开发工作流、QA、测试
+    ├── operations/         # 发布手册和质量门状态
+    └── design/             # UI/视觉风格
 ```

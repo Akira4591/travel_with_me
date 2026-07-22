@@ -16,6 +16,8 @@
     "check:provenance": "node scripts/check-provenance.mjs",
     "check:gate50-evidence": "node scripts/check-gate50-evidence.mjs",
     "check:encoding": "node scripts/check-visible-text-encoding.mjs",
+    "check:duplicates": "jscpd",
+    "check:deadcode": "knip --no-progress",
     "test": "vitest run",
     "test:e2e": "node scripts/run-e2e-smoke.mjs",
     "test:e2e:visual": "playwright test tests/e2e/visual-baseline.spec.js --project=chromium",
@@ -30,6 +32,8 @@
   },
   "dependencies": {
     "@hono/node-server": "^2.0.5",
+    "@node-rs/jieba": "^2.0.0",
+    "better-sqlite3": "^11.0.0",
     "console-log-json": "^6.4.1",
     "hono": "^4.12.26",
     "three": "0.162.0"
@@ -39,6 +43,8 @@
     "@playwright/test": "^1.61.0",
     "eslint": "^9.39.1",
     "husky": "^9.1.7",
+    "jscpd": "^5.0.12",
+    "knip": "^6.27.0",
     "lint-staged": "^17.0.7",
     "prettier": "^3.7.4",
     "vitest": "^4.1.9"
@@ -63,5 +69,8 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "allowScripts": {
+    "better-sqlite3@11.10.0": true
   }
 }

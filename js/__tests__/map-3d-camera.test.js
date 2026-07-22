@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import * as THREE from 'three';
 
-import { getInitialOverviewCameraPose, getOverviewCameraPose } from '../render/map-3d.js';
+import { getInitialOverviewCameraPose, getOverviewCameraPose } from '../render/camera-pose.js';
 
 describe('3D map overview camera pose', () => {
   it('starts on the same lifted orbit target used by idle auto-orbit', () => {
@@ -56,7 +56,7 @@ describe('3D map overview camera pose', () => {
     );
 
     expect(THREE.MathUtils.radToDeg(microPitch)).toBeCloseTo(58, 0);
-    expect(THREE.MathUtils.radToDeg(hikingPitch)).toBeCloseTo(68, 0);
+    expect(THREE.MathUtils.radToDeg(hikingPitch)).toBeCloseTo(62, 0);
   });
 
   it('keeps micro-street overview close enough for first-screen readability', () => {

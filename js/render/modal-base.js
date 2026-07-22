@@ -67,10 +67,20 @@ export function createModalShell({ className = '', title = '', ariaLabel = '' })
   return { root, body: root.querySelector('.modal-body') };
 }
 
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+function getFocusableElements(root) {
+  return [...root.querySelectorAll(FOCUSABLE_SELECTOR)].filter(
+    el => el.offsetParent !== null || el === document.activeElement
+  );
+}
+
 /**
  * 绑定 modal 的通用关闭事件：close button、cancel button、overlay click、Escape key
- * @param {HTMLElement} root — modal-overlay 根元素
- * @param {() => void} closeFn — 关闭回调函数
+ * 同时启用 focus trap：Tab 在 modal 内循环，关闭后恢复焦点
+ * @param {HTMLElement} root - modal-overlay 根元素
+ * @param {() => void} closeFn - 关闭回调函数
  */
 export function setupModalCloseEvents(root, closeFn) {
   root.querySelector('.modal-close')?.addEventListener('click', closeFn);
@@ -78,7 +88,38 @@ export function setupModalCloseEvents(root, closeFn) {
   root.addEventListener('click', e => {
     if (e.target === root) closeFn();
   });
-  root.addEventListener('keydown', e => {
-    if (e.key === 'Escape') closeFn();
-  });
+
+  const previouslyFocused = document.activeElement;
+  const focusable = getFocusableElements(root);
+  if (focusable.length > 0) focusable[0].focus();
+
+  const trapKeydown = e => {
+    if (e.key === 'Escape') {
+      closeFn();
+      return;
+    }
+    if (e.key !== 'Tab') return;
+    const elements = getFocusableElements(root);
+    if (elements.length === 0) return;
+    const first = elements[0];
+    const last = elements[elements.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
+  root.addEventListener('keydown', trapKeydown);
+
+  const originalClose = closeFn;
+  const wrappedClose = () => {
+    root.removeEventListener('keydown', trapKeydown);
+    if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
+      previouslyFocused.focus();
+    }
+    originalClose();
+  };
+  return wrappedClose;
 }

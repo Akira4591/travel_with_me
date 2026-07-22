@@ -12,7 +12,6 @@
 
 import { initialTrip } from './data/trip.js';
 import { AppConfig } from './config.js';
-// V5：date 字段已删除，addDaysISO/isISODate/todayISO 全部不再使用
 import { getTimeSlotRank, normalizeTimeSlot } from './time-slots.js';
 import { normalizeRouteToNext } from './route-config.js';
 import { normalizeAnnotation } from './annotations.js';
@@ -166,10 +165,6 @@ export function getLocation(locationId) {
   );
 }
 
-export function getAllLocationIds() {
-  return Object.keys(getTrip().locations);
-}
-
 export function getAnnotations() {
   return trip?.annotations || [];
 }
@@ -177,15 +172,6 @@ export function getAnnotations() {
 // ─── trip 写（mutator） ────────────────────────────────
 // 编辑型 mutator 都 emit 'trip:changed'，载荷里带 kind 让订阅方按需精细更新
 // 'location:updated' 是底层坐标校准，比 trip:changed 粒度更细，保留独立事件
-
-export function updateLocationCoords(locationId, lnglat) {
-  if (!trip) return;
-  const loc = trip.locations[locationId];
-  if (!loc) return;
-  loc.lnglat = lnglat;
-  loc.resolved = true;
-  emit('location:updated', { locationId });
-}
 
 export function addLocation(loc) {
   if (!trip) return null;

@@ -1,22 +1,26 @@
 # Trip App
 
+> **辅助文件** | 权威开发文档: [DEVELOPMENT.md](DEVELOPMENT.md)
+
 ## Current next-stage focus
 
-The active desktop Web branch is now evidence-first:
+Gate 50 visual acceptance passed on 2026-07-17. All 50 quality gates are now complete.
 
-```text
-Alpha visual proof infrastructure
-  -> Beta P2 water / road / bridge visual correctness
-  -> Gamma P3 building massing / dissolve
-  -> Delta inspect camera and scene precision profiles
-```
+Current active workstreams:
 
-Do not start P4 DEM tiles, P5 landmark restoration, commercial 3D providers, or mobile-first work until the first ROI visual baselines and P2 visual correctness gates are stable.
+- **RAG R2**: DashScope embedding + hnswlib-node (per ADR-9, Route B)
+- **3D P4**: DEM tile terrain (unblocked now that Gate 50 is closed)
+- **3D P5**: Landmark restoration (unblocked)
+- **Commercialization Phase 1**: security hardening, API rate limits, data export
+
+Current 3D route design: the 3D route is not a hard-coded industrial-yellow line. It is the active
+2D page route projected onto valid 3D surfaces with the same color, width, dash state, and selected
+style. If the selected 3D work area contains no route segment, no route layer is rendered.
 
 Key QA documents:
 
-- [Visual Baseline QA Plan](docs/qa/visual-baseline.md)
-- [3D Debug QA Contract](docs/qa/debug-contract.md)
+- [Visual Baseline QA Plan](docs/engineering/qa/visual-baseline.md)
+- [3D Debug QA Contract](docs/engineering/qa/debug-contract.md)
 
 Trip App 是一个中文旅行路线规划 Web App，用来创建多条旅行路线、管理多日行程、搜索地点、规划交通方式，并生成旅行手账风格的分享长图。
 
@@ -30,22 +34,21 @@ Trip App 是一个中文旅行路线规划 Web App，用来创建多条旅行路
 
 当前主文档：
 
-- [文档索引](docs/documentation-index.md)：当前保留文档、职责边界和已删除历史文档清单。
-- [产品与架构总纲](docs/product-architecture-blueprint.md)：产品定位、2D 数据事实层、3D 同源表达、双 Key 边界和交付门禁。
-- [2D 数据事实层](docs/2d-data-foundation.md)：地点、路线、地理事实、BFF 和持久化边界。
-- [3D 深度研究整合](docs/3d-deep-research-integration.md)：最新 3D 技术路线、数据源、状态机、性能预算和质量门禁。
-- [3D 设计过程对齐](docs/3d-generation-process-alignment.md)：用户要求的 2D 冻结、地基抬升、水路桥融化、建筑体块溶解流程。
-- [3D 执行路线图](docs/3d-top-down-execution-roadmap.md)：3D 从 P0 到 P6 的分批实施顺序。
-- [3D 资产与地标管线](docs/3d-assets-landcover-and-landmarks.md)：建筑、道路、水域、桥梁、植被和地标的授权资产边界。
-- [UI 视觉风格守则](docs/ui-visual-style-guide.md)：锁定当前颜色、图标、布局、圆角、阴影和后续新增 UI 的审查清单。
-- [AI 导入评测](docs/guide-import-evaluation.md)：攻略导入召回率、误提取率、day 准确率和 note 覆盖率的离线评测。
+- [文档索引](docs/README.md)：当前保留文档、职责边界和已删除历史文档清单。
+- [产品与架构总纲](docs/product/architecture-blueprint.md)：产品定位、2D 数据事实层、3D 同源表达、双 Key 边界和交付门禁。
+- [2D 数据事实层](docs/architecture/2d-data-foundation.md)：地点、路线、地理事实、BFF 和持久化边界。
+- [3D 深度研究整合](docs/architecture/3d/deep-research-integration.md)：最新 3D 技术路线、数据源、状态机、性能预算和质量门禁。
+- [3D 设计过程对齐](docs/architecture/3d/generation-process-alignment.md)：用户要求的 2D 冻结、地基抬升、水路桥融化、建筑体块溶解流程。
+- [3D 执行路线图](docs/architecture/3d/top-down-execution-roadmap.md)：3D 从 P0 到 P6 的分批实施顺序。
+- [3D 资产与地标管线](docs/architecture/3d/assets-landcover-and-landmarks.md)：建筑、道路、水域、桥梁、植被和地标的授权资产边界。
+- [UI 视觉风格守则](docs/design/ui-visual-style-guide.md)：锁定当前颜色、图标、布局、圆角、阴影和后续新增 UI 的审查清单。
+- [AI 导入评测](docs/product/guide-import-evaluation.md)：攻略导入召回率、误提取率、day 准确率和 note 覆盖率的离线评测。
 - [架构文档](ARCHITECTURE.md)：当前系统架构、ADR、模块边界和 3D 设计规范。
-- [商业化策略](commercialization-solutions.md)：商业化缺口、方案取舍、阶段路线和暂不做清单。
+- [商业化策略](docs/product/commercialization.md)：商业化缺口、方案取舍、阶段路线和暂不做清单。
 - [Roadmap](TODO.md)：当前可执行 backlog。
-- [BFF API 文档](docs/api.md)：服务端代理和接口契约。
-- [工程工作流底座](docs/development-workflow-foundation.md)：软件安装、账号密钥、环境准备和日常开发流程。
-- [发布运行手册](docs/release-playbook.md)：健康检查、灰度、回滚与上线门禁。
-- [Codex 自用提示词](docs/codex-self-prompts.md)：后续迭代时用于自检、重构、验收和文档同步的工作提示词。
+- [BFF API 文档](docs/engineering/api.md)：服务端代理和接口契约。
+- [工程工作流底座](docs/engineering/development-workflow.md)：软件安装、账号密钥、环境准备和日常开发流程。
+- [发布运行手册](docs/operations/release-playbook.md)：健康检查、灰度、回滚与上线门禁。
 
 ## 当前能力
 
@@ -111,7 +114,7 @@ npm run dev
 
 ```bash
 npm run check       # Prettier 格式检查 + ESLint
-npm test            # 运行单元测试（当前基线 21 files, 103 tests）
+npm test            # 运行单元测试（当前基线 39 files, 244 tests）
 npm run test:guide-import # 运行 AI 攻略导入离线评测
 npm run test:e2e    # 运行 Playwright 桌面主线 smoke + 移动端基础回归
 npm run test:watch  # 测试持续监听模式
@@ -240,6 +243,13 @@ trip-app/
     └── tests/
         └── e2e/
             └── smoke.spec.js
+├── docs/
+│   ├── README.md
+│   ├── product/
+│   ├── architecture/
+│   ├── engineering/
+│   ├── operations/
+│   └── design/
 ```
 
 ## 架构约定

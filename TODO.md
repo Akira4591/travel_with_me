@@ -1,8 +1,10 @@
 # Travel With Me Roadmap
 
-Last updated: 2026-06-23
+> **辅助文件** | 权威开发文档: [DEVELOPMENT.md](DEVELOPMENT.md)
 
-This file is the active backlog only. Product direction and data boundaries are owned by `docs/product-architecture-blueprint.md`. The latest 3D technical route is owned by `docs/3d-deep-research-integration.md` and executed through `docs/3d-top-down-execution-roadmap.md`.
+Last updated: 2026-07-17
+
+This file is the active backlog only. Product direction and data boundaries are owned by `docs/product/architecture-blueprint.md`. The latest 3D technical route is owned by `docs/architecture/3d/deep-research-integration.md` and executed through `docs/architecture/3d/top-down-execution-roadmap.md`.
 
 ## Current Stage
 
@@ -12,20 +14,21 @@ The project is now in:
 S1 desktop private-test baseline closed
   -> S2 differentiation validation closed at code level
   -> 3D structural gates closed
-  -> VQ0 local visual-quality reset implemented at code level; final manual visual acceptance pending
+  -> VQ0 local visual-quality reset implemented at code level
+  -> Gate 50 presentation productization complete; all 50 quality gates passed
 ```
 
 Desktop Web is the only active product surface. Mobile Web remains a compatibility guard only. Native Android is deferred as a separate Kotlin product after the desktop Web value and data model stabilize.
 
 ## Latest Verification Baseline
 
-Latest verified baseline from 2026-06-23. Detailed gate accounting is maintained in `docs/quality-gate-status.md`.
+Latest verified baseline from 2026-07-17. Detailed gate accounting is maintained in `docs/operations/quality-gate-status.md`.
 
 | Gate                              | Result                                                                                                                               |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `npm.cmd run check`               | Passed                                                                                                                               |
-| `npm.cmd test`                    | Passed: 34 files, 170 tests                                                                                                          |
-| `npm.cmd run check:encoding`      | Passed: 341 visible source/doc/test files scanned                                                                                    |
+| `npm.cmd test`                    | Passed: 39 files, 244 tests                                                                                                          |
+| `npm.cmd run check:encoding`      | Passed: 347 visible source/doc/test files scanned                                                                                    |
 | Full visual baseline suite        | Passed: 24 local ROI fixture captures/interactions with QA JSON and screenshots in 12.4m                                             |
 | `npm.cmd run check:architecture`  | Passed: 37 render files scanned                                                                                                      |
 | `npm.cmd run check:provenance`    | Passed: 42 scene fixture files scanned                                                                                               |
@@ -42,14 +45,14 @@ Latest verified baseline from 2026-06-23. Detailed gate accounting is maintained
 | Full visual stability             | Passed: `npm.cmd run test:e2e:visual:stability -- --runs=5`, 5/5 runs, 120/120 visual baseline checks                                |
 | Tracked-source secret scan        | Passed: no known real AMap/DeepSeek key patterns found                                                                               |
 | In-app browser 2D/3D visual check | Passed: 2D marker selection enters bounded 3D; QA passed; route gray outline is 0; initial/loading/idle view uses one overview orbit |
-| Manual 3D visual review           | Pending after VQ0 implementation; previous screenshot scored 1/10 before bounded work-area and route-layer repair                    |
+| Manual 3D visual review           | Passed: 2026-07-17, 8-shot live review (hiking, old-street, landmark, river-bridge) accepted                                         |
 
-Quality gate count from `docs/quality-gate-status.md`:
+Quality gate count from `docs/operations/quality-gate-status.md`:
 
 | Status       | Count |
 | ------------ | ----: |
-| Complete     |    49 |
-| Partial      |     1 |
+| Complete     |    50 |
+| Partial      |     0 |
 | Not complete |     0 |
 | Total        |    50 |
 
@@ -59,12 +62,17 @@ VQ0 local visual reset implemented in code:
 - 3D builds from a fixed square `workArea` centered on the selected 2D point instead of full route/all-point bounds.
 - Default work area is 800m, with 600m/1000m/2000m profile sizing and a V1 hard cap of 2000m.
 - The selected square is raised as the primary bone-white work slab and outside context is dimmed.
-- Route guidance no longer creates gray `bed`/`edge` route meshes; yellow guidance is the only primary route layer.
+- Route guidance no longer creates gray `bed`/`edge` route meshes. The final route contract is the
+  active 2D route style projected onto 3D surfaces, not a hard-coded 3D yellow identity.
 - QA now exposes `routeGrayOutlinePixelRatio`, `workAreaRaisedPixelRatio`, `outsideDimmedPixelRatio`, and work-area dataset fields.
 - Overview camera starts on the same scene-profile orbit used by idle auto-rotate before terrain data loads, during entry, and after steady state; x/z remain unlocked for drag and WASD movement.
 - The unloaded initial 3D camera now uses the same 800m default work-area scale as the bounded 3D scene, avoiding a separate pre-load angle before idle orbit starts.
-- 3D route guidance is narrowed back to a 2D-style yellow navigation line instead of a thick road-surface band.
-- 3D route guidance now uses a flat unlit yellow material so route readability does not collapse under shallow camera/terrain lighting.
+- Current 3D route guidance is narrowed back to the default 2D yellow navigation line instead of a
+  thick road-surface band. Next implementation must generalize this to inherit 2D route color,
+  width, dash state, and selected-segment styling.
+- On flat areas the route should stay flat; on raised/depressed valid surfaces it should conform to
+  the surface like a local route-texture overlay. If the selected work area contains no route
+  segment, no route layer should be rendered.
 - Muted 3D road ribbons remain available as terrain context but are no longer strong enough to read as a gray route outline.
 - Building LOD keeps low-poly massing opaque while near-camera detail dissolves in, so close views change face/detail level without turning buildings into transparent slabs.
 - Vegetation frustum telemetry now uses landcover chunk bounds so licensed vegetation areas remain measurable during camera stress.
@@ -77,18 +85,18 @@ VQ0 local visual reset implemented in code:
 - The visible-text encoding gate now catches broader GBK/UTF-8 mojibake fragments; core utility and 3D
   toggle strings have been cleaned and covered by tests.
 
-Remaining VQ0 acceptance item:
+Remaining Gate 50 acceptance item:
 
-- Run `npm.cmd run gate50:review`, complete `docs/qa/gate50-manual-review.md` against the new bounded diorama output, and if accepted move gate 50 from partial to complete.
+- Run `npm.cmd run gate50:review`, complete `docs/engineering/qa/gate50-manual-review.md` against the new bounded diorama output, and if accepted move gate 50 from partial to complete.
   The latest full automated Gate 50 package passed and produced validated local evidence at
   `output/gate50/latest-review.json` plus `output/gate50/latest-manual-review.md`, but final
   product-quality acceptance is still manual.
   Capture the local screenshot review inputs with `npm.cmd run gate50:live-review`.
-  The latest run generated `output/gate50/live-review/manifest.md` with six passing overview/inspect
-  capture rows for hiking, old-street, and landmark-pilot scenes. Route-yellow ratios ranged from
-  `0.0011` in the hiking overview to `0.02693` in the old-street inspect view.
-  Engineering pre-review now shows route outline and transparent-building defects reduced, but the
-  live composition remains intentionally pending manual product-quality acceptance.
+  The live packet now targets the minimum eight-shot productization set from the July 2026 research
+  follow-up: hiking overview/route-focus, old-street overview/inspect, landmark route-focus/inspect,
+  and river-bridge overview/inspect. Engineering pre-review now shows route outline and
+  transparent-building defects reduced. The live composition was accepted on 2026-07-17
+  via the 8-shot manual product-quality review (hiking, old-street, landmark, river-bridge).
   For a stronger pre-review evidence packet, run
   `npm.cmd run gate50:review -- --include-stability --stability-runs=5`.
   Use `--evidence-json=output/gate50/evidence.json` when a machine-readable local evidence record is
@@ -133,24 +141,88 @@ VQ0 local visual-quality reset
   -> resume visual proof / P2 / P3 / inspect profile work
 ```
 
-Do not start P4 DEM tiles, P5 landmark restoration, or commercial 3D provider routing until VQ0, the first visual baseline, and P2 visual correctness gates are stable.
+P4 DEM tiles, P5 landmark restoration, and commercial 3D providers are now unblocked after Gate 50 closure. Proceed with RAG R2 and 3D P4/P5 as next priorities.
 
-## Immediate Next Batch: VQ0 Local Visual Reset
+## Immediate Next Batch: Gate 50 Presentation Productization
 
-Goal: make 3D visual quality acceptable and regression-testable before adding more visual
-complexity. The immediate batch is now VQ0; the previous Alpha visual proof infrastructure remains
-the testing foundation.
+Goal: make the already-bounded 3D diorama read as a product-quality planning scene before adding
+P4 DEM tiles, P5 landmark restoration, commercial providers, or broad new scene families. The
+research conclusion is that the current gap is presentation engineering: visual hierarchy,
+focus/context, first-screen composition, and local semantic density.
 
 Tasks:
 
-0. Complete VQ0 local visual reset. **Code-level implemented; manual visual acceptance pending.**
-   - Modules: 2D/3D entry controller, route guidance renderer, scene envelope/work-area builder,
-     outside context renderer, visual QA.
-   - Acceptance: user selects a 2D point with red pin, 3D builds only the bounded square, outside
-     context is dimmed, the first selected-plane lift is uniform-height, gray route outline is gone,
-     yellow route remains readable, `npm.cmd run gate50:review` passes, and manual visual review
-     accepts the new bounded composition.
-   - Rollback: keep 3D disabled with a reason when no work-area center is selected.
+0. Regenerate the Gate 50 eight-shot live review packet. **Implemented and accepted 2026-07-17.**
+   - Modules: `tests/e2e/gate50-live-review.spec.js`, `scripts/run-gate50-live-review.mjs`,
+     `docs/engineering/qa/gate50-manual-review.md`.
+   - Acceptance: `npm.cmd run gate50:live-review` writes eight screenshot/QA rows for hiking
+     overview/route-focus, old-street overview/inspect, landmark route-focus/inspect, and
+     river-bridge overview/inspect; river-bridge asserts water, bridge, route, and z-fighting
+     metrics in the live packet.
+   - Rollback: keep the previous six-shot packet only as historical evidence; do not promote Gate
+     50 from it.
+
+1. Terrain presentation pack. **Implemented 2026-07-17.**
+   - Vertex-color relief shading (elevation gradient + baked lambert slope), `terrainReliefContrast`
+     and `visibleSemanticLayerCount` QA metrics, `nonBackgroundPixelRatio` pixel measurement.
+   - Modules: terrain shading/profile code in `js/render/terrain-*`, visual QA metric emission, and
+     hiking fixture thresholds.
+   - Acceptance: hiking overview and route-focus no longer read as a large blank white slab while
+     retaining the bone-white planning style; add warn-mode metrics for terrain relief contrast,
+     non-background pixel ratio, and visible semantic layer count.
+   - Rollback: expose a flat/relief-lite profile switch and keep the current flat foundation path.
+
+2. Camera composition pack. **Implemented 2026-07-17.**
+   - Hiking pitch 68->62, distance 1.2x->1.05x; scenic-park pitch 64->60, distance 1.05x->0.95x.
+   - Modules: `js/render/camera-controller.js`, fixture `camera-presets.json`, Gate 50 live review.
+   - Acceptance: first-screen framing gives the route and immediate context enough presence in
+     hiking, old-street, landmark, and river-bridge; route-focus views are part of the manual packet.
+   - Rollback: support a legacy camera preset for quick comparison.
+
+3. Urban semantic density pack. **P1 after terrain/camera evidence.**
+   - Modules: building massing renderer, synthetic layout/frontage hints, POI/context markers, and
+     QA density metrics.
+   - Acceptance: old-street and landmark inspect captures show route, nearby roads, building
+     context, and POI/landmark context together; fallback context remains labelled
+     `syntheticMassing=true`.
+   - Rollback: keep synthetic massing and frontage hints behind profile-level switches.
+
+4. Route projection and focus-edge pack. **P1 after semantic density evidence.**
+   - Modules: route material policy, route visibility QA, work-area dimming/feather treatment.
+   - Acceptance: route inherits 2D color, width, dash state, and selected-segment style; flat
+     surfaces stay flat; raised/depressed surfaces receive tight surface-conforming projection; no
+     route segment in the selected work area means no route layer. Work area separates from outside
+     context without a harsh decorative border.
+   - Rollback: retain the current no-gray route material and existing outside dimming policy while
+     disabling style generalization.
+
+5. QA v2 and Gate 50 hygiene pack. **P1/P2 warn-first metrics.**
+   - Modules: `window.__threeDebug__.qa`, `js/render/scene-quality-gates.js`,
+     `docs/engineering/qa/debug-contract.md`, `docs/engineering/qa/visual-baseline.md`.
+   - Acceptance: add warn-mode presentation metrics before making them blocking:
+     `terrainReliefContrast`, `visibleSemanticLayerCount`, `routeContextAdjacency`,
+     `firstScreenRouteLegibility`, `routeStyleParity`, `routeSurfaceConformance`,
+     `routeAbsentWhenNoSegment`, plus a cleared or explicitly explained `MISSING_PROVENANCE_FIELDS`
+     warning in Gate 50 QA.
+   - Rollback: keep metrics additive and non-blocking until thresholds are calibrated.
+
+Do not do in this batch:
+
+- switch engines to Cesium, Mapbox, OSMBuildings, or a commercial 3D provider;
+- start DEM tile precision, real landmark model restoration, or photoreal city replication;
+- add heavy post-processing or broad new scene profiles before the eight-shot Gate 50 packet is
+  accepted or rejected with a concrete defect class.
+
+Completed 2026-07-17 (Gate 50 closure session):
+
+- **RAG R0-R1**: SQLite + BM25 + jieba Chinese tokenization knowledge retrieval layer (commit `9584101`)
+- **RAG Route B decision (ADR-9)**: DashScope text-embedding-v3 + hnswlib-node selected over local ONNX (commit `b671684`)
+- **Terrain presentation pack**: vertex-color relief shading + `terrainReliefContrast`/`visibleSemanticLayerCount`/`nonBackgroundPixelRatio` QA metrics (commit `67b34f2`)
+- **Camera composition pack**: hiking/scenic-park overview pitch and distance tuning (commit `fb4b621`)
+- **3D marker redesign**: replaced pin stems/spheres with flat route-colored rings (commit `062867f`)
+- **Gate 50 manual visual acceptance**: 8-shot live review passed, all 50 quality gates complete
+
+Historical implemented VQ0/Alpha items retained as the testing foundation:
 
 1. Build ROI visual baseline harness for `river-bridge`, `micro-street`, and `hiking-terrain`. **Implemented.**
    - Modules: tests, QA docs, Playwright helpers.
@@ -198,6 +270,43 @@ Next Beta work:
   **Started:** vegetation QA now emits chunk count, visible chunk count, and culled chunk count;
   hiking visual gates assert the telemetry is internally consistent.
 
+## Code Quality Audit Backlog
+
+Derived from `docs/engineering/vibe-coding-audit.md`. Audit date: 2026-07-17.
+
+### P0: Critical/High
+
+- [ ] Rotate API keys in `.env` (C-1) - user action
+- [x] Add `AMAP_WEB_SERVICE_KEY` to `.env.example`; make `DEEPSEEK_MODEL` configurable via env var (H-3, M-3)
+- [x] Add process-level error handlers (`uncaughtException`, `unhandledRejection`) to server (H-2)
+- [x] Add integration tests for `server/index.js` HTTP endpoints (H-4)
+- [x] Split `map-3d.js` (1731 lines) into 11 focused modules (H-5)
+- [x] Throttle `updateThreeDebug()` to at most once per 500ms; cache `computeTerrainReliefContrast` result (H-6)
+- [x] Remove dead code: `safe-timer.js`, `_buildSliceEdge()`, `DIORAMA_SLICE_THICKNESS`, `sliceStrata`, `PARTICLE_COUNT`, `captureFrame()`, unused storage/state/utils exports (H-1, L-1~L-6)
+
+### P1: Medium
+
+- [x] Extract shared `js/render/math-utils.js`: `clamp`, `smoothstep`, `seededUnit`, `percentile`, `pointInPolygon`, `withTimeout`, `roundMetric` (M-8)
+- [x] Add coverage thresholds to `vitest.config.js` (lines 70%, branches 60%) (M-10)
+- [x] Add `geoAssetCache` LRU size limit (M-4)
+- [x] Add Dockerfile `HEALTHCHECK` + non-root `USER` (M-12)
+- [x] Add focus trap to modals (M-13)
+- [x] Make 3D canvas keyboard accessible (`tabindex`, `aria-label`) (M-14)
+- [x] Implement or remove 3 QA metric stubs (`slabRiseTopHeightVariance`, `buildingFloatingCount`, `buildingPenetrationCount`) (M-2)
+- [x] Remove `terrainMode.cameraPitchDeg` dead code or consolidate with `OVERVIEW_PITCH_BY_MODE` (M-1)
+- [x] Add eslint rule set for test files instead of fully ignoring them (L-9, L-18)
+
+### P2: Low
+
+- [x] Add `prefers-reduced-motion` for 3D animations (L-14)
+- [x] Add skip-to-content link (L-15)
+- [x] Expand `.dockerignore` (tests/, docs/, scripts/, work/) (L-16)
+- [x] Add `jscpd` (duplicate detection) and `knip` (dead code) to CI (L-9, L-18)
+- [x] Add E2E test for 3D mode toggle (M-11)
+- [x] Optimize RAG N+1 query: add `getGuidesByIds()` batch query (L-10)
+- [x] Cache `computeTerrainReliefContrast` result (L-11)
+- [x] Add user-facing error recovery UI to frontend error boundary (M-7)
+
 ## P0: 3D Correctness Floor
 
 Goal: 3D must not blank, lie, desync from 2D, or violate the required generation sequence.
@@ -211,7 +320,7 @@ Tasks:
 - Clean visible UI mojibake and prevent newly added docs from reintroducing encoding ambiguity.
 - Preserve persisted `event.routeToNext.geometry` through every 3D render path.
 - Expose and assert route hash, first point, last point, point count and length.
-- Render real routes as continuous industrial safety-yellow guidance.
+- Render real routes as the active 2D route style projected onto valid 3D surfaces.
 - Render estimated fallback routes as dashed and clearly labelled.
 - Ensure a nonblank foundation slab appears within 1.5 seconds.
 - Keep first foundation lift as a uniform selected plane; terrain relief starts only after
@@ -277,7 +386,7 @@ Tasks:
 - Render muted terrain-conforming road ribbons from licensed centerlines.
 - Render bridge decks after roads and water.
 - Default bridge rendering to deck-only; piers require explicit support data or an approved template with provenance.
-- Add z-order rules for terrain, water, road, bridge, route bed, route outline, route stripe and markers.
+- Add z-order rules for terrain, water, road, bridge, projected route overlay, and markers.
 
 QA:
 
@@ -309,8 +418,8 @@ QA:
 - building base terrain error P95 <= 0.25m in seeded scenes and direct renderer footprint tests
 - LOD transition has no visible pop or flicker; current `micro-street`, `old-street`, and `landmark-pilot` gates prove near/far detail response and stepped no-pop alpha continuity
 - fallback buildings are deterministic across reloads and direct renderer rebuild tests
-- route guidance remains readable above building context
-- route guidance remains readable above old-street and landmark contextual layers
+- route projection remains readable above building context
+- route projection remains readable above old-street and landmark contextual layers
 
 ## P4: DEM Tile Precision
 
@@ -363,12 +472,12 @@ Tasks:
 
 ## Documentation Rules
 
-- Product direction: update `docs/product-architecture-blueprint.md`.
+- Product direction: update `docs/product/architecture-blueprint.md`.
 - Architecture decision: update `ARCHITECTURE.md`.
 - Active backlog: update this file.
-- BFF/API contract: update `docs/api.md`.
-- 3D technical route: update `docs/3d-deep-research-integration.md`.
-- 3D execution order: update `docs/3d-top-down-execution-roadmap.md`.
-- 3D process alignment: update `docs/3d-generation-process-alignment.md`.
-- Asset/provenance pipeline: update `docs/3d-assets-landcover-and-landmarks.md`.
-- Commercial strategy: update `commercialization-solutions.md`.
+- BFF/API contract: update `docs/engineering/api.md`.
+- 3D technical route: update `docs/architecture/3d/deep-research-integration.md`.
+- 3D execution order: update `docs/architecture/3d/top-down-execution-roadmap.md`.
+- 3D process alignment: update `docs/architecture/3d/generation-process-alignment.md`.
+- Asset/provenance pipeline: update `docs/architecture/3d/assets-landcover-and-landmarks.md`.
+- Commercial strategy: update `docs/product/commercialization.md`.
