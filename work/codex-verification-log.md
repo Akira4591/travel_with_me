@@ -41,12 +41,14 @@ Use this file to record verification for meaningful project changes. Keep entrie
 
 - The AMap mock now computes the center of all fitted markers; the keyboard route test passed 10 concurrent repeats.
 - Node and CI now target 22.22.1, CI runs the full 2D check and default Playwright suite, and the live-provider workflow only exposes its implemented AMap target.
-- `npm run check`, 98 unit tests, 12 guide-import evaluation cases, the zero-vulnerability audit, and the full 2D E2E suite passed. E2E executed 17 applicable cases and skipped 13 viewport-inapplicable instances.
+- Remote `main@c568aa4` was reconciled locally. Its SQLite/BM25 guide-import RAG remains active and tested; its 3D code and tests remain outside the default runtime and gates.
+- `npm run check`, 163 tests in 17 files, 12 guide-import evaluation cases, the zero-vulnerability audit, and the full 2D E2E suite passed. E2E executed 17 applicable cases and skipped 13 viewport-inapplicable instances.
 
 **Deviation / Surprise**
 
-- Docker reached the daemon but could not read `node:22-alpine` metadata because the Docker Hub connection returned `unexpected EOF`; no source build step ran.
+- Docker reached the daemon but could not read Node 22 base-image metadata because the Docker Hub connection returned `unexpected EOF`; no source build step ran.
 - Credentialed live-provider smoke could not run because the three required AMap variables are absent.
+- The remote merge introduced an untagged 3D Playwright file; the default runner now selects the explicit active 2D smoke file, and the architecture gate enforces that selection.
 
 **Verification Command**
 
@@ -63,7 +65,7 @@ docker build --tag travel-with-me:2d-closure .
 **Residual Risk**
 
 - Docker and credentialed AMap verification remain external gates.
-- The scoped branch still needs reconciliation with fetched `origin/main` at `c568aa4` before release or publication.
+- Local verification used Node 24.15.0; CI remains responsible for the exact Node 22.22.1 run.
 
 ### 2026-08-12 - Seal 3D and harden the 2D product
 

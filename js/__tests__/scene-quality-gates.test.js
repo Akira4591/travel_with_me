@@ -256,6 +256,75 @@ describe('scene quality gates', () => {
     expect(debug.qa.lod.buildingDetailRatio).toBe(1);
     expect(debug.qa.layers.bridges.count).toBe(1);
   });
+
+  it('exposes terrainReliefContrast and visibleSemanticLayerCount in geometry', () => {
+    const result = evaluateSceneQuality({
+      firstSlabMs: 420,
+      terrainMode: 'hiking',
+      elevationRange: 500,
+      geometryMetrics: { terrainReliefContrast: 0.085 },
+      geoAssetCounts: { waterways: 1, bridges: 1, roads: 1, buildings: 1 },
+      counts: { waterMeshes: 1, bridgeDecks: 1, roadMeshes: 1, routeSegments: 2 },
+      routeGeometryCount: 2,
+      provenanceSources: [
+        {
+          source: 'test',
+          licence: 'ODbL',
+          attribution: 'Example',
+          updatedAt: '2026-06-21T00:00:00.000Z'
+        }
+      ]
+    });
+
+    expect(result.geometry.terrainReliefContrast).toBe(0.085);
+    expect(result.geometry.visibleSemanticLayerCount).toBe(4);
+    expect(result.warnings).not.toContain(expect.stringMatching(/^TERRAIN_RELIEF_CONTRAST_LOW/));
+  });
+
+  it('warns when hiking terrain has near-zero relief contrast', () => {
+    const result = evaluateSceneQuality({
+      firstSlabMs: 420,
+      terrainMode: 'hiking',
+      elevationRange: 500,
+      geometryMetrics: { terrainReliefContrast: 0.008 },
+      counts: {},
+      geoAssetCounts: {}
+    });
+
+    expect(result.passed).toBe(true);
+    expect(result.warnings).toContain('TERRAIN_RELIEF_CONTRAST_LOW:0.008');
+  });
+
+  it('does not warn about relief contrast for non-hiking modes', () => {
+    const result = evaluateSceneQuality({
+      firstSlabMs: 420,
+      terrainMode: 'citywalk',
+      elevationRange: 3,
+      geometryMetrics: { terrainReliefContrast: 0.001 },
+      counts: {},
+      geoAssetCounts: {}
+    });
+
+    expect(result.warnings).not.toContain(expect.stringMatching(/^TERRAIN_RELIEF_CONTRAST_LOW/));
+  });
+
+  it('counts visible semantic layers from rendered layer meshes', () => {
+    const result = evaluateSceneQuality({
+      firstSlabMs: 420,
+      geoAssetCounts: { waterways: 2, bridges: 1, roads: 3, buildings: 2, landcover: 1 },
+      counts: {
+        waterMeshes: 2,
+        bridgeDecks: 1,
+        roadMeshes: 3,
+        routeSegments: 2,
+        buildingMassings: 2,
+        vegetationInstances: 5
+      },
+      routeGeometryCount: 2
+    });
+
+    expect(result.geometry.visibleSemanticLayerCount).toBe(6);
+  });
 });
 
 function mockGroup(meshCount) {

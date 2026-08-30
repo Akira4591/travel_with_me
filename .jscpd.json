@@ -1,0 +1,15 @@
+{
+  "threshold": 3,
+  "reporters": ["text", "html"],
+  "format": ["javascript"],
+  "ignore": [
+    "**/__tests__/**",
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/coverage/**",
+    "tests/**",
+    "scripts/**"
+  ],
+  "absolute": true,
+  "output": "./coverage/jscpd"
+}

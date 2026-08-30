@@ -64,36 +64,6 @@ export function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-
-export function isISODate(value) {
-  return typeof value === 'string' && ISO_DATE_RE.test(value);
-}
-
-export function formatDateCN(value) {
-  if (!isISODate(value)) return String(value || '');
-  const [, m, d] = value.split('-');
-  return `${Number(m)}月${Number(d)}日`;
-}
-
-export function todayISO() {
-  return toISO(new Date());
-}
-
-export function addDaysISO(iso, n = 1) {
-  if (!isISODate(iso)) return todayISO();
-  const date = new Date(`${iso}T00:00:00`);
-  date.setDate(date.getDate() + n);
-  return toISO(date);
-}
-
-function toISO(date) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
-
 const TRANSPORT_LABELS = {
   walking: '步行',
   transit: '公共交通',

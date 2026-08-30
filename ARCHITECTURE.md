@@ -6,10 +6,10 @@ Travel With Me 是一个中文旅行路线规划 Web App。本文档记录当前
 
 文档边界：
 
-- 产品方向、交付阶段和文档职责见 `docs/product-architecture-blueprint.md`。
-- 商业化缺口、方案取舍和阶段路线见 `commercialization-solutions.md`。
+- 产品方向、交付阶段和文档职责见 `docs/product/architecture-blueprint.md`。
+- 商业化缺口、方案取舍和阶段路线见 `docs/product/commercialization.md`。
 - 近期执行 backlog 见 `TODO.md`。
-- BFF 接口契约见 `docs/api.md`。
+- BFF 接口契约见 `docs/engineering/api.md`。
 - 3D 历史资料只供追溯，当前封存边界见 `archive/3d/README.md`。
 
 本文档只回答：系统如何组织、为什么这样组织、哪些架构约束必须遵守。
@@ -285,7 +285,7 @@ buildTripShareImage(trip, { includeRoutes })
 
 **核心战略判断**: 3D diorama + 地形感知 + 标记放置是视觉化、体验化的付费锚点，比"离线地图"（Wanderlog Pro 锚点）更有说服力。
 
-**竞品分析、市场数据、能力对标、分阶段路线图、技术方案矩阵、权益定价**: 见 `commercialization-solutions.md`。
+**竞品分析、市场数据、能力对标、分阶段路线图、技术方案矩阵、权益定价**: 见 `docs/product/commercialization.md`。
 
 ---
 

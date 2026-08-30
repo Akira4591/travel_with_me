@@ -8,7 +8,6 @@
 //   4) 地图走真实瓦片（/_AMapTile 同源代理避免 canvas 跨域污染），叠暖色滤镜与降饱和
 
 import { AppConfig } from './config.js';
-// V5：day.date 字段已删除，formatDateCN/isISODate 不再使用
 import { getTransportIcon, getTransportLabel } from './utils.js';
 import { getIconPaths, inferIconId, normalizeIconId } from './render/icons.js';
 import { getTimeSlotLabel, normalizeTimeSlot } from './time-slots.js';

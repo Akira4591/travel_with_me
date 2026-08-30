@@ -263,6 +263,8 @@ B线【万国建筑线】
 "warnings": ["已将沿途小店和机位合并进备注"]
 }
 
+{retrieved_context_section}
+
 ## 十、现在处理用户输入
 
 [城市提示: {user_specified_city 或 "由你识别"}]

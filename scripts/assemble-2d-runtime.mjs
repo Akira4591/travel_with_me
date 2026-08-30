@@ -25,6 +25,11 @@ const runtimePaths = new Set([
   'package-lock.json',
   'server/index.js',
   'server/prompts/guide-extract.md',
+  'server/rag/bm25.js',
+  'server/rag/db.js',
+  'server/rag/retrieve.js',
+  'server/rag/store.js',
+  'server/rag/tokenizer.js',
   'scripts/active-2d-runtime.mjs',
   ...runtimeManifest.htmlStylesheets,
   ...runtimeManifest.activeJavaScriptPaths

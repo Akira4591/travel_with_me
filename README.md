@@ -22,19 +22,18 @@ Trip App 是一个中文旅行路线规划 Web App，用来创建多条旅行路
 
 当前主文档：
 
-- [文档索引](docs/documentation-index.md)：当前保留文档、职责边界和已删除历史文档清单。
-- [产品与架构总纲](docs/product-architecture-blueprint.md)：产品定位、2D 数据事实层、双 Key 边界和交付门禁。
-- [2D 数据事实层](docs/2d-data-foundation.md)：地点、路线、地理事实、BFF 和持久化边界。
+- [文档索引](docs/README.md)：当前文档职责和封存资料入口。
+- [产品与架构总纲](docs/product/architecture-blueprint.md)：产品定位、2D 数据事实层、双 Key 边界和交付门禁。
+- [2D 数据事实层](docs/architecture/2d-data-foundation.md)：地点、路线、地理事实、BFF 和持久化边界。
 - [3D 封存边界](archive/3d/README.md)：历史 3D 实现的隔离规则和恢复前置条件。
-- [UI 视觉风格守则](docs/ui-visual-style-guide.md)：锁定当前颜色、图标、布局、圆角、阴影和后续新增 UI 的审查清单。
-- [AI 导入评测](docs/guide-import-evaluation.md)：攻略导入召回率、误提取率、day 准确率和 note 覆盖率的离线评测。
+- [UI 视觉风格守则](docs/design/ui-visual-style-guide.md)：锁定当前颜色、图标、布局、圆角、阴影和后续新增 UI 的审查清单。
+- [AI 导入评测](docs/product/guide-import-evaluation.md)：攻略导入召回率、误提取率、day 准确率和 note 覆盖率的离线评测。
 - [架构文档](ARCHITECTURE.md)：当前 2D 系统架构、ADR 和模块边界。
-- [商业化策略](commercialization-solutions.md)：商业化缺口、方案取舍、阶段路线和暂不做清单。
+- [商业化策略](docs/product/commercialization.md)：商业化缺口、方案取舍、阶段路线和暂不做清单。
 - [Roadmap](TODO.md)：当前可执行 backlog。
-- [BFF API 文档](docs/api.md)：服务端代理和接口契约。
-- [工程工作流底座](docs/development-workflow-foundation.md)：软件安装、账号密钥、环境准备和日常开发流程。
-- [发布运行手册](docs/release-playbook.md)：健康检查、灰度、回滚与上线门禁。
-- [Codex 自用提示词](docs/codex-self-prompts.md)：后续迭代时用于自检、重构、验收和文档同步的工作提示词。
+- [BFF API 文档](docs/engineering/api.md)：服务端代理和接口契约。
+- [工程工作流底座](docs/engineering/development-workflow.md)：软件安装、账号密钥、环境准备和日常开发流程。
+- [发布运行手册](docs/operations/release-playbook.md)：健康检查、灰度、回滚与上线门禁。
 
 ## 当前能力
 
@@ -43,6 +42,7 @@ Trip App 是一个中文旅行路线规划 Web App，用来创建多条旅行路
 - **JSON 导出/导入**：行程菜单支持导出当前 workspace，也支持从 JSON 导入并在替换前保存恢复快照。
 - **默认演示行程**：首次打开会加载“五一北京行程”；默认地点不再写死坐标，启动后通过高德解析。
 - **AI 攻略导入**：顶部提供独立 `AI 导入` 入口；可粘贴中文攻略文本，由 DeepSeek 提取行程结构，再用高德匹配 POI，预览确认后创建新路线。
+- **攻略检索增强**：已导入攻略可进入本地 SQLite/BM25 索引，为后续攻略提取提供相似文本上下文。
 - **日期管理**：新建一天、编辑日期/标题、删除日期；日期不可重复，并按时间排序。
 - **地点管理**：搜索添加地点、替换已有地点、删除地点、同一天内拖拽排序。
 - **智能一些的添加体验**：新增地点时标题自动使用地点名；可按关键词搜索，也可基于当天已有地点“搜附近”。
@@ -62,7 +62,8 @@ Node.js + Hono
   ├─ 静态文件托管
   ├─ 高德 Web 服务代理：/_AMapService/*
   ├─ 高德瓦片代理：/_AMapTile
-  └─ AI 攻略解析：/_ai/extract-guide
+  ├─ AI 攻略解析：/_ai/extract-guide
+  └─ 本地攻略检索：/_rag/*
 
 Browser
   ├─ 原生 ES Modules
@@ -126,6 +127,8 @@ AMAP_JSCODE=<your-amap-jscode>
 AMAP_WEB_SERVICE_KEY=<your-amap-web-service-key>
 DEEPSEEK_API_KEY=<your-deepseek-api-key>
 DEEPSEEK_TIMEOUT_MS=90000
+RAG_ENABLED=true
+RAG_DB_PATH=data/rag.db
 PORT=8080
 ```
 
@@ -173,6 +176,7 @@ trip-app/
 ├── .github/workflows/ci.yml
 ├── server/
 │   ├── index.js              # Hono BFF：静态托管、高德/AI 代理、瓦片代理
+│   ├── rag/                  # SQLite/BM25 攻略检索
 │   └── prompts/
 │       └── guide-extract.md  # AI 攻略解析 Prompt
 ├── index.html

@@ -1,3 +1,5 @@
+import { clamp } from './math-utils.js';
+
 export const TERRAIN_MODES = {
   microStreet: {
     id: 'micro-street',
@@ -5,8 +7,7 @@ export const TERRAIN_MODES = {
     terrainGrid: 18,
     routeSamples: 18,
     labelBudget: 18,
-    dataSource: 'open-meteo-or-flat',
-    cameraPitchDeg: 60
+    dataSource: 'open-meteo-or-flat'
   },
   citywalk: {
     id: 'citywalk',
@@ -14,8 +15,7 @@ export const TERRAIN_MODES = {
     terrainGrid: 28,
     routeSamples: 24,
     labelBudget: 14,
-    dataSource: 'open-meteo',
-    cameraPitchDeg: 58
+    dataSource: 'open-meteo'
   },
   scenicPark: {
     id: 'scenic-park',
@@ -23,8 +23,7 @@ export const TERRAIN_MODES = {
     terrainGrid: 40,
     routeSamples: 32,
     labelBudget: 12,
-    dataSource: 'open-meteo-dem-preferred',
-    cameraPitchDeg: 56
+    dataSource: 'open-meteo-dem-preferred'
   },
   hiking: {
     id: 'hiking',
@@ -32,8 +31,7 @@ export const TERRAIN_MODES = {
     terrainGrid: 48,
     routeSamples: 48,
     labelBudget: 8,
-    dataSource: 'dem-required-for-strong-claims',
-    cameraPitchDeg: 55
+    dataSource: 'dem-required-for-strong-claims'
   },
   regionOverview: {
     id: 'region-overview',
@@ -42,8 +40,7 @@ export const TERRAIN_MODES = {
     terrainGrid: 14,
     routeSamples: 20,
     labelBudget: 8,
-    dataSource: 'open-meteo-low-detail',
-    cameraPitchDeg: 62
+    dataSource: 'open-meteo-low-detail'
   }
 };
 
@@ -99,8 +96,4 @@ export function chooseTerrainMode(input = {}) {
     // 桌面端首版限制为 48x48：近景细节依赖局部重采样，而不是整幅地图无限加密。
     terrainGrid: clamp(mode.terrainGrid, 8, input.maxTerrainGrid || 48)
   };
-}
-
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
 }

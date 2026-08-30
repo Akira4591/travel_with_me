@@ -1,3 +1,5 @@
+import { clamp, smoothstepRange, pointInPolygon, percentile } from './math-utils.js';
+
 export function applyTerrainCarving(terrainModel, proj, waterways = []) {
   const masks = buildWaterCarveMasks(proj, waterways);
   if (!masks.length) {
@@ -50,7 +52,7 @@ function createWaterCarveMask(proj, waterway) {
       strengthAt(x, z) {
         if (!pointInPolygon({ x, z }, polygon)) return 0;
         const edgeDistance = distanceToPolyline({ x, z }, [...polygon, polygon[0]]);
-        return smoothstep(0, width * 0.35, edgeDistance);
+        return smoothstepRange(0, width * 0.35, edgeDistance);
       }
     };
   }
@@ -63,7 +65,7 @@ function createWaterCarveMask(proj, waterway) {
       strengthAt(x, z) {
         const distance = distanceToPolyline({ x, z }, line);
         if (distance >= radius) return 0;
-        return 1 - smoothstep(radius * 0.45, radius, distance);
+        return 1 - smoothstepRange(radius * 0.45, radius, distance);
       }
     };
   }
@@ -71,18 +73,7 @@ function createWaterCarveMask(proj, waterway) {
   return null;
 }
 
-function pointInPolygon(point, polygon) {
-  let inside = false;
-  for (let index = 0, previous = polygon.length - 1; index < polygon.length; previous = index++) {
-    const a = polygon[index];
-    const b = polygon[previous];
-    const intersects =
-      a.z > point.z !== b.z > point.z &&
-      point.x < ((b.x - a.x) * (point.z - a.z)) / (b.z - a.z || 1e-9) + a.x;
-    if (intersects) inside = !inside;
-  }
-  return inside;
-}
+// pointInPolygon, smoothstepRange, clamp, percentile are imported from math-utils.js.
 
 function distanceToPolyline(point, line) {
   let best = Infinity;
@@ -101,22 +92,6 @@ function distanceToSegment(point, a, b) {
   const x = a.x + dx * t;
   const z = a.z + dz * t;
   return Math.hypot(point.x - x, point.z - z);
-}
-
-function smoothstep(edge0, edge1, value) {
-  const t = clamp((value - edge0) / Math.max(edge1 - edge0, 1e-9), 0, 1);
-  return t * t * (3 - 2 * t);
-}
-
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, Number(value) || 0));
-}
-
-function percentile(values, ratio) {
-  const sorted = values.filter(Number.isFinite).sort((a, b) => a - b);
-  if (!sorted.length) return 0;
-  const index = Math.min(sorted.length - 1, Math.ceil(sorted.length * ratio) - 1);
-  return Number(sorted[index].toFixed(3));
 }
 
 function unitsToMeters(proj, value) {

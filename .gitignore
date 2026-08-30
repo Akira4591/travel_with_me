@@ -23,3 +23,7 @@ Travel_with_Me_AI攻略导入_PRD_v2.md
 
 # Auto-generated merged context
 travel_with_me_merged_context.md
+
+# RAG database (runtime artifacts)
+data/
+test-tmp-integration/

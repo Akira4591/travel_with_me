@@ -24,6 +24,11 @@ import {
   build2DRuntimeManifest,
   projectPathFromRequestURL
 } from '../scripts/active-2d-runtime.mjs';
+import { initDB } from './rag/db.js';
+import { saveGuide, listGuides, softDeleteGuide, getActiveGuideCount } from './rag/store.js';
+import { BM25Index } from './rag/bm25.js';
+import { retrieveGuides, formatRetrievedContext } from './rag/retrieve.js';
+import { tokenize } from './rag/tokenizer.js';
 
 // 本地加载 .env：Zeabur 等部署环境本身就会注入 process.env，找不到 .env 时静默跳过。
 loadDotenv();
@@ -52,7 +57,8 @@ const AMAP_ALLOWED_PATHS = new Set([
 ]);
 const TILE_PREFIX = '/_AMapTile';
 const AI_PREFIX = '/_ai';
-const DEEPSEEK_MODEL = 'deepseek-v4-flash';
+const RAG_PREFIX = '/_rag';
+const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
 const DEEPSEEK_JSON_ATTEMPTS = 2;
 const DEEPSEEK_TIMEOUT_MS = readPositiveInt(process.env.DEEPSEEK_TIMEOUT_MS, 90000);
 const GUIDE_PROMPT_TEMPLATE = loadGuidePromptTemplate();
@@ -64,6 +70,13 @@ const AMAP_RATE_LIMIT = readPositiveInt(process.env.AMAP_RATE_LIMIT, 600);
 const AMAP_RATE_WINDOW_MS = readPositiveInt(process.env.AMAP_RATE_WINDOW_MS, 60 * 1000);
 const TILE_RATE_LIMIT = readPositiveInt(process.env.TILE_RATE_LIMIT, 1200);
 const TILE_RATE_WINDOW_MS = readPositiveInt(process.env.TILE_RATE_WINDOW_MS, 60 * 1000);
+const RAG_ENABLED = process.env.RAG_ENABLED !== 'false';
+const RAG_DB_PATH = process.env.RAG_DB_PATH || resolve(PROJECT_ROOT, 'data', 'rag.db');
+const RAG_TOP_K = readPositiveInt(process.env.RAG_TOP_K, 3);
+const RAG_MAX_CONTEXT_CHARS = readPositiveInt(process.env.RAG_MAX_CONTEXT_CHARS, 1500);
+const RAG_MIN_DOCS = readPositiveInt(process.env.RAG_MIN_DOCS, 3);
+const RAG_SEARCH_RATE_LIMIT = readPositiveInt(process.env.RAG_SEARCH_RATE_LIMIT, 20);
+const RAG_SEARCH_RATE_WINDOW_MS = 60 * 60 * 1000;
 const rateBuckets = new Map();
 
 if (!JSCODE) {
@@ -80,7 +93,17 @@ if (!AMAP_WEB_SERVICE_KEY) {
 if (!DEEPSEEK_KEY) {
   console.warn('[trip-app] DEEPSEEK_API_KEY 未设置：AI 攻略导入功能将不可用。');
 }
-// V5：DEEPSEEK_KEY 仅在此读取声明，具体路由（/_ai/extract-guide）在 V6 实现攻略提取时再加
+
+let bm25Index = null;
+if (RAG_ENABLED) {
+  initDB(RAG_DB_PATH);
+  bm25Index = new BM25Index();
+  bm25Index.rebuildFromDB();
+}
+
+function isRagReady() {
+  return bm25Index !== null && bm25Index.docCount >= RAG_MIN_DOCS;
+}
 
 const app = new Hono();
 
@@ -101,7 +124,8 @@ app.get('/readyz', c => {
         amapJsSecurity: Boolean(JSCODE),
         amapJsKey: Boolean(AMAP_JS_KEY),
         amapWebService: Boolean(AMAP_WEB_SERVICE_KEY),
-        aiGuideImport: Boolean(DEEPSEEK_KEY && GUIDE_PROMPT_TEMPLATE)
+        aiGuideImport: Boolean(DEEPSEEK_KEY && GUIDE_PROMPT_TEMPLATE),
+        rag: Boolean(bm25Index)
       }
     },
     ready ? 200 : 503
@@ -237,12 +261,21 @@ app.post(`${AI_PREFIX}/extract-guide`, async c => {
     return c.json({ error: 'TEXT_TOO_LONG', message: '文字过长，请分段处理。' }, 400);
 
   try {
+    const retrievedContextSection = isRagReady()
+      ? formatRetrievedContext(
+          retrieveGuides(bm25Index, text, {
+            topK: RAG_TOP_K,
+            maxSnippetLength: Math.floor(RAG_MAX_CONTEXT_CHARS / RAG_TOP_K)
+          })
+        )
+      : '';
     let lastDebug = null;
     for (let attempt = 1; attempt <= DEEPSEEK_JSON_ATTEMPTS; attempt += 1) {
       const upstreamResp = await fetchDeepSeekWithTimeout({
         text,
         cityHint,
-        signalTimeoutMs: DEEPSEEK_TIMEOUT_MS
+        signalTimeoutMs: DEEPSEEK_TIMEOUT_MS,
+        retrievedContextSection
       });
 
       const data = await upstreamResp.json().catch(() => null);
@@ -254,7 +287,21 @@ app.post(`${AI_PREFIX}/extract-guide`, async c => {
       const choice = data?.choices?.[0];
       const content = choice?.message?.content || '';
       const parsed = parseGuideJSON(content);
-      if (parsed) return c.json(normalizeExtractedGuide(parsed));
+      if (parsed) {
+        const normalized = normalizeExtractedGuide(parsed);
+        if (bm25Index) {
+          const tokens = tokenize(text);
+          const guideId = saveGuide({
+            city: normalized.city || cityHint || null,
+            guide_type: normalized.guide_type || null,
+            source_text: text,
+            extracted: JSON.stringify(normalized),
+            token_count: tokens.length
+          });
+          bm25Index.addDocument(guideId, tokens);
+        }
+        return c.json(normalized);
+      }
 
       const debug = {
         attempt,
@@ -297,6 +344,70 @@ app.post(`${AI_PREFIX}/extract-guide`, async c => {
     console.error('[trip-app] AI 攻略导入失败：', err);
     return c.json({ error: 'AI_FAILED', message: 'AI 暂时不可用，请稍后重试。' }, 502);
   }
+});
+
+app.get(`${RAG_PREFIX}/status`, c => {
+  if (!bm25Index) {
+    return c.json({ available: false, reason: 'rag_disabled', documentCount: 0 });
+  }
+  return c.json({
+    available: true,
+    ready: isRagReady(),
+    documentCount: bm25Index.stats.docCount,
+    avgDocLength: bm25Index.stats.avgDocLength,
+    indexBuiltAt: bm25Index.stats.indexBuiltAt,
+    minDocs: RAG_MIN_DOCS
+  });
+});
+
+app.post(`${RAG_PREFIX}/search`, async c => {
+  const sourceRejected = rejectUntrustedSource(c);
+  if (sourceRejected) return sourceRejected;
+  const limited = enforceRateLimit(
+    c,
+    'rag-search',
+    RAG_SEARCH_RATE_LIMIT,
+    RAG_SEARCH_RATE_WINDOW_MS
+  );
+  if (limited) return limited;
+  if (!bm25Index) {
+    return c.json({ error: 'RAG_UNAVAILABLE', message: 'RAG 检索功能未启用。' }, 503);
+  }
+
+  let payload;
+  try {
+    payload = await c.req.json();
+  } catch {
+    return c.json({ error: 'BAD_REQUEST', message: '请求格式错误。' }, 400);
+  }
+  const query = String(payload?.query || '').trim();
+  const topK = Math.min(Math.max(Number(payload?.top_k) || RAG_TOP_K, 1), 20);
+  if (query.length < 2) {
+    return c.json({ error: 'QUERY_TOO_SHORT', message: '查询文本过短。' }, 400);
+  }
+  const results = retrieveGuides(bm25Index, query, {
+    topK,
+    maxSnippetLength: Math.floor(RAG_MAX_CONTEXT_CHARS / topK)
+  });
+  return c.json({ results, count: results.length });
+});
+
+app.get(`${RAG_PREFIX}/guides`, c => {
+  if (!bm25Index) return c.json({ guides: [], total: 0 });
+  const limit = Math.min(Math.max(Number(c.req.query('limit')) || 50, 1), 200);
+  const offset = Math.max(Number(c.req.query('offset')) || 0, 0);
+  return c.json({ guides: listGuides({ limit, offset }), total: getActiveGuideCount() });
+});
+
+app.delete(`${RAG_PREFIX}/guides/:id`, c => {
+  const sourceRejected = rejectUntrustedSource(c);
+  if (sourceRejected) return sourceRejected;
+  const id = c.req.param('id');
+  if (!softDeleteGuide(id)) {
+    return c.json({ error: 'NOT_FOUND', message: '文档不存在。' }, 404);
+  }
+  bm25Index?.rebuildFromDB();
+  return c.json({ deleted: id });
 });
 
 // ─── 高德 Web 服务代理 ────────────────────────────────────
@@ -469,9 +580,14 @@ app.use('/js/*', (c, next) => {
   if (!ACTIVE_2D_JAVASCRIPT_PATHS.has(projectPath)) return c.notFound();
   return serveActive2DJavaScript(c, next);
 });
-serve({ fetch: app.fetch, port: PORT }, info => {
-  console.log(`[trip-app] 已启动：http://localhost:${info.port}`);
-});
+const isMainModule = process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1]);
+if (isMainModule) {
+  serve({ fetch: app.fetch, port: PORT }, info => {
+    console.log(`[trip-app] 已启动：http://localhost:${info.port}`);
+  });
+}
+
+export { app };
 
 function loadDotenv() {
   const here = dirname(fileURLToPath(import.meta.url));
@@ -507,12 +623,20 @@ function loadGuidePromptTemplate() {
   }
 }
 
-function renderGuidePrompt(template, text, cityHint) {
+function renderGuidePrompt(template, text, cityHint, retrievedContextSection = '') {
   const city = cityHint || '由你识别';
-  return template.replace('{user_specified_city 或 "由你识别"}', city).replace('{user_text}', text);
+  return template
+    .replace('{retrieved_context_section}', retrievedContextSection)
+    .replace('{user_specified_city 或 "由你识别"}', city)
+    .replace('{user_text}', text);
 }
 
-async function fetchDeepSeekWithTimeout({ text, cityHint, signalTimeoutMs }) {
+async function fetchDeepSeekWithTimeout({
+  text,
+  cityHint,
+  signalTimeoutMs,
+  retrievedContextSection = ''
+}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), signalTimeoutMs);
   try {
@@ -537,7 +661,12 @@ async function fetchDeepSeekWithTimeout({ text, cityHint, signalTimeoutMs }) {
           },
           {
             role: 'user',
-            content: renderGuidePrompt(GUIDE_PROMPT_TEMPLATE, text, cityHint)
+            content: renderGuidePrompt(
+              GUIDE_PROMPT_TEMPLATE,
+              text,
+              cityHint,
+              retrievedContextSection
+            )
           }
         ]
       })

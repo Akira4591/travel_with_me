@@ -74,6 +74,9 @@ async function checkRequiredText(projectPath, patterns) {
 async function checkE2EArchiveContract() {
   const runnerPath = 'scripts/run-e2e-smoke.mjs';
   const runner = await readFile(resolve(root, runnerPath), 'utf8');
+  if (!runner.includes("'tests/e2e/smoke.spec.js'")) {
+    violations.push(runnerPath + ' does not select the explicit active 2D E2E file');
+  }
   const grepInvert = runner.match(/['"]--grep-invert['"]\s*,\s*['"]([^'"]+)['"]/)?.[1] || '';
   const excludedTags = new Set(grepInvert.split('|').filter(Boolean));
   if (excludedTags.has('3D')) {

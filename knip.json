@@ -1,0 +1,5 @@
+{
+  "entry": ["js/main.js", "js/render/map-3d.js"],
+  "project": ["js/**/*.js", "server/**/*.js"],
+  "ignore": ["js/icons.js"]
+}

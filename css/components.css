@@ -2924,3 +2924,21 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 0;
+  z-index: 10000;
+  padding: 8px 16px;
+  background: #3e3b34;
+  color: #fcfaf5;
+  font-size: 14px;
+  text-decoration: none;
+  border-radius: 0 0 6px 0;
+  transition: top 0.2s ease;
+}
+
+.skip-link:focus {
+  top: 0;
+}

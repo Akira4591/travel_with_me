@@ -15,7 +15,12 @@ export default defineConfig({
       'js/__tests__/state.test.js',
       'js/__tests__/storage.test.js',
       'js/__tests__/time-slots.test.js',
-      'js/__tests__/utils.test.js'
+      'js/__tests__/utils.test.js',
+      'server/__tests__/bm25.test.js',
+      'server/__tests__/integration.test.js',
+      'server/__tests__/retrieve.test.js',
+      'server/__tests__/store.test.js',
+      'server/__tests__/tokenizer.test.js'
     ],
     globals: false
   }
