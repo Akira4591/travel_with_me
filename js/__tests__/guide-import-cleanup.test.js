@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { cleanGuideExtractedEvents, isGuideNoisePlaceName } from '../guide-import-cleanup.js';
+import {
+  MAX_GUIDE_DAYS,
+  cleanGuideExtractedEvents,
+  isGuideNoisePlaceName
+} from '../guide-import-cleanup.js';
 
 describe('cleanGuideExtractedEvents', () => {
   it('filters common non-place noise from guide extraction output', () => {
@@ -55,5 +59,16 @@ describe('cleanGuideExtractedEvents', () => {
         source_quote: ''
       }
     ]);
+  });
+
+  it('moves out-of-range model day values to the unscheduled group', () => {
+    const warnings = [];
+    const events = cleanGuideExtractedEvents([{ place_name: '外滩', day: 1_000_000_000 }], {
+      warnings
+    });
+
+    expect(MAX_GUIDE_DAYS).toBeGreaterThan(1);
+    expect(events[0].day).toBeNull();
+    expect(warnings).toContain(`超出 ${MAX_GUIDE_DAYS} 天的地点已移入未排期。`);
   });
 });

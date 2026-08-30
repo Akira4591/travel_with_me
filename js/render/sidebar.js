@@ -255,6 +255,8 @@ function createEventCard(day, event, eventIndex, handlers) {
   card.dataset.eventId = event.id;
   card.dataset.dayId = day.id;
   card.dataset.timeSlot = normalizeTimeSlot(event.timeSlot);
+  card.tabIndex = 0;
+  card.setAttribute('aria-label', `在地图上查看${event.title || loc.name}`);
   const iconHTML = renderIconSVG(getIconIdForEvent(event, loc));
   const timeSlot = normalizeTimeSlot(event.timeSlot);
   const timeBadgeHTML = timeSlot
@@ -299,10 +301,16 @@ function createEventCard(day, event, eventIndex, handlers) {
     </div>
   `;
 
-  card.addEventListener('click', () => {
+  const activateCard = () => {
     document.querySelectorAll('.card').forEach(c => c.classList.remove('active'));
     card.classList.add('active');
     handlers.onEventClick?.(day.id, event);
+  };
+  card.addEventListener('click', activateCard);
+  card.addEventListener('keydown', event => {
+    if (event.target !== card || !['Enter', ' '].includes(event.key)) return;
+    event.preventDefault();
+    activateCard();
   });
 
   bindDragEvents(card, day, event, handlers);
@@ -458,6 +466,8 @@ function createRouteCard(segment, handlers) {
   const card = document.createElement('article');
   card.className = 'route-card idle';
   card.dataset.routeId = segment.id;
+  card.tabIndex = 0;
+  card.setAttribute('aria-label', `在地图上查看${getRouteDisplayLabel(segment.routeToNext)}路线`);
   card.style.setProperty('--route-color', segment.color);
   card.innerHTML = renderRouteIdleHTML(segment);
   card.addEventListener('click', e => {
@@ -467,6 +477,11 @@ function createRouteCard(segment, handlers) {
       handlers.onEditRoute?.(segment);
       return;
     }
+    handlers.onRouteClick?.(segment);
+  });
+  card.addEventListener('keydown', event => {
+    if (event.target !== card || !['Enter', ' '].includes(event.key)) return;
+    event.preventDefault();
     handlers.onRouteClick?.(segment);
   });
   state.routeCards.set(segment.id, card);
@@ -586,7 +601,9 @@ export function resetRouteCards() {
 
 export function setStatus(text) {
   const el = document.getElementById('status-panel');
-  if (el) el.textContent = text;
+  if (!el) return;
+  el.textContent = text;
+  el.setAttribute('aria-busy', String(/正在|加载中|搜索中|匹配中/.test(String(text || ''))));
 }
 
 // ─── Segment 构造（被 sidebar 和 main 都用到） ────────────

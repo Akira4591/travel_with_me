@@ -3,7 +3,7 @@ import js from '@eslint/js';
 export default [
   js.configs.recommended,
   {
-    ignores: ['**/node_modules/**', '**/.git/**', '**/*.min.js', 'js/__tests__/**']
+    ignores: ['**/node_modules/**', '**/.git/**', '**/*.min.js']
   },
   {
     languageOptions: {
@@ -56,6 +56,7 @@ export default [
         Promise: 'readonly',
         Error: 'readonly',
         DOMException: 'readonly',
+        CSS: 'readonly',
         parseInt: 'readonly',
         parseFloat: 'readonly',
         isNaN: 'readonly',
@@ -81,5 +82,10 @@ export default [
         }
       ]
     }
+  },
+  {
+    files: ['js/__tests__/**'],
+    languageOptions: { globals: { Buffer: 'readonly' } },
+    rules: { 'no-restricted-imports': 'off' }
   }
 ];

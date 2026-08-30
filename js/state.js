@@ -15,8 +15,6 @@ import { AppConfig } from './config.js';
 // V5：date 字段已删除，addDaysISO/isISODate/todayISO 全部不再使用
 import { getTimeSlotRank, normalizeTimeSlot } from './time-slots.js';
 import { normalizeRouteToNext } from './route-config.js';
-import { normalizeAnnotation } from './annotations.js';
-import { normalizeGeoAssets } from './render/geo-assets.js';
 
 // ─── 内部状态（不直接导出） ─────────────────────────────
 
@@ -35,8 +33,6 @@ const appState = {
   routePlanningTimer: null,
   markers: new Map(),
   markerList: [],
-  annotationMarkers: new Map(),
-  annotationMarkerList: [],
   routeServices: [],
   // routeOverlays: 按 segmentId 索引，每段可能由多条 Polyline 拼成 + 1 条高亮时叠加的发光环。
   // { polylines: Polyline[], halo: Polyline[], color: string }
@@ -48,6 +44,8 @@ const appState = {
 // ─── 订阅机制（极简版） ────────────────────────────────
 
 const listeners = new Map(); // event -> Set<fn>
+let tripChangeBatchDepth = 0;
+let tripChangePending = false;
 
 export function on(event, fn) {
   if (!listeners.has(event)) listeners.set(event, new Set());
@@ -56,6 +54,10 @@ export function on(event, fn) {
 }
 
 function emit(event, payload) {
+  if (event === 'trip:changed' && tripChangeBatchDepth > 0) {
+    tripChangePending = true;
+    return;
+  }
   listeners.get(event)?.forEach(fn => {
     try {
       fn(payload);
@@ -63,6 +65,19 @@ function emit(event, payload) {
       console.warn('listener error:', err);
     }
   });
+}
+
+export function batchTripChanges(fn) {
+  tripChangeBatchDepth += 1;
+  try {
+    return fn();
+  } finally {
+    tripChangeBatchDepth -= 1;
+    if (tripChangeBatchDepth === 0 && tripChangePending) {
+      tripChangePending = false;
+      emit('trip:changed', { kind: 'batch:changed' });
+    }
+  }
 }
 
 // ─── workspace 读 / 写 ────────────────────────────────
@@ -76,24 +91,32 @@ export function hasActiveTrip() {
 }
 
 export function initWorkspace(savedWorkspace, sharedTrip = null) {
+  let result = { ok: true, sharedTrip: false };
   if (sharedTrip) {
     const normalizedShared = normalizeTrip(sharedTrip, '分享行程');
-    workspace = normalizeWorkspace(savedWorkspace, normalizedShared);
+    const hasSavedWorkspace = Array.isArray(savedWorkspace?.trips);
+    workspace = normalizeWorkspace(savedWorkspace, hasSavedWorkspace ? null : normalizedShared);
     const existingIndex = workspace.trips.findIndex(item => item.id === normalizedShared.id);
-    if (existingIndex >= 0) {
-      workspace.trips[existingIndex] = normalizedShared;
+    if (!hasSavedWorkspace) {
+      workspace.activeTripId = normalizedShared.id;
+      result = { ok: true, sharedTrip: true, tripId: normalizedShared.id };
+    } else if (existingIndex >= 0) {
+      workspace.activeTripId = workspace.trips[existingIndex].id;
+      result = { ok: false, error: 'SHARED_TRIP_EXISTS', tripId: normalizedShared.id };
     } else if (workspace.trips.length < MAX_TRIPS) {
       workspace.trips.push(normalizedShared);
+      workspace.activeTripId = normalizedShared.id;
+      result = { ok: true, sharedTrip: true, tripId: normalizedShared.id };
     } else {
-      workspace.trips[MAX_TRIPS - 1] = normalizedShared;
+      result = { ok: false, error: 'WORKSPACE_FULL', tripId: normalizedShared.id };
     }
-    workspace.activeTripId = normalizedShared.id;
   } else {
     workspace = normalizeWorkspace(savedWorkspace);
   }
   trip = getActiveTripFromWorkspace();
   emit('workspace:replaced', { workspace });
   emit('trip:replaced', { trip });
+  return result;
 }
 
 export function createTrip(title) {
@@ -170,22 +193,9 @@ export function getAllLocationIds() {
   return Object.keys(getTrip().locations);
 }
 
-export function getAnnotations() {
-  return trip?.annotations || [];
-}
-
 // ─── trip 写（mutator） ────────────────────────────────
 // 编辑型 mutator 都 emit 'trip:changed'，载荷里带 kind 让订阅方按需精细更新
 // 'location:updated' 是底层坐标校准，比 trip:changed 粒度更细，保留独立事件
-
-export function updateLocationCoords(locationId, lnglat) {
-  if (!trip) return;
-  const loc = trip.locations[locationId];
-  if (!loc) return;
-  loc.lnglat = lnglat;
-  loc.resolved = true;
-  emit('location:updated', { locationId });
-}
 
 export function addLocation(loc) {
   if (!trip) return null;
@@ -195,7 +205,7 @@ export function addLocation(loc) {
     query: loc.query || loc.name,
     addr: loc.addr || loc.name,
     lnglat: loc.lnglat,
-    resolved: true,
+    resolved: isValidLngLat(loc.lnglat),
     // photo / type 来自高德 extensions=all，持久化给"已有地点"编辑卡的右侧图位用
     photo: loc.photo || '',
     type: loc.type || '',
@@ -213,7 +223,23 @@ export function updateLocation(locationId, patch) {
   if (!trip) return false;
   const loc = trip.locations[locationId];
   if (!loc) return false;
+  applyLocationPatch(loc, patch);
+  emit('location:updated', { locationId });
+  emit('trip:changed', { kind: 'location:updated', locationId });
+  return true;
+}
 
+export function updateLocationForTrip(tripId, locationId, patch) {
+  if (trip?.id === tripId) return updateLocation(locationId, patch);
+  const targetTrip = workspace.trips.find(item => item.id === tripId);
+  const loc = targetTrip?.locations?.[locationId];
+  if (!loc) return false;
+  applyLocationPatch(loc, patch);
+  emit('workspace:changed', { kind: 'location:updated-in-background', tripId, locationId });
+  return true;
+}
+
+function applyLocationPatch(loc, patch) {
   if (patch.name != null) loc.name = patch.name;
   if (patch.query != null) loc.query = patch.query;
   if (patch.addr != null) loc.addr = patch.addr;
@@ -228,10 +254,6 @@ export function updateLocation(locationId, patch) {
   if (patch.district != null) loc.district = patch.district;
   if (patch.tag != null) loc.tag = patch.tag;
   if (patch.source != null) loc.source = patch.source;
-
-  emit('location:updated', { locationId });
-  emit('trip:changed', { kind: 'location:updated', locationId });
-  return true;
 }
 
 export function removeLocation(locationId) {
@@ -248,27 +270,6 @@ export function updateTripMeta(patch) {
   if (patch.subtitle != null) trip.subtitle = patch.subtitle;
   if (patch.city != null) trip.city = patch.city;
   emit('trip:changed', { kind: 'trip:updated' });
-  return true;
-}
-
-export function updateTripGeoAssets(geoAssets) {
-  if (!trip) return false;
-  trip.geoAssets = normalizeGeoAssets(geoAssets);
-  trip.geoAssetStatus = {
-    status: 'ok',
-    reason: '',
-    sourceSummary: '',
-    stale: false,
-    updatedAt: new Date().toISOString()
-  };
-  emit('trip:changed', { kind: 'trip:geo-assets-updated' });
-  return true;
-}
-
-export function updateTripGeoAssetStatus(status = {}) {
-  if (!trip) return false;
-  trip.geoAssetStatus = normalizeGeoAssetStatus(status);
-  emit('trip:changed', { kind: 'trip:geo-assets-status-updated' });
   return true;
 }
 
@@ -612,53 +613,6 @@ export function moveEventBetweenContainers(eventId, target = {}) {
   return true;
 }
 
-export function addAnnotation(annotation = {}) {
-  if (!trip) return null;
-  if (!Array.isArray(trip.annotations)) trip.annotations = [];
-  const id = annotation.id || generateAnnotationId();
-  const normalized = normalizeAnnotation(
-    {
-      ...annotation,
-      id,
-      createdAt: annotation.createdAt || new Date().toISOString()
-    },
-    { id }
-  );
-  if (!normalized) return null;
-  trip.annotations.push(normalized);
-  emit('trip:changed', { kind: 'annotation:added', annotationId: id });
-  return id;
-}
-
-export function updateAnnotation(annotationId, patch = {}) {
-  if (!trip?.annotations) return false;
-  const index = trip.annotations.findIndex(annotation => annotation.id === annotationId);
-  if (index < 0) return false;
-  const current = trip.annotations[index];
-  const normalized = normalizeAnnotation(
-    {
-      ...current,
-      ...patch,
-      id: current.id,
-      createdAt: current.createdAt
-    },
-    current
-  );
-  if (!normalized) return false;
-  trip.annotations[index] = normalized;
-  emit('trip:changed', { kind: 'annotation:updated', annotationId });
-  return true;
-}
-
-export function removeAnnotation(annotationId) {
-  if (!trip?.annotations) return false;
-  const index = trip.annotations.findIndex(annotation => annotation.id === annotationId);
-  if (index < 0) return false;
-  trip.annotations.splice(index, 1);
-  emit('trip:changed', { kind: 'annotation:removed', annotationId });
-  return true;
-}
-
 export function replaceTrip(newTrip) {
   const normalized = normalizeTrip(newTrip);
   if (!workspace.trips.length) {
@@ -775,10 +729,6 @@ function generateDayId() {
   return `day-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4).toString(36)}`;
 }
 
-function generateAnnotationId() {
-  return `ann-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4).toString(36)}`;
-}
-
 function uniqueLocationIds(events) {
   return Array.from(new Set(events.map(event => event.locationId).filter(Boolean)));
 }
@@ -807,6 +757,10 @@ function normalizeWorkspace(input, fallbackTrip = null) {
     .filter(Boolean)
     .slice(0, MAX_TRIPS)
     .map((item, index) => normalizeTrip(item, `旅行路线 ${index + 1}`));
+  const tripIds = new Set();
+  trips.forEach(item => {
+    item.id = claimUniqueId(item.id, tripIds, generateTripId);
+  });
 
   const activeTripId = trips.some(item => item.id === input?.activeTripId)
     ? input.activeTripId
@@ -818,19 +772,27 @@ function normalizeWorkspace(input, fallbackTrip = null) {
 function normalizeTrip(input, fallbackTitle = '旅行路线') {
   const cloned = structuredClone(input || {});
   cloned.id = cloned.id || generateTripId();
-  cleanupDemoTripContent(cloned);
   cloned.title = String(cloned.title || fallbackTitle).trim() || fallbackTitle;
   cloned.subtitle = cloned.subtitle || '点击下方行程卡片，右侧地图将自动飞跃至对应地点';
   cloned.city = cloned.city || AppConfig.cityName;
   cloned.locations =
     cloned.locations && typeof cloned.locations === 'object' ? cloned.locations : {};
+  Object.values(cloned.locations).forEach(location => normalizeStoredLocation(location));
   cloned.days = Array.isArray(cloned.days) ? cloned.days : [];
+  const dayIds = new Set();
+  const eventIds = new Set();
   // V5：不再 normalize day.date（字段已删除），不再 sortDaysByDate
   cloned.days.forEach(day => {
-    day.id = day.id || generateDayId();
+    day.id = claimUniqueId(day.id, dayIds, generateDayId);
     day.title = String(day.title || '').trim();
     delete day.date; // 防御性清理：万一旧数据混进来，确保新 schema 干净
-    day.events = Array.isArray(day.events) ? day.events.map(normalizeEvent) : [];
+    day.events = Array.isArray(day.events)
+      ? day.events.map(event => {
+          const normalized = normalizeEvent(event);
+          normalized.id = claimUniqueId(normalized.id, eventIds, () => generateEventId(day.id));
+          return normalized;
+        })
+      : [];
     sortDayEventsByTimeSlot(day);
     normalizeDayRoutes(day);
   });
@@ -839,31 +801,15 @@ function normalizeTrip(input, fallbackTitle = '旅行路线') {
   }
   // V5 新增：unscheduled 数组——AI 攻略导入识别出的"无日期归属" events 落点
   cloned.unscheduled = Array.isArray(cloned.unscheduled)
-    ? cloned.unscheduled.map(normalizeUnscheduledEvent)
+    ? cloned.unscheduled.map(event => {
+        const normalized = normalizeUnscheduledEvent(event);
+        normalized.id = claimUniqueId(normalized.id, eventIds, () => generateEventId('uns'));
+        return normalized;
+      })
     : [];
-  cloned.annotations = Array.isArray(cloned.annotations)
-    ? cloned.annotations
-        .map((annotation, index) =>
-          normalizeAnnotation(annotation, { id: annotation?.id || `ann-${index + 1}` })
-        )
-        .filter(Boolean)
-    : [];
-  cloned.geoAssets = normalizeGeoAssets(cloned.geoAssets);
-  cloned.geoAssetStatus = normalizeGeoAssetStatus(cloned.geoAssetStatus);
+  // Archived 3D fields are intentionally preserved as opaque data so 2D saves never destroy them.
+  cloned.annotations = Array.isArray(cloned.annotations) ? cloned.annotations : [];
   return cloned;
-}
-
-function normalizeGeoAssetStatus(status = {}) {
-  const hasStatus = Boolean(status && Object.keys(status).length);
-  const normalizedStatus = String(status.status || 'unknown');
-  return {
-    status: normalizedStatus,
-    reason: String(status.reason || ''),
-    sourceSummary: String(status.sourceSummary || ''),
-    stale: Boolean(status.stale),
-    degraded: hasStatus ? Boolean(status.degraded ?? normalizedStatus !== 'ok') : false,
-    updatedAt: String(status.updatedAt || new Date().toISOString())
-  };
 }
 
 // 未排期 event 的字段处理：复用 normalizeEvent 的字段处理逻辑，但**剥掉 routeToNext**
@@ -872,41 +818,6 @@ function normalizeUnscheduledEvent(event = {}) {
   const normalized = normalizeEvent(event);
   delete normalized.routeToNext;
   return normalized;
-}
-
-function cleanupDemoTripContent(tripLike) {
-  if (tripLike?.id !== 'demo-trip-bj-may' || !Array.isArray(tripLike.days)) return;
-
-  const demoLocationIds = new Set(Object.keys(initialTrip.locations || {}));
-  const demoTimeSlots = new Map();
-  initialTrip.days.forEach(day => {
-    day.events.forEach(event => {
-      if (event.timeSlot) demoTimeSlots.set(event.id, event.timeSlot);
-    });
-  });
-
-  Object.entries(tripLike.locations || {}).forEach(([locationId, loc]) => {
-    if (!demoLocationIds.has(locationId) || !loc) return;
-    delete loc.lnglat;
-    delete loc.resolved;
-  });
-
-  tripLike.days.forEach(day => {
-    if (day.id === 'day-1' && day.title === '接站与安顿') day.title = '入住与晚餐';
-    if (day.id === 'day-4' && day.title === '踏青与送站') day.title = '踏青休闲';
-    if (!Array.isArray(day.events)) return;
-
-    day.events = day.events.filter(event => {
-      const title = String(event?.title || '');
-      return !title.includes('男朋友');
-    });
-
-    day.events.forEach(event => {
-      if (!event.timeSlot && demoTimeSlots.has(event.id)) {
-        event.timeSlot = demoTimeSlots.get(event.id);
-      }
-    });
-  });
 }
 
 function createBlankTrip(title) {
@@ -950,6 +861,43 @@ function getActiveTripFromWorkspace() {
 
 function generateTripId() {
   return `trip-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4).toString(36)}`;
+}
+
+function claimUniqueId(candidate, usedIds, generateId) {
+  const baseId = String(candidate || generateId());
+  let id = baseId;
+  let suffix = 2;
+  while (usedIds.has(id)) {
+    id = `${baseId}-${suffix}`;
+    suffix += 1;
+  }
+  usedIds.add(id);
+  return id;
+}
+
+function normalizeStoredLocation(location) {
+  if (!location || typeof location !== 'object') return;
+  if (!isValidLngLat(location.lnglat)) {
+    delete location.lnglat;
+    location.resolved = false;
+    return;
+  }
+  location.lnglat = [Number(location.lnglat[0]), Number(location.lnglat[1])];
+  location.resolved = true;
+}
+
+function isValidLngLat(value) {
+  if (!Array.isArray(value) || value.length < 2) return false;
+  const lng = Number(value[0]);
+  const lat = Number(value[1]);
+  return (
+    Number.isFinite(lng) &&
+    Number.isFinite(lat) &&
+    lng >= -180 &&
+    lng <= 180 &&
+    lat >= -90 &&
+    lat <= 90
+  );
 }
 
 // ─── appState 读 ─────────────────────────────────────

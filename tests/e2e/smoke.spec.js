@@ -1,5 +1,6 @@
 import { Buffer } from 'node:buffer';
 import { expect, test } from '@playwright/test';
+import { build2DRuntimeManifest } from '../../scripts/active-2d-runtime.mjs';
 
 const SEEDED_WORKSPACE = {
   trips: [
@@ -212,6 +213,7 @@ async function installMockAMap(page) {
         this.zoom = 16;
         this.center = options.center || [116.397, 39.908];
         this.handlers = new Map();
+        window.__mockMap = this;
       }
       addControl() {}
       add() {}
@@ -238,8 +240,15 @@ async function installMockAMap(page) {
         this.emit('zoomend');
       }
       setFitView(markers, immediately, padding, maxZoom) {
-        const first = markers?.[0]?.getPosition?.();
-        if (first) this.center = toPair(first);
+        const positions = (markers || [])
+          .map(marker => marker?.getPosition?.())
+          .filter(Boolean)
+          .map(toPair);
+        if (positions.length) {
+          this.center = positions
+            .reduce((sum, position) => [sum[0] + position[0], sum[1] + position[1]], [0, 0])
+            .map(value => Number((value / positions.length).toFixed(6)));
+        }
         this.zoom = Math.min(maxZoom || 17, 17);
         this.emit('zoomchange');
         this.emit('zoomend');
@@ -546,9 +555,84 @@ test('loads the trip planner shell', async ({ page, isMobile }) => {
   await page.goto('/', { waitUntil: 'commit' });
 
   await expect(page).toHaveTitle(/Trip App|Travel With Me/i);
-  if (isMobile) await expect(page.getByRole('button', { name: '地图' })).toBeVisible();
+  if (isMobile) await expect(page.getByRole('tab', { name: '地图' })).toBeVisible();
   else await expect(page.locator('#status-panel')).toBeVisible();
   await expect(page.locator('body')).toContainText(/行程|旅行|地点/);
+});
+
+test('startup preserves invalid local workspace source instead of overwriting it', async ({
+  page,
+  isMobile
+}) => {
+  test.skip(isMobile, 'single startup persistence assertion');
+  await installMockAMap(page);
+  const raw = '{invalid-workspace-json';
+  await page.addInitScript(value => {
+    localStorage.setItem('trip-app:workspace', value);
+  }, raw);
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+
+  expect(await page.evaluate(() => localStorage.getItem('trip-app:workspace'))).toBe(raw);
+  await expect(page.locator('#status-panel')).toContainText('原始数据未被覆盖');
+  await page.getByRole('button', { name: '新建行程' }).click();
+  await page.locator('.trip-title-input').fill('仅内存行程');
+  await page.getByRole('button', { name: '确定' }).click();
+  await page.waitForTimeout(200);
+  expect(await page.evaluate(() => localStorage.getItem('trip-app:workspace'))).toBe(raw);
+
+  page.on('dialog', dialog => dialog.accept());
+  await openTripMenu(page);
+  const fileChooserPromise = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: '导入工作区 JSON' }).click();
+  const fileChooser = await fileChooserPromise;
+  await fileChooser.setFiles({
+    name: 'recover-workspace.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(IMPORT_WORKSPACE))
+  });
+  await expect(page.locator('#trip-title-text')).toHaveText('S1 导入路线');
+
+  await openTripMenu(page);
+  await page.getByRole('button', { name: '修改名称' }).click();
+  await page.locator('.trip-title-input').fill('保护解除后可保存');
+  await page.getByRole('button', { name: '保存' }).click();
+  await expect
+    .poll(async () => {
+      const saved = await page.evaluate(() => localStorage.getItem('trip-app:workspace'));
+      return JSON.parse(saved).workspace.trips[0].title;
+    })
+    .toBe('保护解除后可保存');
+});
+
+test('2D runtime does not load or expose archived 3D surfaces', async ({ page, isMobile }) => {
+  const forbiddenRequests = [];
+  page.on('request', request => {
+    if (/\/three\/|\/_elevation|\/_geo-assets/.test(request.url())) {
+      forbiddenRequests.push(request.url());
+    }
+  });
+  await installMockAMap(page);
+  await page.goto('/', { waitUntil: 'networkidle' });
+
+  if (isMobile) await page.getByRole('tab', { name: '地图' }).click();
+  await expect(page.locator('#map')).toBeVisible();
+  await expect(page.locator('#map-3d')).toHaveCount(0);
+  await expect(page.locator('#map-3d-toggle')).toHaveCount(0);
+  expect(forbiddenRequests).toEqual([]);
+
+  expect((await page.request.get('/_elevation?latitude=39&longitude=116')).status()).toBe(404);
+  expect((await page.request.get('/_geo-assets?points=116,39')).status()).toBe(404);
+  expect((await page.request.get('/three/build/three.module.js')).status()).toBe(404);
+
+  const runtimeManifest = await build2DRuntimeManifest(process.cwd());
+  for (const projectPath of runtimeManifest.activeJavaScriptPaths) {
+    const response = await page.request.get(`/${projectPath}`);
+    expect(response.status(), `active 2D module must be served: ${projectPath}`).toBe(200);
+  }
+  for (const projectPath of runtimeManifest.inactiveJavaScriptPaths) {
+    const response = await page.request.get(`/${projectPath}`);
+    expect(response.status(), `inactive JavaScript must stay sealed: ${projectPath}`).toBe(404);
+  }
 });
 
 test('mobile can switch between itinerary and map views', async ({ page, isMobile }) => {
@@ -559,12 +643,14 @@ test('mobile can switch between itinerary and map views', async ({ page, isMobil
 
   await expect(page.locator('.sidebar')).toBeVisible();
   await expect(page.locator('.map-container')).toBeHidden();
+  await expect(page.locator('#status-panel')).toBeVisible();
+  await expect(page.locator('#status-panel')).toHaveAttribute('aria-live', 'polite');
 
-  await page.getByRole('button', { name: '地图' }).click();
+  await page.getByRole('tab', { name: '地图' }).click();
   await expect(page.locator('.map-container')).toBeVisible();
   await expect(page.locator('.sidebar')).toBeHidden();
 
-  await page.getByRole('button', { name: '行程', exact: true }).click();
+  await page.getByRole('tab', { name: '行程', exact: true }).click();
   await expect(page.locator('.sidebar')).toBeVisible();
 });
 
@@ -589,6 +675,34 @@ test('desktop can create and rename a trip', async ({ page, isMobile }) => {
 
   await expect(page.locator('#trip-title-text')).toHaveText('S1 已重命名路线');
   await expect(page.locator('#status-panel')).toContainText('旅行标题已更新');
+});
+
+test('desktop modal traps focus, isolates the background, and restores its trigger', async ({
+  page,
+  isMobile
+}) => {
+  test.skip(isMobile, 'desktop keyboard modal behavior');
+  await installMockAMap(page);
+  await page.goto('/', { waitUntil: 'commit' });
+
+  const trigger = page.getByRole('button', { name: '新建行程' });
+  await trigger.focus();
+  await trigger.press('Enter');
+  const dialog = page.getByRole('dialog', { name: '新建旅行路线' });
+  await expect(dialog).toBeVisible();
+  await expect(page.locator('.workspace-shell')).toHaveAttribute('inert', '');
+  await expect(page.locator('.trip-title-input')).toBeFocused();
+
+  await page.locator('.modal-submit').focus();
+  await page.keyboard.press('Tab');
+  await expect(page.locator('.modal-close')).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(page.locator('.modal-submit')).toBeFocused();
+
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(trigger).toBeFocused();
+  await expect(page.locator('body > :not(.modal-overlay)[inert]')).toHaveCount(0);
 });
 
 test('desktop can edit day, event, and route settings', async ({ page, isMobile }) => {
@@ -620,6 +734,22 @@ test('desktop can edit day, event, and route settings', async ({ page, isMobile 
   await expect(page.locator('.route-card').first()).toContainText('步行');
 });
 
+test('desktop keyboard activates itinerary and route map links', async ({ page, isMobile }) => {
+  await openSeededDesktop(page, isMobile);
+  await page.getByRole('button', { name: 'Day 1' }).click();
+
+  const eventCard = page.locator('.card', { hasText: '住进老城酒店' }).first();
+  await eventCard.focus();
+  await page.keyboard.press('Enter');
+  await expect(eventCard).toHaveClass(/active/);
+  await expect.poll(() => page.evaluate(() => window.__mockMap?.center)).toEqual([116.397, 39.908]);
+
+  const routeCard = page.locator('.route-card').first();
+  await routeCard.focus();
+  await page.keyboard.press('Space');
+  await expect.poll(() => page.evaluate(() => window.__mockMap?.center)).toEqual([116.401, 39.91]);
+});
+
 test('desktop can add a searched place to the itinerary', async ({ page, isMobile }) => {
   await openSeededDesktop(page, isMobile);
   await installMockAmapPlaceText(page);
@@ -640,6 +770,75 @@ test('desktop can add a searched place to the itinerary', async ({ page, isMobil
 
   await expect(page.getByText('S1 新增搜索地点')).toBeVisible();
   await expect(page.getByText('S1 添加地点搜索回归')).toBeVisible();
+});
+
+test('desktop keeps a user-selected place when background geocoding returns late', async ({
+  page,
+  isMobile
+}) => {
+  test.skip(isMobile, 'desktop async ownership path');
+  await installMockAMap(page);
+  const workspace = JSON.parse(JSON.stringify(SEEDED_WORKSPACE));
+  workspace.trips[0].locations.loc_hotel = {
+    name: '旧坐标地点',
+    query: '旧坐标地点',
+    addr: '待解析地址',
+    resolved: false
+  };
+
+  let releaseOldRequest;
+  let markOldRequestStarted;
+  const oldRequestStarted = new Promise(resolve => {
+    markOldRequestStarted = resolve;
+  });
+  await page.route('**/_AMapService/v3/place/text**', async route => {
+    const keyword = new URL(route.request().url()).searchParams.get('keywords') || '';
+    if (keyword === '旧坐标地点') {
+      markOldRequestStarted();
+      await new Promise(resolve => {
+        releaseOldRequest = resolve;
+      });
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          status: '1',
+          info: 'OK',
+          pois: [
+            {
+              id: 'stale-geocode',
+              name: '旧坐标地点',
+              address: '不应覆盖用户选择的旧返回地址',
+              location: '116.2,39.8'
+            }
+          ]
+        })
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ status: '1', info: 'OK', pois: [buildMockBffPoi(keyword)] })
+    });
+  });
+
+  await seedWorkspace(page, workspace);
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await oldRequestStarted;
+
+  const eventCard = page.locator('.card', { hasText: '住进老城酒店' }).first();
+  await eventCard.locator('.event-add-time-btn').click();
+  await page.locator('.editor-location-change-btn').click();
+  await page.locator('.editor-search-input').fill('书店');
+  await page.locator('.editor-search-btn').click();
+  await page.locator('.modal-result-item').first().click();
+  await page.getByRole('button', { name: '保存' }).click();
+
+  releaseOldRequest();
+  await page.waitForTimeout(500);
+  await eventCard.locator('.event-add-time-btn').click();
+  await expect(page.locator('.editor-location-addr')).toHaveText('北京市东城区 S1 测试路 8 号');
 });
 
 test('desktop can export and import workspace JSON', async ({ page, isMobile }) => {
@@ -715,6 +914,7 @@ test('desktop can import an AI guide through the preview flow', async ({ page, i
 
   await page.getByRole('button', { name: '从攻略导入' }).click();
   await expect(page.getByRole('dialog', { name: '从攻略导入' })).toBeVisible();
+  await expect(page.locator('.guide-import-city')).toBeFocused();
   await page.locator('.guide-import-city').fill('北京');
   await page
     .locator('.guide-import-textarea')
@@ -724,12 +924,19 @@ test('desktop can import an AI guide through the preview flow', async ({ page, i
   await page.locator('.guide-import-submit').click();
 
   await expect(page.getByRole('dialog', { name: '导入预览' })).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('.guide-preview-title')).toBeFocused();
+  await expect(page.locator('.workspace-shell')).toHaveAttribute('inert', '');
+  await expect(page.locator('.modal-overlay')).toHaveCount(1);
   await expect(page.locator('.guide-preview-event')).toHaveCount(2);
 
   const previewEvents = page.locator('.guide-preview-event');
   await previewEvents.nth(0).locator('.guide-preview-event-title-input').fill('S2 改名颐和园');
   await previewEvents.nth(0).locator('.guide-preview-event-note-input').fill('S2 预览备注已修正');
   await previewEvents.nth(1).locator('.guide-preview-action-toggle').click();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: '导入预览' })).toBeVisible();
+  await previewEvents.nth(1).locator('.guide-preview-action-toggle').click();
+  await expect(previewEvents.nth(1).locator('.guide-preview-action-menu')).toBeVisible();
   await previewEvents.nth(1).locator('.guide-preview-day-select').selectOption('2');
   await page.locator('.guide-preview-event').nth(1).locator('.guide-preview-action-toggle').click();
   await page
@@ -748,7 +955,98 @@ test('desktop can import an AI guide through the preview flow', async ({ page, i
   await expect(page.getByText('晚上')).toBeVisible();
 });
 
-test('desktop can enter and exit nonblank 3D map view', async ({ page, isMobile }) => {
+test('AI preview fallback search stays scoped to the draft city', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'desktop AI preview search path');
+  await installMockAMap(page);
+  await page.addInitScript(() => {
+    const originalLoad = window.AMapLoader.load;
+    window.AMapLoader.load = async () => {
+      const AMap = await originalLoad();
+      AMap.PlaceSearch = class {
+        search(_keyword, callback) {
+          callback('no_data', { info: 'NO_DATA', poiList: { pois: [] } });
+        }
+        searchNearBy(_keyword, _center, _radius, callback) {
+          callback('no_data', { info: 'NO_DATA', poiList: { pois: [] } });
+        }
+      };
+      AMap.Geocoder = class {
+        getLocation(_keyword, callback) {
+          callback('no_data', { info: 'NO_DATA', geocodes: [] });
+        }
+      };
+      return AMap;
+    };
+  });
+  await seedWorkspace(page, SEEDED_WORKSPACE);
+  let fallbackSearchCity = null;
+  await page.route('**/_AMapService/**', async route => {
+    const url = new URL(route.request().url());
+    const keyword = url.searchParams.get('keywords') || '';
+    if (url.pathname.endsWith('/v3/place/text') && keyword === '人工选择') {
+      fallbackSearchCity = url.searchParams.get('city');
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          status: '1',
+          info: 'OK',
+          pois: [
+            {
+              id: 'manual-shanghai',
+              name: '人工选择地点',
+              address: '上海市黄浦区测试路 1 号',
+              cityname: '上海市',
+              location: '121.49,31.23'
+            }
+          ]
+        })
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ status: '0', info: 'NO_DATA', pois: [], geocodes: [] })
+    });
+  });
+  await page.route('**/_ai/status', route =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '{"available":true}' })
+  );
+  await page.route('**/_ai/extract-guide', route =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        guide_type: 'daily_itinerary',
+        city: '上海',
+        title_suggestion: '上海手动匹配',
+        warnings: [],
+        events: [{ day: 1, place_name: '待匹配地点', note: '', source_quote: '' }]
+      })
+    })
+  );
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+
+  await page.getByRole('button', { name: '从攻略导入' }).click();
+  await page.locator('.guide-import-city').fill('上海');
+  await page
+    .locator('.guide-import-textarea')
+    .fill(
+      '这是一段用于验证上海行程地点匹配范围的中文旅行攻略文字，包含足够长度的信息以进入预览流程，并允许用户手动修正未匹配地点。'
+    );
+  await page.locator('.guide-import-submit').click();
+  await expect(page.getByRole('dialog', { name: '导入预览' })).toBeVisible();
+  await expect(page.locator('.guide-preview-event')).toHaveClass(/unmatched/);
+  await page.locator('.guide-preview-action-toggle').click();
+  await page.locator('.guide-preview-search-toggle').click();
+  await page.locator('.guide-preview-search-input').fill('人工选择');
+  await page.locator('.guide-preview-search-btn').click();
+  await expect(page.locator('.guide-preview-place-result')).toContainText('人工选择地点');
+  expect(fallbackSearchCity).toBe('上海');
+});
+
+test('desktop can enter and exit nonblank 3D map view @archived-3d', async ({ page, isMobile }) => {
   test.setTimeout(60_000);
   await openSeededDesktop(page, isMobile);
 
@@ -827,7 +1125,7 @@ test('desktop can enter and exit nonblank 3D map view', async ({ page, isMobile 
   await expect(page.locator('#map-3d')).toBeHidden({ timeout: 15_000 });
 });
 
-test('desktop 3D anchors empty off-route selections to location context', async ({
+test('desktop 3D anchors empty off-route selections to location context @archived-3d', async ({
   page,
   isMobile
 }) => {
@@ -871,7 +1169,7 @@ test('desktop 3D anchors empty off-route selections to location context', async 
   expect(debug.counts?.buildingMassings || 0).toBeGreaterThan(0);
 });
 
-test('desktop 3D renders attributable water, roads, and deck-first bridges', async ({
+test('desktop 3D renders attributable water, roads, and deck-first bridges @archived-3d', async ({
   page,
   isMobile
 }) => {
@@ -916,7 +1214,7 @@ test('desktop 3D renders attributable water, roads, and deck-first bridges', asy
   expect(geoDebug.provenance?.providers || []).toContain('test-open-data');
 });
 
-test('desktop 3D camera supports unlocked WASD translation with terrain y clamp', async ({
+test('desktop 3D camera supports unlocked WASD translation with terrain y clamp @archived-3d', async ({
   page,
   isMobile
 }) => {
@@ -973,7 +1271,7 @@ test('desktop falls back to local 2D map when AMap JS SDK fails', async ({ page,
   await expect(page.locator('.fallback-map')).toBeVisible();
 });
 
-test('desktop 3D stays open after 60 seconds idle', async ({ page, isMobile }) => {
+test('desktop 3D stays open after 60 seconds idle @archived-3d', async ({ page, isMobile }) => {
   test.setTimeout(110_000);
   await openSeededDesktop(page, isMobile);
 
@@ -1000,11 +1298,12 @@ test('desktop can open share image preview from seeded trip', async ({ page, isM
 
   await page.getByRole('button', { name: '分享长图' }).click();
   await expect(page.getByRole('dialog', { name: '分享长图' })).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.share-modal .modal-close')).toBeFocused();
   await expect(page.locator('.share-image-preview img')).toHaveAttribute('src', /^data:image\/png/);
   await expect(page.locator('.share-include-notes')).toBeChecked();
   await expect(page.locator('.share-include-routes')).not.toBeChecked();
   await expect(page.locator('.share-include-unscheduled')).not.toBeChecked();
-  await expect(page.locator('.share-include-annotations')).not.toBeChecked();
+  await expect(page.locator('.share-include-annotations')).toHaveCount(0);
 
   const firstSrc = await page.locator('.share-image-preview img').getAttribute('src');
   await page.locator('.share-include-notes').uncheck();
@@ -1018,9 +1317,7 @@ test('desktop can open share image preview from seeded trip', async ({ page, isM
     'src',
     secondSrc || ''
   );
-  const thirdSrc = await page.locator('.share-image-preview img').getAttribute('src');
-  await page.locator('.share-include-annotations').check();
-  await expect(page.locator('.share-image-loading')).toBeHidden({ timeout: 15_000 });
-  await expect(page.locator('.share-image-preview img')).not.toHaveAttribute('src', thirdSrc || '');
   await expect(page.getByRole('button', { name: '下载长图' })).toBeVisible();
+  await page.locator('.share-modal .modal-close').click();
+  await expect(page.getByRole('button', { name: '分享长图' })).toBeFocused();
 });

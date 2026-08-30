@@ -1,22 +1,14 @@
 # Trip App
 
-## Current next-stage focus
+## Current product boundary
 
-The active desktop Web branch is now evidence-first:
+The active product is 2D-only. The former 3D implementation is frozen reference material and is
+not loaded, served, tested, or depended on by the default product runtime. The authoritative
+boundary is documented in [archive/3d/README.md](archive/3d/README.md) and enforced by
+`npm run check:architecture`.
 
-```text
-Alpha visual proof infrastructure
-  -> Beta P2 water / road / bridge visual correctness
-  -> Gamma P3 building massing / dissolve
-  -> Delta inspect camera and scene precision profiles
-```
-
-Do not start P4 DEM tiles, P5 landmark restoration, commercial 3D providers, or mobile-first work until the first ROI visual baselines and P2 visual correctness gates are stable.
-
-Key QA documents:
-
-- [Visual Baseline QA Plan](docs/qa/visual-baseline.md)
-- [3D Debug QA Contract](docs/qa/debug-contract.md)
+Current work is limited to the 2D itinerary, map, search, routing, AI import, persistence, and share
+image flows. Historical 3D roadmaps and QA documents do not authorize reconnecting 3D code.
 
 Trip App 是一个中文旅行路线规划 Web App，用来创建多条旅行路线、管理多日行程、搜索地点、规划交通方式，并生成旅行手账风格的分享长图。
 
@@ -24,22 +16,19 @@ Trip App 是一个中文旅行路线规划 Web App，用来创建多条旅行路
 
 ## 项目阶段
 
-当前项目处于 **S1 工程可私测已闭环 → S2 差异化验证已收口 → 3D P0/P1 正确性收敛** 阶段。桌面端核心规划闭环已经成立，但还不建议直接商业化上线：云端同步、账号体系、配额、监控、真实用户反馈和 3D 商业级质量门禁仍需补齐。
+当前项目处于 **2D 稳定性与数据完整性收敛** 阶段。桌面端核心规划闭环已经成立，但还不建议直接商业化上线：云端同步、账号体系、配额、监控和真实用户反馈仍需补齐。
 
-当前开发主线已调整为 **桌面端 Web 优先**：先把宽屏路线规划、地图联动、AI 导入、分享图和 3D 价值验证做成稳定的网页产品。移动 Web 只保留基础可访问和回归守门，不再继续作为并行功能主线；原生 Android 后续按 Kotlin 技术路线单独评估。
+当前开发主线为 **2D Web 产品**：宽屏路线规划、地图联动、AI 导入和分享图；移动 Web 保留基础可访问和回归守门。
 
 当前主文档：
 
 - [文档索引](docs/documentation-index.md)：当前保留文档、职责边界和已删除历史文档清单。
-- [产品与架构总纲](docs/product-architecture-blueprint.md)：产品定位、2D 数据事实层、3D 同源表达、双 Key 边界和交付门禁。
+- [产品与架构总纲](docs/product-architecture-blueprint.md)：产品定位、2D 数据事实层、双 Key 边界和交付门禁。
 - [2D 数据事实层](docs/2d-data-foundation.md)：地点、路线、地理事实、BFF 和持久化边界。
-- [3D 深度研究整合](docs/3d-deep-research-integration.md)：最新 3D 技术路线、数据源、状态机、性能预算和质量门禁。
-- [3D 设计过程对齐](docs/3d-generation-process-alignment.md)：用户要求的 2D 冻结、地基抬升、水路桥融化、建筑体块溶解流程。
-- [3D 执行路线图](docs/3d-top-down-execution-roadmap.md)：3D 从 P0 到 P6 的分批实施顺序。
-- [3D 资产与地标管线](docs/3d-assets-landcover-and-landmarks.md)：建筑、道路、水域、桥梁、植被和地标的授权资产边界。
+- [3D 封存边界](archive/3d/README.md)：历史 3D 实现的隔离规则和恢复前置条件。
 - [UI 视觉风格守则](docs/ui-visual-style-guide.md)：锁定当前颜色、图标、布局、圆角、阴影和后续新增 UI 的审查清单。
 - [AI 导入评测](docs/guide-import-evaluation.md)：攻略导入召回率、误提取率、day 准确率和 note 覆盖率的离线评测。
-- [架构文档](ARCHITECTURE.md)：当前系统架构、ADR、模块边界和 3D 设计规范。
+- [架构文档](ARCHITECTURE.md)：当前 2D 系统架构、ADR 和模块边界。
 - [商业化策略](commercialization-solutions.md)：商业化缺口、方案取舍、阶段路线和暂不做清单。
 - [Roadmap](TODO.md)：当前可执行 backlog。
 - [BFF API 文档](docs/api.md)：服务端代理和接口契约。
@@ -79,7 +68,6 @@ Browser
   ├─ 原生 ES Modules
   ├─ 原生 DOM 渲染
   ├─ 高德地图 JS API 2.0
-  ├─ Three.js 3D planning diorama
   ├─ localStorage workspace
   └─ Canvas 分享长图
 ```
@@ -88,7 +76,7 @@ Browser
 
 ## 本地运行
 
-需要 Node.js 18+。
+需要 Node.js 22.22.1+。
 
 ```bash
 npm install
@@ -110,8 +98,8 @@ npm run dev
 代码检查：
 
 ```bash
-npm run check       # Prettier 格式检查 + ESLint
-npm test            # 运行单元测试（当前基线 21 files, 103 tests）
+npm run check       # 格式、Lint、2D 架构边界与可见文本编码检查
+npm test            # 运行单元测试
 npm run test:guide-import # 运行 AI 攻略导入离线评测
 npm run test:e2e    # 运行 Playwright 桌面主线 smoke + 移动端基础回归
 npm run test:watch  # 测试持续监听模式
@@ -152,7 +140,7 @@ PORT=8080
 
 Zeabur 或类似平台需要：
 
-- 使用 Node 18+。
+- 使用 Node 22.22.1+。
 - 安装依赖后运行 `node server/index.js`。
 - 配置环境变量 `AMAP_JS_KEY`、`AMAP_JSCODE`、`AMAP_WEB_SERVICE_KEY`。
 - 如需 AI 导入，配置环境变量 `DEEPSEEK_API_KEY`。
@@ -202,27 +190,20 @@ trip-app/
     ├── time-slots.js         # 时间块定义和排序
     ├── share.js              # 旧 #trip= 链接兼容
     ├── share-image.js        # Canvas 分享长图生成
-    ├── annotations.js        # 3D/地图功能标记类型与规范化
     ├── data/
     │   └── trip.js           # 五一北京演示数据 + JSDoc typedef
     ├── api/
     │   ├── amap-loader.js    # 高德 SDK 加载
     │   ├── geocode.js        # POI 搜索、搜附近、地址解析
     │   ├── guide-import.js   # AI 攻略导入请求封装
-    │   ├── routing.js        # 路线规划与估算兜底
-    │   └── elevation.js      # 高程数据获取（3D 使用）
+    │   └── routing.js        # 路线规划与估算
     ├── render/
     │   ├── modal-base.js     # Modal 基础设施
     │   ├── shared-widgets.js # 共享 UI 组件
     │   ├── icons.js          # 图标体系
-    │   ├── geo-project.js    # 地理坐标投影
     │   ├── workspace-tabs.js
     │   ├── sidebar.js
     │   ├── map.js            # 2D 地图渲染
-    │   ├── map-3d.js         # 3D diorama 渲染
-    │   ├── terrain-mode.js   # 3D 场景精度模式决策
-    │   ├── terrain-model.js  # 地形高度采样与可信度模型
-    │   ├── toggle-3d.js      # 2D/3D 切换
     │   ├── search-modal.js
     │   ├── event-editor-modal.js
     │   ├── day-editor-modal.js
@@ -309,17 +290,7 @@ trip = {
     }
   ],
   unscheduled: [],
-  annotations: [
-    {
-      id,
-      type, // entrance | viewpoint | supply | transfer | risk | note
-      lnglat,
-      elevation,
-      title,
-      note,
-      createdAt
-    }
-  ]
+  annotations: [] // 只作为封存兼容数据保留，不参与 2D 运行时
 }
 ```
 
@@ -383,8 +354,7 @@ AI 导入入口在顶部行程标签栏中与新建 `+` 并列显示；空工作
 
 ## 后续 TODO
 
-1. 3D P0/P1：右下角入口、乱码清理、路线同源诊断、generation timeline、地基抬升、水路桥分阶段融化。
-2. 真实用户评测：补 20-30 篇真实攻略、分享图反馈和 3D 标记使用记录。
-3. 分享传播：只读短链接、复制到我的行程、撤销分享和打开统计。
-4. 交通方式模型升级：支持中转点/途经点，让组合交通能映射到真实分段路线。
-5. 数据同步：在 localStorage 基础上增加可选云端保存。
+1. 真实用户评测：补充真实攻略和分享图反馈。
+2. 分享传播：只读短链接、复制到我的行程、撤销分享和打开统计。
+3. 交通方式模型升级：支持中转点/途经点，让组合交通能映射到真实分段路线。
+4. 数据同步：在 localStorage 基础上增加可选云端保存。

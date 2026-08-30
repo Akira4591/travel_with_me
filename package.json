@@ -6,24 +6,15 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
-    "lint": "eslint js/ server/",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "check": "npm run format:check && npm run lint && npm run check:architecture && npm run check:provenance && npm run check:landmarks && npm run check:ledger",
-    "check:architecture": "node scripts/audit-render-imports.mjs",
-    "check:landmarks": "node scripts/check-landmark-assets.mjs",
-    "check:ledger": "node scripts/check-quality-ledger.mjs",
-    "check:provenance": "node scripts/check-provenance.mjs",
-    "check:gate50-evidence": "node scripts/check-gate50-evidence.mjs",
+    "lint": "node scripts/run-active-2d-quality.mjs lint",
+    "format": "node scripts/run-active-2d-quality.mjs format",
+    "format:check": "node scripts/run-active-2d-quality.mjs format-check",
+    "check": "npm run format:check && npm run lint && npm run check:architecture && npm run check:encoding",
+    "check:architecture": "node scripts/audit-render-imports.mjs && node scripts/check-2d-runtime-boundary.mjs",
     "check:encoding": "node scripts/check-visible-text-encoding.mjs",
     "test": "vitest run",
     "test:e2e": "node scripts/run-e2e-smoke.mjs",
-    "test:e2e:visual": "playwright test tests/e2e/visual-baseline.spec.js --project=chromium",
-    "test:e2e:visual:stability": "node scripts/run-visual-stability.mjs",
     "test:e2e:live-provider": "node scripts/run-live-provider-smoke.mjs",
-    "gate50:review": "node scripts/run-gate50-review.mjs",
-    "gate50:packet": "node scripts/create-gate50-review-packet.mjs",
-    "gate50:live-review": "node scripts/run-gate50-live-review.mjs",
     "test:guide-import": "node scripts/evaluate-guide-import.mjs",
     "test:watch": "vitest",
     "prepare": "husky"
@@ -31,8 +22,7 @@
   "dependencies": {
     "@hono/node-server": "^2.0.5",
     "console-log-json": "^6.4.1",
-    "hono": "^4.12.26",
-    "three": "0.162.0"
+    "hono": "^4.12.26"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
@@ -62,6 +52,6 @@
     ]
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22.22.1"
   }
 }

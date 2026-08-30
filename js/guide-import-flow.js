@@ -14,7 +14,8 @@ const GUIDE_MATCH_LIMIT = 40;
 const GUIDE_MATCH_TIMEOUT_MS = 8000;
 const log = createLogger('guide-import');
 
-export async function buildGuideDraft(extracted, source, onProgress) {
+export async function buildGuideDraft(extracted, source, onProgress, signal) {
+  signal?.throwIfAborted?.();
   const city = source.cityHint || extracted.city || '';
   const events = [];
   let matched = 0;
@@ -34,8 +35,10 @@ export async function buildGuideDraft(extracted, source, onProgress) {
   // matching step 开始前先 yield 一帧让 UI 切换到"匹配地点"，避免 LLM 阶段一过就立刻冲到下一步
   onProgress?.('matching', total ? `准备匹配 ${total} 个地点...` : '正在整理...');
   await sleep(220);
+  signal?.throwIfAborted?.();
 
   for (let index = 0; index < total; index += 1) {
+    signal?.throwIfAborted?.();
     const item = eventsToMatch[index];
     // detail 文本带上具体地点名——给用户视觉强信号，避免 step 切换被 1 秒一闪而过
     onProgress?.('matching', `正在匹配 ${item.place_name || '地点'} (${index + 1}/${total})`);
@@ -46,12 +49,14 @@ export async function buildGuideDraft(extracted, source, onProgress) {
         placeName: item.place_name,
         city,
         note: item.note,
-        sourceQuote: item.source_quote
+        sourceQuote: item.source_quote,
+        signal
       }),
       GUIDE_MATCH_TIMEOUT_MS,
       null,
       `匹配 ${item.place_name}`
     );
+    signal?.throwIfAborted?.();
     if (poi) matched += 1;
     events.push({
       id: `guide-${Date.now().toString(36)}-${index}`,
@@ -69,6 +74,7 @@ export async function buildGuideDraft(extracted, source, onProgress) {
 
   onProgress?.('previewing', '正在整理导入预览...');
   await sleep(180); // 让 "整理预览" 状态可见
+  signal?.throwIfAborted?.();
   return {
     title: extracted.title_suggestion || `${city || 'AI'}旅行路线`,
     city,
@@ -268,12 +274,12 @@ function normalizeGuidePlaceName(value) {
 //
 // 之前 Codex 只实现了 Layer 1 + 拿 places[0] 不做 similarity check——所以 LLM 提取的
 // "便宜坊" 撞不上高德的 "便宜坊烤鸭(xx店)"，看似 fail；预览页手动搜能命中是因为用户能挑。
-export async function matchGuidePlace({ placeName, city, note, sourceQuote }) {
+export async function matchGuidePlace({ placeName, city, note, sourceQuote, signal }) {
   const state = getAppState();
   if (!state.AMap || !placeName) return null;
 
   // Layer 1: place_name + city
-  const placesL1 = await searchGuidePlaces(placeName, city, 10);
+  const placesL1 = await searchGuidePlaces(placeName, city, 10, signal);
   const bestL1 = pickBestMatch(placesL1, placeName, 0.55);
   // 日志默认开，方便用户/开发自助 debug；上线前可统一关
   log.debug(`L1 "${placeName}"`, {
@@ -291,7 +297,8 @@ export async function matchGuidePlace({ placeName, city, note, sourceQuote }) {
   const keywords = extractNounKeywords(note, sourceQuote, placeName);
   for (const kw of keywords) {
     const expandedKeyword = `${placeName} ${kw}`.trim();
-    const placesL2 = await searchGuidePlaces(expandedKeyword, city, 8);
+    signal?.throwIfAborted?.();
+    const placesL2 = await searchGuidePlaces(expandedKeyword, city, 8, signal);
     const bestL2 = pickBestMatch(placesL2, placeName, 0.4);
     log.debug(`L2 "${expandedKeyword}"`, {
       count: placesL2.length,
@@ -471,7 +478,7 @@ function extractNounKeywords(note, sourceQuote, excludeKeyword = '') {
 //   Layer B: 全国搜（city: false）
 //
 // 不回退 AppConfig.cityCode（默认北京）。否则上海攻略在 city 搜索失败后，会被北京候选污染。
-export async function searchGuidePlaces(keyword, city, pageSize = 8) {
+export async function searchGuidePlaces(keyword, city, pageSize = 8, signal) {
   const state = getAppState();
   if (!keyword) return [];
   const AMap = state.AMap || (await loadAMap());
@@ -482,7 +489,8 @@ export async function searchGuidePlaces(keyword, city, pageSize = 8) {
   cityCandidates.push(false); // B: 全国兜底。不要回退默认北京，避免跨城市攻略误匹配。
 
   for (const cityArg of cityCandidates) {
-    const places = await searchPlaces(AMap, keyword, { city: cityArg, pageSize });
+    signal?.throwIfAborted?.();
+    const places = await searchPlaces(AMap, keyword, { city: cityArg, pageSize, signal });
     log.debug(
       `[guide-search] "${keyword}" tried city=${JSON.stringify(cityArg)} → count=${places.length}`,
       places.length ? `first="${places[0]?.name}"` : ''

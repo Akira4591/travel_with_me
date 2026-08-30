@@ -1,8 +1,8 @@
-import { readdir, readFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { assertExplicit2DRuntimeManifest, build2DRuntimeManifest } from './active-2d-runtime.mjs';
 
 const ROOT = process.cwd();
-const RENDER_DIR = path.join(ROOT, 'js', 'render');
 const FORBIDDEN_IMPORTS = [
   /\bfrom\s+['"]\.\.\/api(?:\/|['"])/,
   /\bimport\s*\(\s*['"]\.\.\/api(?:\/|['"])/,
@@ -11,7 +11,11 @@ const FORBIDDEN_IMPORTS = [
 ];
 const FORBIDDEN_PROVIDER_FETCH = /\bfetch\s*\(\s*['"]https?:\/\//;
 
-const files = await listJavaScriptFiles(RENDER_DIR);
+const runtime = await build2DRuntimeManifest(ROOT);
+assertExplicit2DRuntimeManifest(runtime);
+const files = [...runtime.activeJavaScriptPaths]
+  .filter(projectPath => projectPath.startsWith('js/render/'))
+  .map(projectPath => path.join(ROOT, projectPath));
 const violations = [];
 
 for (const file of files) {
@@ -36,18 +40,6 @@ if (violations.length) {
 }
 
 console.log(`Renderer/provider boundary audit passed (${files.length} render files scanned).`);
-
-async function listJavaScriptFiles(directory) {
-  const entries = await readdir(directory, { withFileTypes: true });
-  const files = await Promise.all(
-    entries.map(async entry => {
-      const fullPath = path.join(directory, entry.name);
-      if (entry.isDirectory()) return listJavaScriptFiles(fullPath);
-      return entry.isFile() && entry.name.endsWith('.js') ? [fullPath] : [];
-    })
-  );
-  return files.flat();
-}
 
 function toPosix(value) {
   return value.split(path.sep).join('/');

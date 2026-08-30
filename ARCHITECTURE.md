@@ -1,6 +1,8 @@
 # Architecture
 
-Travel With Me 是一个中文旅行路线规划 Web App。本文档记录当前系统架构、关键架构决策和设计原则。产品方向、阶段口径和 2D/3D 同源边界以 [产品与架构总纲](docs/product-architecture-blueprint.md) 为准。
+Travel With Me 是一个中文旅行路线规划 Web App。本文档记录当前 2D 系统架构、关键架构决策和设计原则。
+
+> **取代性决策（2026-08-12）**：3D 已封存。`archive/3d/README.md` 是当前边界；本文后部的 3D ADR、依赖图与目录说明仅保留为历史记录，不属于活动架构。2D 启动图不得依赖 3D 模块，服务端不得暴露 3D 专用接口。
 
 文档边界：
 
@@ -8,21 +10,20 @@ Travel With Me 是一个中文旅行路线规划 Web App。本文档记录当前
 - 商业化缺口、方案取舍和阶段路线见 `commercialization-solutions.md`。
 - 近期执行 backlog 见 `TODO.md`。
 - BFF 接口契约见 `docs/api.md`。
-- 3D 技术路线、状态机和质量门禁见 `docs/3d-deep-research-integration.md` 与 `docs/3d-top-down-execution-roadmap.md`。
+- 3D 历史资料只供追溯，当前封存边界见 `archive/3d/README.md`。
 
 本文档只回答：系统如何组织、为什么这样组织、哪些架构约束必须遵守。
 
 ## 技术栈
 
 ```
-Node.js 18+ / Hono v4
+Node.js 22.22.1+ / Hono v4
   └─ BFF 层：静态托管 + 高德代理 + AI 中转
 
 Browser
   ├─ 原生 ES Modules（无构建工具）
   ├─ 高德 JS API 2.0
   ├─ localStorage 持久化
-  ├─ Three.js 3D planning diorama
   └─ Canvas 分享长图生成
 ```
 
@@ -38,7 +39,7 @@ Trip
   ├─ locations: { [id]: Location }   地点主表
   ├─ days: Day[]                     按序排列
   ├─ unscheduled: Event[]            未排期事件池
-  └─ annotations: Annotation[]       3D/地图功能标记
+  └─ annotations: Annotation[]       封存兼容数据，不参与 2D 运行时
 
 Day
   ├─ id, title
@@ -232,7 +233,7 @@ buildTripShareImage(trip, { includeRoutes })
 ### ADR-6: 3D Diorama 地图 — 2D 事实层驱动的生成式规划沙盘
 
 **日期**: 2026-06-18
-**状态**: 已采纳（按 P0-P6 分批实施）
+**状态**: 已被 2026-08-12 的 3D 封存决策取代，仅保留历史记录
 
 **背景**: 当前项目使用 2D 高德地图、BFF Web Service、Canvas 分享长图和 Three.js 3D 模块。3D 的目标是帮助用户理解路线、地形、水系、桥梁、建筑体块和局部风险，不是替代 2D 地图，也不是复刻真实城市。
 

@@ -13,8 +13,7 @@ function getDefaultShareOptions() {
   return {
     includeRoutes: false,
     includeNotes: true,
-    includeUnscheduled: false,
-    includeAnnotations: false
+    includeUnscheduled: false
   };
 }
 
@@ -23,7 +22,6 @@ function formatShareOptionsStatus(options) {
   if (options.includeNotes) parts.push('含备注');
   if (options.includeRoutes) parts.push('含交通方式');
   if (options.includeUnscheduled) parts.push('含未排期');
-  if (options.includeAnnotations) parts.push('含 3D 标记');
   return parts.length ? parts.join('、') : '仅公开行程骨架';
 }
 

@@ -1,6 +1,7 @@
 import { TIME_SLOT_OPTIONS, normalizeTimeSlot } from '../time-slots.js';
 import { escapeHTML } from '../utils.js';
 import { modalSingleton } from './modal-base.js';
+import { MAX_GUIDE_DAYS } from '../guide-import-cleanup.js';
 
 let draft = null;
 let openActionEventId = null;
@@ -12,6 +13,7 @@ export const openGuidePreviewModal = modalSingleton(({ draft: inputDraft, handle
   previewHandlers = handlers;
   const root = createModal();
   document.body.appendChild(root);
+  requestAnimationFrame(() => root.querySelector('.guide-preview-title')?.focus());
 });
 
 function createModal() {
@@ -178,7 +180,7 @@ function renderPlacePhoto(place) {
 function renderDaySelect(event) {
   const maxDay = getMaxDay();
   const options = ['<option value="">未排期</option>'];
-  for (let day = 1; day <= maxDay + 1; day += 1) {
+  for (let day = 1; day <= Math.min(MAX_GUIDE_DAYS, maxDay + 1); day += 1) {
     options.push(
       `<option value="${day}" ${event.day === day ? 'selected' : ''}>Day ${day}</option>`
     );
@@ -201,6 +203,8 @@ function bindShellEvents(root) {
   root.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
     if (openActionEventId) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
       openActionEventId = null;
       renderBody(root.querySelector('.guide-preview-body'));
       return;
@@ -241,9 +245,14 @@ function bindBodyEvents(body) {
       event.note = e.target.value;
     });
     card.querySelector('.guide-preview-action-toggle')?.addEventListener('click', e => {
-      e.stopPropagation();
+      e.stopImmediatePropagation();
       openActionEventId = openActionEventId === event.id ? null : event.id;
       renderBody(body);
+      body
+        .querySelector(
+          `.guide-preview-event[data-event-id="${CSS.escape(event.id)}"] .guide-preview-action-toggle`
+        )
+        ?.focus();
     });
     card.querySelector('.guide-preview-day-select')?.addEventListener('change', e => {
       event.day = e.target.value ? Number(e.target.value) : null;
@@ -307,7 +316,10 @@ function bindBodyEvents(body) {
 }
 
 function getMaxDay() {
-  return Math.max(1, ...draft.events.map(event => Number(event.day) || 0));
+  return Math.min(
+    MAX_GUIDE_DAYS,
+    Math.max(1, ...draft.events.map(event => Number(event.day) || 0))
+  );
 }
 
 function getEventTitle(event) {

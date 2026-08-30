@@ -8,3 +8,12 @@ node_modules
 .playwright-mcp
 *.log
 README.md
+archive
+data
+docs
+js/__tests__
+playwright-report
+test-results
+test-tmp-integration
+tests
+work

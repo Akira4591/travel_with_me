@@ -37,6 +37,162 @@ describe('createTrip', () => {
   });
 });
 
+describe('workspace data integrity', () => {
+  it('never deletes persisted demo-trip edits during normalization', () => {
+    state.initWorkspace({
+      trips: [
+        {
+          id: 'demo-trip-bj-may',
+          title: '我的北京行程',
+          locations: {
+            custom: {
+              name: '咖啡馆',
+              lnglat: [120, 30],
+              resolved: true
+            }
+          },
+          days: [
+            {
+              id: 'day-1',
+              title: '接站与安顿',
+              events: [{ id: 'custom-event', title: '和男朋友喝咖啡', locationId: 'custom' }]
+            }
+          ]
+        }
+      ],
+      activeTripId: 'demo-trip-bj-may'
+    });
+
+    expect(state.getLocation('custom')).toMatchObject({ lnglat: [120, 30], resolved: true });
+    expect(state.getTrip().days[0].events).toEqual([
+      expect.objectContaining({ id: 'custom-event', title: '和男朋友喝咖啡' })
+    ]);
+  });
+
+  it('refuses a shared trip when all local slots are occupied', () => {
+    const saved = {
+      trips: ['a', 'b', 'c'].map(id => ({ id, title: id, locations: {}, days: [] })),
+      activeTripId: 'b'
+    };
+
+    const result = state.initWorkspace(saved, {
+      id: 'shared',
+      title: '分享行程',
+      locations: {},
+      days: []
+    });
+
+    expect(result).toMatchObject({ ok: false, error: 'WORKSPACE_FULL' });
+    expect(state.getWorkspace().trips.map(item => item.id)).toEqual(['a', 'b', 'c']);
+    expect(state.getWorkspace().activeTripId).toBe('b');
+  });
+
+  it('preserves local edits when a shared trip has an existing id', () => {
+    const result = state.initWorkspace(
+      {
+        trips: [{ id: 'same', title: '本地编辑', locations: {}, days: [] }],
+        activeTripId: 'same'
+      },
+      { id: 'same', title: '链接原文', locations: {}, days: [] }
+    );
+
+    expect(result).toMatchObject({ ok: false, error: 'SHARED_TRIP_EXISTS' });
+    expect(state.getTrip().title).toBe('本地编辑');
+  });
+
+  it('repairs duplicate trip ids so every saved trip remains reachable', () => {
+    state.initWorkspace({
+      trips: [
+        { id: 'same', title: 'A', locations: {}, days: [] },
+        { id: 'same', title: 'B', locations: {}, days: [] }
+      ],
+      activeTripId: 'same'
+    });
+
+    const trips = state.getWorkspace().trips;
+    expect(new Set(trips.map(item => item.id)).size).toBe(2);
+    expect(state.switchTrip(trips[1].id)).toBe(true);
+    expect(state.getTrip().title).toBe('B');
+  });
+
+  it('repairs duplicate day and event ids in saved trip data', () => {
+    state.initWorkspace({
+      trips: [
+        {
+          id: 'trip',
+          title: '历史行程',
+          locations: {},
+          days: [
+            { id: 'same-day', title: 'A', events: [{ id: 'same-event', title: 'A1' }] },
+            { id: 'same-day', title: 'B', events: [{ id: 'same-event', title: 'B1' }] }
+          ],
+          unscheduled: [{ id: 'same-event', title: 'U1' }]
+        }
+      ],
+      activeTripId: 'trip'
+    });
+
+    const normalized = state.getTrip();
+    const eventIds = [
+      ...normalized.days.flatMap(day => day.events.map(event => event.id)),
+      ...normalized.unscheduled.map(event => event.id)
+    ];
+    expect(new Set(normalized.days.map(day => day.id)).size).toBe(2);
+    expect(new Set(eventIds).size).toBe(3);
+    expect(state.getDay(normalized.days[1].id).title).toBe('B');
+  });
+
+  it('returns a historically resolved location with invalid coordinates to pending resolution', () => {
+    state.initWorkspace({
+      trips: [
+        {
+          id: 'trip',
+          title: '历史行程',
+          locations: {
+            broken: { name: '坏坐标', lnglat: [999, 39.9], resolved: true }
+          },
+          days: []
+        }
+      ],
+      activeTripId: 'trip'
+    });
+
+    expect(state.getLocation('broken')).toMatchObject({ name: '坏坐标', resolved: false });
+    expect(state.getLocation('broken').lnglat).toBeUndefined();
+  });
+
+  it('applies an async location result to the trip that started the request', () => {
+    state.initWorkspace({
+      trips: [
+        { id: 'a', title: 'A', locations: { place: { name: 'A 地点' } }, days: [] },
+        { id: 'b', title: 'B', locations: { place: { name: 'B 地点' } }, days: [] }
+      ],
+      activeTripId: 'a'
+    });
+    state.switchTrip('b');
+
+    expect(state.updateLocationForTrip('a', 'place', { lnglat: [121, 31] })).toBe(true);
+    expect(state.getTrip().locations.place.lnglat).toBeUndefined();
+    expect(state.getWorkspace().trips[0].locations.place.lnglat).toEqual([121, 31]);
+  });
+});
+
+describe('batched trip changes', () => {
+  it('emits one render-driving change for a bulk import', () => {
+    const changes = [];
+    const unsubscribe = state.on('trip:changed', payload => changes.push(payload));
+
+    state.batchTripChanges(() => {
+      state.updateTripMeta({ city: '上海市' });
+      state.addDay({ title: '第二天' });
+      state.addDay({ title: '第三天' });
+    });
+    unsubscribe();
+
+    expect(changes).toEqual([{ kind: 'batch:changed' }]);
+  });
+});
+
 describe('addDay', () => {
   it('adds a day to the active trip', () => {
     const dayId = state.addDay({ title: '新的一天' });
@@ -46,7 +202,7 @@ describe('addDay', () => {
 });
 
 describe('addEventToDay', () => {
-  it('persists a resolved location source for the shared 2D and 3D data contract', () => {
+  it('persists a resolved location source for the 2D map data contract', () => {
     const locationId = state.addLocation({
       name: 'Provider place',
       addr: 'Provider address',
@@ -58,6 +214,11 @@ describe('addEventToDay', () => {
       lnglat: [116.4, 39.9],
       source: 'amap-web-service'
     });
+  });
+
+  it('does not mark a location without coordinates as resolved', () => {
+    const locationId = state.addLocation({ name: '待解析地点' });
+    expect(state.getLocation(locationId)).toMatchObject({ resolved: false });
   });
 
   it('adds an event to a specific day', () => {
@@ -108,59 +269,6 @@ describe('moveEventBetweenContainers', () => {
     const moved = state.moveEventBetweenContainers(eventId, { dayId: day.id });
     expect(moved).toBe(true);
     expect(state.getDay(day.id).events.find(e => e.id === eventId)).toBeTruthy();
-  });
-});
-
-describe('annotations', () => {
-  it('normalizes missing annotations on old trips', () => {
-    state.initWorkspace({
-      trips: [
-        {
-          id: 'old-trip',
-          title: '旧路线',
-          locations: {},
-          days: []
-        }
-      ],
-      activeTripId: 'old-trip'
-    });
-
-    expect(state.getTrip().annotations).toEqual([]);
-    expect(state.getAnnotations()).toEqual([]);
-  });
-
-  it('adds, updates, and removes a 3D annotation', () => {
-    const annotationId = state.addAnnotation({
-      type: 'viewpoint',
-      lnglat: [116.405, 39.912],
-      elevation: 32,
-      title: 'View deck',
-      note: 'Sunset angle'
-    });
-
-    expect(annotationId).toBeTruthy();
-    expect(state.getAnnotations()).toHaveLength(1);
-    expect(state.getAnnotations()[0]).toMatchObject({
-      id: annotationId,
-      type: 'viewpoint',
-      lnglat: [116.405, 39.912],
-      elevation: 32,
-      title: 'View deck',
-      note: 'Sunset angle'
-    });
-
-    expect(state.updateAnnotation(annotationId, { type: 'risk', title: 'Steep turn' })).toBe(true);
-    expect(state.getAnnotations()[0]).toMatchObject({
-      type: 'risk',
-      title: 'Steep turn'
-    });
-
-    expect(state.removeAnnotation(annotationId)).toBe(true);
-    expect(state.getAnnotations()).toHaveLength(0);
-  });
-
-  it('rejects invalid annotation coordinates', () => {
-    expect(state.addAnnotation({ lnglat: [999, 39.9] })).toBeNull();
   });
 });
 

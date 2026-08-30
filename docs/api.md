@@ -2,6 +2,8 @@
 
 Travel With Me 的 BFF 层提供以下端点：
 
+> 2026-08-12：3D 已封存，`/_elevation` 与 `/_geo-assets` 已从活动服务移除并返回 404。下方同名章节只保留历史契约，不能作为当前 API 使用。
+
 ## 基础信息
 
 | 项           | 值                                               |
@@ -12,7 +14,7 @@ Travel With Me 的 BFF 层提供以下端点：
 
 AI 导入、地图服务代理和瓦片代理会检查显式 `Origin` / `Referer`。默认允许同源请求；如需允许其他正式域名，使用 `ALLOWED_ORIGINS` 配置，多个域名用逗号或空格分隔。
 
-BFF 会返回基础安全响应头，包括 `X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy` 和最小权限策略。外部地图、字体和 3D 资源仍按当前前端白名单/浏览器策略加载。
+BFF 会返回基础安全响应头，包括 `X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy` 和最小权限策略。外部地图与字体仍按当前前端白名单/浏览器策略加载。
 
 ---
 
@@ -160,7 +162,7 @@ BFF 会返回基础安全响应头，包括 `X-Content-Type-Options`、`X-Frame-
 
 ---
 
-## `GET /_elevation`
+## `GET /_elevation`（已移除，仅历史记录）
 
 高程代理。当前用于 3D terrain fallback / sampling，不作为商业级 DEM tile 管线。单次最多 100 个坐标点。
 
@@ -186,7 +188,7 @@ BFF 会返回基础安全响应头，包括 `X-Content-Type-Options`、`X-Frame-
 
 ---
 
-## `GET /_geo-assets`
+## `GET /_geo-assets`（已移除，仅历史记录）
 
 获取行程附近的小范围地理上下文资产。当前实现是 bounded Overpass/OSM prototype context layer，用于建筑、道路、水域、桥梁和植被上下文验证；它不是长期商业生产依赖。
 

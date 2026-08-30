@@ -4,14 +4,15 @@ export async function getGuideImportStatus() {
   return resp.json();
 }
 
-export async function extractGuideText({ text, cityHint }) {
+export async function extractGuideText({ text, cityHint, signal }) {
   const resp = await fetch('/_ai/extract-guide', {
     method: 'POST',
     headers: {
       accept: 'application/json',
       'content-type': 'application/json'
     },
-    body: JSON.stringify({ text, cityHint })
+    body: JSON.stringify({ text, cityHint }),
+    signal
   });
   const data = await resp.json().catch(() => null);
   if (!resp.ok) {

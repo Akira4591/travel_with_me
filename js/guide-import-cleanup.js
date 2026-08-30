@@ -1,5 +1,7 @@
 import { normalizeTimeSlot } from './time-slots.js';
 
+export const MAX_GUIDE_DAYS = 30;
+
 const NOISE_EXACT_NAMES = new Set([
   '相机',
   '镜头',
@@ -52,8 +54,11 @@ export function cleanGuideExtractedEvents(events, options = {}) {
   const normalized = [];
   const seen = new Set();
   let filteredCount = 0;
+  let outOfRangeDayCount = 0;
 
   for (const event of events || []) {
+    const rawDay = Number(event?.day);
+    if (Number.isInteger(rawDay) && rawDay > MAX_GUIDE_DAYS) outOfRangeDayCount += 1;
     const item = normalizeGuideEvent(event);
     if (!item) {
       filteredCount += 1;
@@ -70,6 +75,9 @@ export function cleanGuideExtractedEvents(events, options = {}) {
 
   if (filteredCount && Array.isArray(warnings)) {
     warnings.push(`已过滤 ${filteredCount} 个非地点或噪声项。`);
+  }
+  if (outOfRangeDayCount && Array.isArray(warnings)) {
+    warnings.push(`超出 ${MAX_GUIDE_DAYS} 天的地点已移入未排期。`);
   }
 
   return normalized;
@@ -108,5 +116,5 @@ export function normalizeGuideCleanupText(value) {
 function normalizeGuideDay(value) {
   if (value === null || value === undefined || value === '') return null;
   const day = Number(value);
-  return Number.isInteger(day) && day > 0 ? day : null;
+  return Number.isInteger(day) && day > 0 && day <= MAX_GUIDE_DAYS ? day : null;
 }

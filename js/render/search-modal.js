@@ -108,6 +108,7 @@ function bindEvents(root, handlers) {
 
   let searchMode = 'keyword'; // 'keyword' | 'nearby'
   let selected = null;
+  let searchRequestId = 0;
 
   const doSearch = async () => {
     const keyword = input.value.trim();
@@ -115,6 +116,7 @@ function bindEvents(root, handlers) {
     const isNearby = searchMode === 'nearby';
     const runner = isNearby ? handlers?.onNearbySearch : handlers?.onSearch;
     if (!runner) return;
+    const requestId = ++searchRequestId;
 
     selected = null;
     form.hidden = true;
@@ -122,6 +124,7 @@ function bindEvents(root, handlers) {
 
     try {
       const places = await runner(keyword);
+      if (requestId !== searchRequestId || !root.isConnected) return;
       if (!places || !places.length) {
         const emptyHTML = isNearby
           ? '<div class="modal-hint">附近没找到相关地点，换个关键词试试</div>'
@@ -146,6 +149,7 @@ function bindEvents(root, handlers) {
         titleInput.select();
       });
     } catch (err) {
+      if (requestId !== searchRequestId || !root.isConnected) return;
       log.error('搜索地点失败：', err);
       setResultsState(resultsEl, 'error', '<div class="modal-hint">搜索失败，请重试</div>');
     }
@@ -155,6 +159,7 @@ function bindEvents(root, handlers) {
   const tabs = root.querySelectorAll('.editor-search-tab');
   const switchMode = mode => {
     if (searchMode === mode) return;
+    searchRequestId += 1;
     searchMode = mode;
     tabs.forEach(t => {
       const active = t.dataset.searchMode === mode;

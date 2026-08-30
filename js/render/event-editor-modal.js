@@ -140,10 +140,15 @@ function bindEvents(root, initialLocation, handlers) {
 
   // 已有地点常常只存了名称（addr === name），这里按需异步逆地理回填详细地址。
   // 注意 modal 关闭后 resultsEl 已不在 DOM 树里，所有异步回调要先确认 modal 还活着。
+  let addressRequestId = 0;
+  let searchRequestId = 0;
+
   const ensureAddressForCurrent = async () => {
     if (!hasPoorAddress(selectedLocation) || !handlers?.onResolveAddress) return;
     if (!Array.isArray(selectedLocation.lnglat) || selectedLocation.lnglat.length < 2) return;
 
+    const requestId = ++addressRequestId;
+    const targetLocation = selectedLocation;
     renderCard('loading');
     let info;
     try {
@@ -151,7 +156,8 @@ function bindEvents(root, initialLocation, handlers) {
     } catch (err) {
       log.warn('逆地理编码失败：', err);
     }
-    if (!root?.isConnected) return;
+    if (!root?.isConnected || requestId !== addressRequestId || selectedLocation !== targetLocation)
+      return;
 
     const composed = composeAddress(info, selectedLocation.name);
     if (composed) selectedLocation.addr = composed;
@@ -164,13 +170,14 @@ function bindEvents(root, initialLocation, handlers) {
     const isNearby = searchMode === 'nearby';
     const runner = isNearby ? handlers?.onNearbySearch : handlers?.onSearch;
     if (!runner) return;
+    const requestId = ++searchRequestId;
 
     selectedPlace = null;
     setResultsState(resultsEl, 'loading', '<div class="modal-hint">搜索中...</div>');
 
     try {
       const places = await runner(keyword);
-      if (!root.isConnected) return;
+      if (!root.isConnected || requestId !== searchRequestId) return;
       if (!places || !places.length) {
         const emptyHTML = isNearby
           ? '<div class="modal-hint">附近没找到相关地点，换个关键词试试</div>'
@@ -180,6 +187,7 @@ function bindEvents(root, initialLocation, handlers) {
       }
       renderResults(resultsEl, places, place => {
         selectedPlace = place;
+        addressRequestId += 1;
         const fallbackAddr = composeAddress(
           {
             formatted: place.addr,
@@ -215,6 +223,7 @@ function bindEvents(root, initialLocation, handlers) {
         setResultsState(resultsEl, 'idle', '');
       });
     } catch (err) {
+      if (!root.isConnected || requestId !== searchRequestId) return;
       log.error('搜索地点失败：', err);
       setResultsState(resultsEl, 'error', '<div class="modal-hint">搜索失败，请重试</div>');
     }
@@ -223,6 +232,7 @@ function bindEvents(root, initialLocation, handlers) {
   const tabs = root.querySelectorAll('.editor-search-tab');
   const switchMode = mode => {
     if (searchMode === mode) return;
+    searchRequestId += 1;
     searchMode = mode;
     tabs.forEach(tab => {
       const active = tab.dataset.searchMode === mode;

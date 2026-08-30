@@ -3,15 +3,6 @@ name: live-provider-smoke
 on:
   workflow_dispatch:
     inputs:
-      provider:
-        description: 'Provider smoke target'
-        required: true
-        default: 'all'
-        type: choice
-        options:
-          - amap
-          - elevation
-          - all
       browser:
         description: 'Browser project'
         required: true
@@ -32,7 +23,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22.22.1
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
@@ -42,4 +33,3 @@ jobs:
           AMAP_JS_KEY: ${{ secrets.AMAP_JS_KEY }}
           AMAP_JSCODE: ${{ secrets.AMAP_JSCODE }}
           AMAP_WEB_SERVICE_KEY: ${{ secrets.AMAP_WEB_SERVICE_KEY }}
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}

@@ -12,15 +12,6 @@
     <link rel="stylesheet" href="./css/tokens.css?v=20260510-v10" />
     <link rel="stylesheet" href="./css/layout.css?v=20260510-v10" />
     <link rel="stylesheet" href="./css/components.css?v=20260510-v10" />
-
-    <script type="importmap">
-      {
-        "imports": {
-          "three": "/three/build/three.module.js",
-          "three/addons/": "/three/examples/jsm/"
-        }
-      }
-    </script>
   </head>
 
   <body data-mobile-view="list">
@@ -31,13 +22,29 @@
           type="button"
           class="mobile-view-btn active"
           data-mobile-view="list"
+          role="tab"
           aria-selected="true"
         >
           行程
         </button>
-        <button type="button" class="mobile-view-btn" data-mobile-view="map" aria-selected="false">
+        <button
+          type="button"
+          class="mobile-view-btn"
+          data-mobile-view="map"
+          role="tab"
+          aria-selected="false"
+        >
           地图
         </button>
+      </div>
+      <div
+        class="status-panel"
+        id="status-panel"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        正在加载地图...
       </div>
       <div class="app-layout">
         <div class="sidebar">
@@ -60,18 +67,6 @@
 
         <div class="map-container">
           <div id="map"></div>
-          <div id="map-3d" hidden></div>
-          <button
-            type="button"
-            class="map-3d-toggle hint"
-            id="map-3d-toggle"
-            hidden
-            aria-label="切换3D视图"
-          >
-            <span class="map-3d-toggle-dot"></span>
-            <span class="map-3d-toggle-label">3D 视图</span>
-          </button>
-          <div class="status-panel" id="status-panel">正在加载地图...</div>
         </div>
       </div>
     </div>

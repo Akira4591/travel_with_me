@@ -14,7 +14,8 @@ export function readSharedTripFromURL() {
 
   try {
     const encoded = hash.slice(SHARE_PREFIX.length);
-    return JSON.parse(decodeBase64URL(encoded));
+    const trip = JSON.parse(decodeBase64URL(encoded));
+    return trip && typeof trip === 'object' && !Array.isArray(trip) ? trip : null;
   } catch (err) {
     log.warn('分享链接解析失败：', err);
     return null;
