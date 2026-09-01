@@ -11,6 +11,11 @@ import { ROUTE_GUIDANCE } from '../route-guidance.js';
 import { escapeHTML, unique } from '../utils.js';
 
 const log = createLogger('map');
+let markerSelectHandler = null;
+
+export function setMarkerSelectHandler(handler) {
+  markerSelectHandler = handler;
+}
 
 // ─── 初始化 ─────────────────────────────────────────────
 
@@ -81,6 +86,7 @@ export function createOrUpdateMarker(locationId, lnglat) {
   marker._contentEl = content;
   marker.on('click', () => {
     openInfoWindow(locationId);
+    markerSelectHandler?.(locationId);
   });
 
   state.markers.set(locationId, marker);
@@ -107,6 +113,43 @@ export function removeMarker(locationId) {
   }
   state.markers.delete(locationId);
   state.markerList = state.markerList.filter(item => item !== marker);
+}
+
+export function showCandidatePreview(place, anchorLocation = null) {
+  clearCandidatePreview();
+  const state = getAppState();
+  if (!Array.isArray(place?.lnglat) || !state.AMap || !state.map) return;
+  const content = document.createElement('div');
+  content.className = 'custom-marker candidate-preview-marker';
+  content.innerHTML = '<span></span>';
+  const marker = new state.AMap.Marker({
+    position: place.lnglat,
+    content,
+    offset: new state.AMap.Pixel(-14, -14)
+  });
+  const overlays = [marker];
+  const anchor = anchorLocation?.lnglat;
+  if (Array.isArray(anchor)) {
+    overlays.push(
+      new state.AMap.Polyline({
+        path: [anchor, place.lnglat],
+        strokeColor: ROUTE_GUIDANCE.line,
+        strokeOpacity: 0.72,
+        strokeWeight: 3,
+        strokeStyle: 'dashed'
+      })
+    );
+  }
+  state.candidatePreview = overlays;
+  state.map.add(overlays);
+  fitMarkers([marker]);
+}
+
+export function clearCandidatePreview() {
+  const state = getAppState();
+  if (!state.candidatePreview?.length) return;
+  state.map?.remove(state.candidatePreview);
+  state.candidatePreview = null;
 }
 
 export function clearAllMarkers() {

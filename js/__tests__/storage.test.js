@@ -146,6 +146,59 @@ describe('workspace storage reliability', () => {
     expect(parsed.meta.schemaVersion).toBe(storage.SCHEMA_VERSION);
   });
 
+  it('summarizes a validated import before replacement', () => {
+    const parsed = storage.parseWorkspaceImport({
+      format: storage.EXPORT_FORMAT,
+      schemaVersion: storage.SCHEMA_VERSION,
+      exportedAt: '2026-09-01T02:28:00.000Z',
+      workspace: {
+        activeTripId: 'trip-1',
+        trips: [
+          {
+            id: 'trip-1',
+            title: '北京奇遇',
+            days: [
+              {
+                id: 'day-1',
+                title: '古城漫游',
+                events: [
+                  { id: 'event-1', title: '故宫', locationId: 'loc-1' },
+                  { id: 'event-2', title: '景山', locationId: 'loc-2' }
+                ]
+              }
+            ],
+            unscheduled: [{ id: 'event-3', title: '鼓楼', locationId: 'loc-3' }],
+            locations: {
+              'loc-1': { id: 'loc-1', name: '故宫' },
+              'loc-2': { id: 'loc-2', name: '景山' },
+              'loc-3': { id: 'loc-3', name: '鼓楼' }
+            }
+          }
+        ]
+      }
+    });
+
+    expect(parsed.ok).toBe(true);
+    expect(parsed.summary).toEqual({
+      tripCount: 1,
+      dayCount: 1,
+      scheduledCount: 2,
+      unscheduledCount: 1,
+      locationCount: 3,
+      trips: [
+        {
+          id: 'trip-1',
+          title: '北京奇遇',
+          dayCount: 1,
+          scheduledCount: 2,
+          unscheduledCount: 1,
+          locationCount: 3,
+          previewPlaces: ['故宫', '景山', '鼓楼']
+        }
+      ]
+    });
+  });
+
   it('rejects invalid import payload', () => {
     expect(storage.parseWorkspaceImport('{bad').error).toBe('INVALID_JSON');
     expect(storage.parseWorkspaceImport({ trips: 'nope' }).error).toBe('INVALID_TRIPS');

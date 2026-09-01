@@ -1,5 +1,10 @@
 # Quality Gate Status
 
+> **历史台账，非发布依据。** 本文件保留 2026-07-17 的 2D/3D 历史记录；3D 已封存。当前
+> 2D 放行只接受 `work/release/current-manifest.json` 及其由
+> `scripts/create-release-review.mjs` 生成的同候选审查包，合同见
+> `docs/operations/release-playbook.md`。
+
 > **辅助文件** | 权威开发文档: [DEVELOPMENT.md](../../DEVELOPMENT.md)
 
 Last verified: 2026-07-17

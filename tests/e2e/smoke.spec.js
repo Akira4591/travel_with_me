@@ -646,12 +646,32 @@ test('mobile can switch between itinerary and map views', async ({ page, isMobil
   await expect(page.locator('#status-panel')).toBeVisible();
   await expect(page.locator('#status-panel')).toHaveAttribute('aria-live', 'polite');
 
+  await page.getByRole('button', { name: 'Day 2' }).click();
+  const selectedCard = page.getByRole('article', { name: '在地图上查看人大通州校区转转' });
+  await selectedCard.click();
+  const listScrollTop = await page
+    .locator('.itinerary-list')
+    .evaluate(element => element.scrollTop);
+  await expect(selectedCard).toHaveAttribute('aria-current', 'true');
+
   await page.getByRole('tab', { name: '地图' }).click();
   await expect(page.locator('.map-container')).toBeVisible();
   await expect(page.locator('.sidebar')).toBeHidden();
 
   await page.getByRole('tab', { name: '行程', exact: true }).click();
   await expect(page.locator('.sidebar')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Day 2' })).toHaveClass(/active/);
+  await expect(selectedCard).toHaveAttribute('aria-current', 'true');
+  await expect
+    .poll(() => page.locator('.itinerary-list').evaluate(element => element.scrollTop))
+    .toBe(listScrollTop);
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth
+      )
+    )
+    .toBe(0);
 });
 
 test('desktop can create and rename a trip', async ({ page, isMobile }) => {
@@ -843,7 +863,6 @@ test('desktop keeps a user-selected place when background geocoding returns late
 
 test('desktop can export and import workspace JSON', async ({ page, isMobile }) => {
   await openSeededDesktop(page, isMobile);
-  page.on('dialog', dialog => dialog.accept());
 
   await openTripMenu(page);
   const downloadPromise = page.waitForEvent('download');
@@ -870,6 +889,12 @@ test('desktop can export and import workspace JSON', async ({ page, isMobile }) 
       })
     )
   });
+
+  await expect(page.getByRole('dialog', { name: '导入工作区 JSON' })).toBeVisible();
+  await expect(page.locator('.validation-step.passed')).toHaveCount(3);
+  await expect(page.locator('.import-trip-card')).toHaveCount(1);
+  await expect(page.locator('#trip-title-text')).not.toHaveText('S1 导入路线');
+  await page.getByRole('button', { name: '保存恢复点并替换' }).click();
 
   await expect(page.locator('#trip-title-text')).toHaveText('S1 导入路线');
   await expect(page.getByText('导入事件')).toBeVisible();

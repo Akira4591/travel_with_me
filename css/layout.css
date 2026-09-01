@@ -32,7 +32,7 @@
 .mobile-view-btn {
   flex: 1;
   min-width: 0;
-  min-height: 36px;
+  min-height: 44px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface-strong);
@@ -171,10 +171,18 @@
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 10px 12px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   box-shadow: var(--shadow);
   line-height: 1.45;
+}
+
+@media (max-width: 767px) {
+  .status-panel {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
 }
 
 @media (min-width: 768px) {

@@ -63,7 +63,7 @@ export async function buildGuideDraft(extracted, source, onProgress, signal) {
       placeName: item.place_name,
       day: Number.isInteger(item.day) && item.day > 0 ? item.day : null,
       timeSlot: item.time_slot || '',
-      note: poi ? item.note || '' : '',
+      note: item.note || '',
       sourceQuote: item.source_quote || '',
       poi,
       matched: Boolean(poi),

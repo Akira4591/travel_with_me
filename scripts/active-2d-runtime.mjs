@@ -32,6 +32,7 @@ export const ACTIVE_2D_JAVASCRIPT_MANIFEST = Object.freeze([
   'js/render/share-modal.js',
   'js/render/sidebar.js',
   'js/render/trip-modal.js',
+  'js/render/workspace-import-modal.js',
   'js/render/workspace-tabs.js',
   'js/route-config.js',
   'js/route-geometry.js',

@@ -28,11 +28,13 @@ const appState = {
   map: null,
   infoWindow: null,
   activeDayId: 'all',
-  selectedEventRef: null,
+  activeDayByTripId: new Map(),
+  selectedTarget: null,
   routePlanningSerial: 0,
   routePlanningTimer: null,
   markers: new Map(),
   markerList: [],
+  candidatePreview: null,
   routeServices: [],
   // routeOverlays: 按 segmentId 索引，每段可能由多条 Polyline 拼成 + 1 条高亮时叠加的发光环。
   // { polylines: Polyline[], halo: Polyline[], color: string }
@@ -922,6 +924,19 @@ export function getRouteCard(routeId) {
 
 export function setActiveDayId(dayId) {
   appState.activeDayId = dayId;
+  if (workspace.activeTripId) appState.activeDayByTripId.set(workspace.activeTripId, dayId);
+}
+
+export function getRememberedDayId(tripId = workspace.activeTripId) {
+  return appState.activeDayByTripId.get(tripId) || 'all';
+}
+
+export function setSelectedTarget(target) {
+  appState.selectedTarget = target ? { ...target } : null;
+}
+
+export function clearSelectedTarget() {
+  appState.selectedTarget = null;
 }
 
 export function setAMap(AMap) {

@@ -26,6 +26,9 @@ import {
   getDay,
   getLocation,
   setActiveDayId,
+  getRememberedDayId,
+  setSelectedTarget,
+  clearSelectedTarget,
   setAMap,
   updateLocation,
   updateLocationForTrip,
@@ -67,9 +70,12 @@ import {
   fitMarkers,
   fitSegment,
   focusLocation,
+  showCandidatePreview,
+  clearCandidatePreview,
   clearRouteOverlays,
   highlightSegment,
-  clearSegmentHighlight
+  clearSegmentHighlight,
+  setMarkerSelectHandler
 } from './render/map.js?v=20260623-gate50-marker-select';
 import {
   renderHeader,
@@ -78,8 +84,9 @@ import {
   updateActiveTab,
   updateVisibleDayGroups,
   resetRouteCards,
-  setStatus
-} from './render/sidebar.js?v=20260509-v6';
+  setStatus,
+  updateSelectedTargetUI
+} from './render/sidebar.js?v=20260901-s5b';
 import { openSearchModal } from './render/search-modal.js?v=20260509-v5';
 import { openEventEditorModal } from './render/event-editor-modal.js?v=20260509-v6';
 import { openGuideImportModal } from './render/guide-import-modal.js';
@@ -87,7 +94,8 @@ import { openGuidePreviewModal } from './render/guide-preview-modal.js';
 import { openDayEditorModal } from './render/day-editor-modal.js';
 import { openRouteEditorModal } from './render/route-editor-modal.js';
 import { openTripModal } from './render/trip-modal.js';
-import { bindShareButton } from './render/share-flow.js';
+import { openWorkspaceImportModal } from './render/workspace-import-modal.js';
+import { bindShareButton } from './render/share-flow.js?v=20260901-s4b';
 import { renderWorkspaceTabs, closeWorkspaceMenu } from './render/workspace-tabs.js';
 import { scheduleRoutePlanning, clearAllRoutes } from './route-planner.js?v=20260622-map-base-v2';
 import { readSharedTripFromURL } from './share.js';
@@ -98,7 +106,7 @@ import {
   parseWorkspaceImport,
   saveWorkspace,
   stringifyWorkspaceExport
-} from './storage.js';
+} from './storage.js?v=20260901-s4';
 import { sleep } from './utils.js';
 import { inferIconId } from './render/icons.js';
 import { createLogger } from './logger.js';
@@ -167,6 +175,7 @@ async function boot() {
   on('workspace:replaced', handleWorkspaceChanged);
 
   renderAll();
+  setMarkerSelectHandler(handleMarkerSelected);
 
   try {
     const AMap = await loadAMap();
@@ -206,6 +215,13 @@ function bindMobileViewSwitch() {
   document.body.dataset.mobileView ||= 'list';
   document.querySelectorAll('[data-mobile-view]').forEach(button => {
     button.addEventListener('click', () => setMobileView(button.dataset.mobileView));
+    button.addEventListener('keydown', event => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const nextView = ['ArrowRight', 'End'].includes(event.key) ? 'map' : 'list';
+      setMobileView(nextView);
+      document.querySelector(`[data-mobile-view="${nextView}"]`)?.focus();
+    });
   });
   syncMobileViewButtons();
 }
@@ -216,8 +232,11 @@ function setMobileView(view) {
   syncMobileViewButtons();
   if (nextView === 'map' && getAppState().map) {
     setTimeout(() => {
-      getAppState().map?.resize?.();
-      selectDay(getAppState().activeDayId, { fitView: true, planRoutes: false });
+      const state = getAppState();
+      state.map?.resize?.();
+      const visibleMarkers = showMarkersForDay(state.activeDayId);
+      if (state.selectedTarget?.kind === 'place') focusLocation(state.selectedTarget.locationId);
+      else if (visibleMarkers.length) fitMarkers(visibleMarkers);
     }, 50);
   }
 }
@@ -228,6 +247,7 @@ function syncMobileViewButtons() {
     const active = button.dataset.mobileView === activeView;
     button.classList.toggle('active', active);
     button.setAttribute('aria-selected', String(active));
+    button.tabIndex = active ? 0 : -1;
   });
 }
 
@@ -244,11 +264,13 @@ function renderAll() {
 function getItineraryHandlers() {
   return {
     onEventClick: (dayId, event) => {
-      getAppState().selectedEventRef = { dayId, eventId: event.id };
+      selectPlaceTarget(dayId, event, false);
       clearSegmentHighlight();
       focusLocation(event.locationId);
     },
     onRouteClick: segment => {
+      setSelectedTarget({ kind: 'route', dayId: segment.dayId, segmentId: segment.id });
+      updateSelectedTargetUI(getAppState().selectedTarget);
       fitSegment(segment);
       highlightSegment(segment.id);
     },
@@ -266,6 +288,34 @@ function getItineraryHandlers() {
     onCreateTrip: openCreateTripFlow,
     onImportGuide: openGuideImportFlow
   };
+}
+
+function selectPlaceTarget(dayId, event, reveal) {
+  setSelectedTarget({
+    kind: 'place',
+    dayId,
+    eventId: event.id,
+    locationId: event.locationId
+  });
+  updateSelectedTargetUI(getAppState().selectedTarget, { reveal });
+}
+
+function handleMarkerSelected(locationId) {
+  const activeDayId = getAppState().activeDayId;
+  const containers = [
+    ...getTrip().days.map(day => ({ dayId: day.id, events: day.events })),
+    { dayId: 'unscheduled', events: getTrip().unscheduled || [] }
+  ];
+  const match = containers.find(
+    item =>
+      (activeDayId === 'all' || item.dayId === activeDayId) &&
+      item.events.some(event => event.locationId === locationId)
+  );
+  const event = match?.events.find(item => item.locationId === locationId);
+  if (match && event) {
+    clearSegmentHighlight();
+    selectPlaceTarget(match.dayId, event, true);
+  }
 }
 
 function renderWorkspace() {
@@ -381,7 +431,7 @@ function importGuideDraft(draft) {
           tag: poi?.tag
         }),
         timeSlot: event.timeSlot,
-        note: event.matched ? event.note : '',
+        note: event.note || '',
         locationId
       };
 
@@ -488,8 +538,8 @@ function resolveAddLocationAnchor(dayId, afterEventId) {
     anchorEvent = events.find(e => e.id === afterEventId);
   }
   if (!anchorEvent) {
-    const selected = getAppState().selectedEventRef;
-    if (selected?.dayId === dayId) {
+    const selected = getAppState().selectedTarget;
+    if (selected?.kind === 'place' && selected.dayId === dayId) {
       anchorEvent = events.find(e => e.id === selected.eventId);
     }
   }
@@ -509,8 +559,14 @@ function openAddLocationFlow(options = {}) {
   if (targetDayId === 'all') return; // 普通添加必须落到具体 day；未排期入口会显式传 unscheduled
 
   const anchorLocation = resolveAddLocationAnchor(targetDayId, options.afterEventId);
+  const dayIndex = getTrip().days.findIndex(day => day.id === targetDayId);
+  const insertionLabel =
+    targetDayId === 'unscheduled'
+      ? '加入未排期'
+      : `加入 Day ${dayIndex + 1}${anchorLocation ? ` · ${anchorLocation.name}之后` : ''}`;
 
   openSearchModal({
+    insertionLabel,
     nearbyAnchor: anchorLocation
       ? { name: anchorLocation.name, radius: NEARBY_DEFAULT_RADIUS, maxResults: NEARBY_MAX_RESULTS }
       : null,
@@ -521,7 +577,13 @@ function openAddLocationFlow(options = {}) {
         anchorLocation,
         AMap: state.AMap
       }),
+    onPreview: place => {
+      if (place) showCandidatePreview(place, anchorLocation);
+      else clearCandidatePreview();
+    },
+    onDismiss: clearCandidatePreview,
     onConfirm: ({ place, event }) => {
+      clearCandidatePreview();
       const locationId = addLocation({
         name: place.name,
         query: place.name,
@@ -676,8 +738,12 @@ function deleteEventFlow(dayId, event) {
       : removeEventFromDay(dayId, event.id);
   if (!removed) return;
   const state = getAppState();
-  if (state.selectedEventRef?.dayId === dayId && state.selectedEventRef?.eventId === event.id) {
-    state.selectedEventRef = null;
+  if (
+    state.selectedTarget?.kind === 'place' &&
+    state.selectedTarget.dayId === dayId &&
+    state.selectedTarget.eventId === event.id
+  ) {
+    clearSelectedTarget();
   }
   if (countLocationReferences(locationId) === 0) removeLocation(locationId);
 }
@@ -749,28 +815,29 @@ async function importWorkspaceFlow() {
   }
 
   const parsed = parseWorkspaceImport(text);
-  if (!parsed.ok) {
-    setStatus(parsed.message || '导入文件格式不正确。');
-    return;
-  }
+  openWorkspaceImportModal({
+    file,
+    parsed,
+    handlers: {
+      onReselect: importWorkspaceFlow,
+      onConfirm: replaceWorkspaceFromImport
+    }
+  });
+  setStatus(parsed.ok ? '工作区 JSON 校验通过，请确认替换。' : parsed.message);
+}
 
-  const tripCount = parsed.workspace.trips.length;
-  const confirmed = window.confirm(
-    `将导入 ${tripCount} 条旅行路线，并替换当前本地工作区。当前数据会先保存恢复快照。是否继续？`
-  );
-  if (!confirmed) return;
-
-  const result = await importWorkspace(parsed.workspace);
+async function replaceWorkspaceFromImport(workspace) {
+  const result = await importWorkspace(workspace);
   if (!result.ok) {
     setStatus(result.message || '导入失败，请检查文件格式。');
-    return;
+    return result;
   }
 
   protectedWorkspaceNotice = '';
   persistenceUnavailable = false;
   persistenceSuspended = true;
   try {
-    initWorkspace(parsed.workspace);
+    initWorkspace(workspace);
   } finally {
     persistenceSuspended = false;
   }
@@ -784,6 +851,7 @@ async function importWorkspaceFlow() {
     selectDay('all', { fitView: true, planRoutes: false });
   }
   setStatus(result.recoveryKey ? '工作区已导入，原数据已保存恢复快照。' : '工作区已导入。');
+  return { ok: true };
 }
 
 function downloadTextFile(filename, content, type = 'text/plain') {
@@ -803,10 +871,21 @@ function pickJSONFile() {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'application/json,.json';
+    input.hidden = true;
+    input.className = 'workspace-import-file-input';
+    document.body.appendChild(input);
     input.addEventListener(
       'change',
       () => {
         resolve(input.files?.[0] || null);
+        input.remove();
+      },
+      { once: true }
+    );
+    input.addEventListener(
+      'cancel',
+      () => {
+        resolve(null);
         input.remove();
       },
       { once: true }
@@ -892,7 +971,7 @@ function handleTripChanged(payload) {
 
 function handleTripReplaced() {
   closeWorkspaceMenu();
-  getAppState().selectedEventRef = null;
+  clearSelectedTarget();
   persistWorkspace();
   renderWorkspace();
   renderHeader();
@@ -904,7 +983,10 @@ function handleTripReplaced() {
   clearAllRoutes();
   clearAllMarkers();
   createAllMarkers();
-  selectDay('all', { fitView: true, planRoutes: false });
+  const rememberedDayId = getRememberedDayId();
+  const restoredDayId =
+    rememberedDayId === 'all' || getDay(rememberedDayId) ? rememberedDayId : 'all';
+  selectDay(restoredDayId, { fitView: true, planRoutes: restoredDayId !== 'all' });
   syncEmptyWorkspaceUI();
   if (getAppState().AMap && hasActiveTrip()) void resolveAllLocations();
 }
@@ -922,6 +1004,8 @@ function getNextActiveDayId(payload) {
 // ─── selectDay：切换日期 ────────────────────────────────
 
 function selectDay(dayId, { fitView = false, planRoutes = false } = {}) {
+  clearSelectedTarget();
+  updateSelectedTargetUI(null);
   setActiveDayId(dayId);
   updateActiveTab(dayId);
   updateVisibleDayGroups(dayId);

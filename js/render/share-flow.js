@@ -2,9 +2,13 @@
 // 分享长图流程：从 main.js 提取。零循环依赖。
 
 import { hasActiveTrip, getTrip } from '../state.js';
-import { setStatus } from './sidebar.js';
+import { setStatus } from './sidebar.js?v=20260901-s5b';
 import { buildTripShareImage, dataURLToBlob } from '../share-image.js';
-import { openShareModal, updateShareImage, setShareImageLoading } from './share-modal.js';
+import {
+  openShareModal,
+  updateShareImage,
+  setShareImageError
+} from './share-modal.js?v=20260901-s4b';
 import { createLogger } from '../logger.js';
 
 const log = createLogger('share-flow');
@@ -48,17 +52,17 @@ async function copyShareImage(imageUrl) {
   }
 }
 
-async function regenerateShareImage(options = {}) {
+async function regenerateShareImage(options = {}, generationId) {
   if (!hasActiveTrip()) return;
   const shareOptions = { ...getDefaultShareOptions(), ...options };
   try {
     const image = await buildTripShareImage(getTrip(), shareOptions);
-    updateShareImage(image.dataURL, image.filename);
+    if (!updateShareImage(image.dataURL, image.filename, generationId)) return;
     setStatus(`分享长图已重新生成（${formatShareOptionsStatus(shareOptions)}）。`);
   } catch (error) {
     log.error('重新生成分享长图失败：', error);
-    setStatus('重新生成失败，请关闭后再试。');
-    setShareImageLoading(false);
+    setStatus('重新生成失败，已保留上一张可用长图。');
+    setShareImageError('重新生成失败，已保留上一张预览。', generationId);
   }
 }
 
@@ -71,11 +75,17 @@ export function bindShareButton() {
     setStatus('正在生成分享长图...');
     try {
       const shareOptions = getDefaultShareOptions();
-      const image = await buildTripShareImage(getTrip(), shareOptions);
+      const trip = getTrip();
+      const image = await buildTripShareImage(trip, shareOptions);
       openShareModal({
         imageUrl: image.dataURL,
         filename: image.filename,
         shareOptions,
+        tripSummary: {
+          title: trip.title,
+          dayCount: trip.days.length,
+          locationCount: Object.keys(trip.locations || {}).length
+        },
         handlers: {
           onDownload: downloadShareImage,
           onCopyImage: copyShareImage,

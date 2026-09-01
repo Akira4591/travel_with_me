@@ -20,7 +20,8 @@ export default defineConfig({
       'server/__tests__/integration.test.js',
       'server/__tests__/retrieve.test.js',
       'server/__tests__/store.test.js',
-      'server/__tests__/tokenizer.test.js'
+      'server/__tests__/tokenizer.test.js',
+      'scripts/__tests__/release-evidence.test.js'
     ],
     globals: false
   }

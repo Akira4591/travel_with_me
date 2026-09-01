@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends python3 make g+
   && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=runtime-source /runtime/package*.json ./
-RUN npm ci --omit=dev
+RUN npm pkg delete scripts.prepare && npm ci --omit=dev
 
 FROM node:22-slim
 WORKDIR /app

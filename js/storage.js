@@ -204,11 +204,41 @@ export function parseWorkspaceImport(input) {
   return {
     ok: true,
     workspace,
+    summary: summarizeWorkspace(workspace),
     meta: {
       format: parsed?.format || '',
       schemaVersion: parsed?.schemaVersion || parsed?.version || null,
       exportedAt: parsed?.exportedAt || ''
     }
+  };
+}
+
+function summarizeWorkspace(workspace) {
+  const trips = workspace.trips.map(trip => {
+    const days = trip.days || [];
+    const scheduledEvents = days.flatMap(day => day.events || []);
+    const unscheduledEvents = trip.unscheduled || [];
+    const previewPlaces = [...scheduledEvents, ...unscheduledEvents]
+      .map(event => event.title || trip.locations?.[event.locationId]?.name || '')
+      .filter(Boolean)
+      .slice(0, 5);
+    return {
+      id: String(trip.id || ''),
+      title: String(trip.title || '未命名行程'),
+      dayCount: days.length,
+      scheduledCount: scheduledEvents.length,
+      unscheduledCount: unscheduledEvents.length,
+      locationCount: Object.keys(trip.locations || {}).length,
+      previewPlaces
+    };
+  });
+  return {
+    tripCount: trips.length,
+    dayCount: trips.reduce((total, trip) => total + trip.dayCount, 0),
+    scheduledCount: trips.reduce((total, trip) => total + trip.scheduledCount, 0),
+    unscheduledCount: trips.reduce((total, trip) => total + trip.unscheduledCount, 0),
+    locationCount: trips.reduce((total, trip) => total + trip.locationCount, 0),
+    trips
   };
 }
 

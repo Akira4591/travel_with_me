@@ -10,6 +10,26 @@ afterEach(() => {
 });
 
 describe('guide import cancellation', () => {
+  it('preserves notes when a guide place remains unmatched', async () => {
+    vi.stubGlobal('window', globalThis);
+    vi.stubGlobal('document', { getElementById: () => null });
+    setAMap(null);
+
+    const draft = await buildGuideDraft(
+      {
+        events: [{ place_name: '小众观景台', day: 1, note: '日落前半小时到达' }],
+        warnings: []
+      },
+      { text: '', cityHint: '上海' },
+      vi.fn()
+    );
+
+    expect(draft.events[0]).toMatchObject({
+      matched: false,
+      note: '日落前半小时到达'
+    });
+  });
+
   it('passes cancellation to the extraction request', async () => {
     const controller = new AbortController();
     vi.stubGlobal(

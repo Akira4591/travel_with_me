@@ -278,4 +278,40 @@ describe('getAppState', () => {
     expect(appState).toBeDefined();
     expect(appState.activeDayId).toBe('all');
   });
+
+  it('remembers the active day independently for each trip during the session', () => {
+    state.initWorkspace({
+      trips: [
+        { id: 'a', title: 'A', locations: {}, days: [{ id: 'a-day', events: [] }] },
+        { id: 'b', title: 'B', locations: {}, days: [{ id: 'b-day', events: [] }] }
+      ],
+      activeTripId: 'a'
+    });
+
+    state.setActiveDayId('a-day');
+    state.switchTrip('b');
+    state.setActiveDayId('b-day');
+
+    expect(state.getRememberedDayId('a')).toBe('a-day');
+    expect(state.getRememberedDayId('b')).toBe('b-day');
+  });
+
+  it('keeps one exclusive runtime selection and clears it explicitly', () => {
+    state.setSelectedTarget({ kind: 'place', dayId: 'day-1', eventId: 'event-1' });
+    expect(state.getAppState().selectedTarget).toEqual({
+      kind: 'place',
+      dayId: 'day-1',
+      eventId: 'event-1'
+    });
+
+    state.setSelectedTarget({ kind: 'route', dayId: 'day-1', segmentId: 'segment-1' });
+    expect(state.getAppState().selectedTarget).toEqual({
+      kind: 'route',
+      dayId: 'day-1',
+      segmentId: 'segment-1'
+    });
+
+    state.clearSelectedTarget();
+    expect(state.getAppState().selectedTarget).toBeNull();
+  });
 });

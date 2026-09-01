@@ -5,11 +5,16 @@ import { MAX_GUIDE_DAYS } from '../guide-import-cleanup.js';
 
 let draft = null;
 let openActionEventId = null;
+let selectedRepairEventId = null;
 let previewHandlers = null;
 
 export const openGuidePreviewModal = modalSingleton(({ draft: inputDraft, handlers }) => {
   draft = structuredClone(inputDraft);
   openActionEventId = null;
+  draft.events.forEach(event => {
+    if (!event.matched && typeof event.keepUnmatched !== 'boolean') event.keepUnmatched = false;
+  });
+  selectedRepairEventId = draft.events.find(event => !event.matched && !event.deleted)?.id || null;
   previewHandlers = handlers;
   const root = createModal();
   document.body.appendChild(root);
@@ -35,10 +40,13 @@ function createModal() {
 
 function renderBody(body) {
   const activeEvents = draft.events.filter(event => !event.deleted);
+  const unresolvedEvents = activeEvents.filter(event => !event.matched && !event.keepUnmatched);
   body.innerHTML = `
+    ${renderProgressRail()}
     <div class="guide-preview-summary ${draft.guideType}">
       <div class="guide-preview-type">${escapeHTML(getGuideTypeText(draft.guideType))}</div>
       ${draft.warnings.length ? `<div class="guide-preview-warnings">${draft.warnings.map(escapeHTML).join(' / ')}</div>` : ''}
+      <div class="guide-preview-source">原文摘要：${escapeHTML(String(draft.sourceText || '').slice(0, 120) || '未保留原文')}</div>
     </div>
     <div class="guide-preview-title-row">
       <label>行程标题</label>
@@ -49,13 +57,17 @@ function renderBody(body) {
       <span>${activeEvents.length} 个地点</span>
       <span>${activeEvents.filter(event => event.matched).length} 个已匹配</span>
     </div>
-    <div class="guide-preview-groups">
-      ${renderDayGroups(activeEvents)}
-      ${renderUnscheduledGroup(activeEvents)}
+    <div class="guide-preview-compare">
+      <div class="guide-preview-groups">
+        ${renderDayGroups(activeEvents)}
+        ${renderUnscheduledGroup(activeEvents)}
+      </div>
+      ${renderRepairPanel(activeEvents)}
     </div>
+    ${unresolvedEvents.length ? `<p class="guide-preview-decision-hint">还有 ${unresolvedEvents.length} 个未匹配地点，请绑定候选或明确保留未匹配。</p>` : ''}
     <div class="modal-actions guide-preview-actions">
       <button type="button" class="modal-cancel guide-preview-back">返回输入</button>
-      <button type="button" class="modal-submit guide-preview-confirm" ${activeEvents.length ? '' : 'disabled'}>导入为新行程</button>
+      <button type="button" class="modal-submit guide-preview-confirm" ${activeEvents.length && !unresolvedEvents.length ? '' : 'disabled'}>导入为新行程</button>
     </div>
   `;
   bindBodyEvents(body);
@@ -93,7 +105,7 @@ function renderEventCard(event) {
     ? event.poi?.addr || event.poi?.district || '已选择地图地点'
     : '未匹配到地图地点，导入后可手动搜索绑定';
   return `
-    <article class="guide-preview-event ${event.matched ? '' : 'unmatched'}" data-event-id="${escapeHTML(event.id)}">
+    <article class="guide-preview-event ${event.matched ? '' : 'unmatched'} ${selectedRepairEventId === event.id ? 'selected' : ''}" data-event-id="${escapeHTML(event.id)}">
       <div class="guide-preview-event-main">
         <label class="guide-preview-edit-field">
           <span>标题</span>
@@ -106,12 +118,47 @@ function renderEventCard(event) {
         </label>
       </div>
       <div class="guide-preview-event-controls">
-        <span class="guide-preview-match ${event.matched ? 'ok' : 'fail'}">${status}</span>
+        <span class="guide-preview-match ${event.matched ? 'ok' : 'fail'}">${event.keepUnmatched ? '✓ 保留未匹配' : status}</span>
         <button type="button" class="guide-preview-action-toggle ${menuOpen ? 'active' : ''}" aria-label="更多操作" title="更多操作">···</button>
         ${menuOpen ? renderActionMenu(event) : ''}
       </div>
-      ${event.matched ? '' : renderFallbackSearch(event)}
     </article>
+  `;
+}
+
+function renderProgressRail() {
+  return `<div class="guide-import-progress guide-preview-progress" data-step="previewing">
+    <div class="guide-import-progress-track">
+      ${['AI 解析', '匹配地点', '确认预览', '完成']
+        .map(
+          (label, index) =>
+            `<div class="guide-import-step ${index < 2 ? 'done' : index === 2 ? 'active' : ''}"><span class="guide-import-step-dot"></span><span class="guide-import-step-label">${label}</span></div>`
+        )
+        .join('')}
+    </div>
+  </div>`;
+}
+
+function renderRepairPanel(events) {
+  const unmatched = events.filter(event => !event.matched);
+  const event = unmatched.find(item => item.id === selectedRepairEventId) || unmatched[0];
+  if (!event) {
+    return '<aside class="guide-repair-panel complete"><strong>地点匹配已完成</strong><p>可以检查标题和备注后导入。</p></aside>';
+  }
+  selectedRepairEventId = event.id;
+  const results = Array.isArray(event.searchResults) ? event.searchResults : [];
+  return `
+    <aside class="guide-repair-panel" data-event-id="${escapeHTML(event.id)}">
+      <div class="guide-repair-heading"><span>候选对比</span><strong>${escapeHTML(event.placeName)}</strong></div>
+      <div class="guide-preview-search-row">
+        <input type="text" class="guide-preview-search-input" value="${escapeHTML(event.searchKeyword || event.placeName || '')}" placeholder="搜索高德地点" />
+        <button type="button" class="guide-preview-search-btn" ${event.searching ? 'disabled' : ''}>${event.searching ? '搜索中' : '搜索'}</button>
+      </div>
+      <div class="guide-preview-search-results" data-state="${event.searching ? 'loading' : results.length ? 'ready' : event.searchError ? 'error' : 'idle'}">
+        ${renderFallbackSearchResults(event, results)}
+      </div>
+      <button type="button" class="guide-keep-unmatched ${event.keepUnmatched ? 'active' : ''}">${event.keepUnmatched ? '已决定保留未匹配' : '保留未匹配并继续'}</button>
+    </aside>
   `;
 }
 
@@ -128,22 +175,6 @@ function renderActionMenu(event) {
       </label>
       ${event.matched ? '' : '<button type="button" class="guide-preview-search-toggle">搜索地点</button>'}
       <button type="button" class="guide-preview-delete" title="删除">删除</button>
-    </div>
-  `;
-}
-
-function renderFallbackSearch(event) {
-  if (!event.searchOpen) return '';
-  const results = Array.isArray(event.searchResults) ? event.searchResults : [];
-  return `
-    <div class="guide-preview-search-panel">
-      <div class="guide-preview-search-row">
-        <input type="text" class="guide-preview-search-input" value="${escapeHTML(event.searchKeyword || event.placeName || '')}" placeholder="搜索高德地点" />
-        <button type="button" class="guide-preview-search-btn" ${event.searching ? 'disabled' : ''}>${event.searching ? '搜索中' : '搜索'}</button>
-      </div>
-      <div class="guide-preview-search-results" data-state="${event.searching ? 'loading' : results.length ? 'ready' : event.searchError ? 'error' : 'idle'}">
-        ${renderFallbackSearchResults(event, results)}
-      </div>
     </div>
   `;
 }
@@ -238,6 +269,11 @@ function bindBodyEvents(body) {
   body.querySelectorAll('.guide-preview-event').forEach(card => {
     const event = draft.events.find(item => item.id === card.dataset.eventId);
     if (!event) return;
+    card.addEventListener('click', e => {
+      if (event.matched || e.target.closest('input, textarea, select, button')) return;
+      selectedRepairEventId = event.id;
+      renderBody(body);
+    });
     card.querySelector('.guide-preview-event-title-input')?.addEventListener('input', e => {
       event.title = e.target.value;
     });
@@ -269,49 +305,66 @@ function bindBodyEvents(body) {
       renderBody(body);
     });
     card.querySelector('.guide-preview-search-toggle')?.addEventListener('click', () => {
-      event.searchOpen = true;
+      selectedRepairEventId = event.id;
       event.searchKeyword ||= event.placeName;
       openActionEventId = null;
       renderBody(body);
     });
-    card.querySelector('.guide-preview-search-btn')?.addEventListener('click', async () => {
-      const keyword = card.querySelector('.guide-preview-search-input')?.value.trim();
-      if (!keyword || !previewHandlers?.onSearchPlace) return;
-      event.searchKeyword = keyword;
-      event.searching = true;
-      event.searchError = '';
+  });
+  bindRepairPanel(body);
+}
+
+function bindRepairPanel(body) {
+  const panel = body.querySelector('.guide-repair-panel[data-event-id]');
+  if (!panel) return;
+  const event = draft.events.find(item => item.id === panel.dataset.eventId);
+  if (!event) return;
+  const search = async () => {
+    const keyword = panel.querySelector('.guide-preview-search-input')?.value.trim();
+    if (!keyword || !previewHandlers?.onSearchPlace) return;
+    event.searchKeyword = keyword;
+    event.searching = true;
+    event.searchError = '';
+    event.searchResults = [];
+    renderBody(body);
+    try {
+      const places = await previewHandlers.onSearchPlace(keyword, draft.city);
+      event.searchResults = Array.isArray(places) ? places : [];
+      event.searchError = event.searchResults.length ? '' : '没有找到结果，换个关键词试试';
+    } catch {
       event.searchResults = [];
+      event.searchError = '搜索失败，请重试';
+    } finally {
+      event.searching = false;
       renderBody(body);
-      try {
-        const places = await previewHandlers.onSearchPlace(keyword, draft.city);
-        event.searchResults = Array.isArray(places) ? places : [];
-        event.searchError = event.searchResults.length ? '' : '没有找到结果，换个关键词试试';
-      } catch {
-        event.searchResults = [];
-        event.searchError = '搜索失败，请重试';
-      } finally {
-        event.searching = false;
-        renderBody(body);
-      }
+    }
+  };
+  panel.querySelector('.guide-preview-search-btn')?.addEventListener('click', search);
+  panel.querySelector('.guide-preview-search-input')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      search();
+    }
+  });
+  panel.querySelectorAll('.guide-preview-place-result').forEach(button => {
+    button.addEventListener('click', () => {
+      const place = event.searchResults?.[Number(button.dataset.resultIndex)];
+      if (!place) return;
+      event.poi = place;
+      event.matched = true;
+      event.keepUnmatched = false;
+      event.searchResults = [];
+      event.searchError = '';
+      selectedRepairEventId = null;
+      renderBody(body);
     });
-    card.querySelector('.guide-preview-search-input')?.addEventListener('keydown', e => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        card.querySelector('.guide-preview-search-btn')?.click();
-      }
-    });
-    card.querySelectorAll('.guide-preview-place-result').forEach(button => {
-      button.addEventListener('click', () => {
-        const place = event.searchResults?.[Number(button.dataset.resultIndex)];
-        if (!place) return;
-        event.poi = place;
-        event.matched = true;
-        event.searchOpen = false;
-        event.searchResults = [];
-        event.searchError = '';
-        renderBody(body);
-      });
-    });
+  });
+  panel.querySelector('.guide-keep-unmatched')?.addEventListener('click', () => {
+    event.keepUnmatched = true;
+    selectedRepairEventId = draft.events.find(
+      item => !item.deleted && !item.matched && !item.keepUnmatched
+    )?.id;
+    renderBody(body);
   });
 }
 
