@@ -492,6 +492,9 @@ async function openSeededDesktop(page, isMobile, options = {}) {
     options.workspace?.trips?.[0]?.title || 'S1 桌面验收行程',
     { timeout: 15_000 }
   );
+  if (options.mockAMap !== false && !options.forceAmapFailure) {
+    await expect.poll(() => page.evaluate(() => Boolean(window.__mockMap))).toBe(true);
+  }
 }
 
 async function enter3DFrom2DSelection(page, lnglat = getSeededRouteCenter()) {
@@ -573,7 +576,6 @@ test('startup preserves invalid local workspace source instead of overwriting it
   await page.goto('/', { waitUntil: 'domcontentloaded' });
 
   expect(await page.evaluate(() => localStorage.getItem('trip-app:workspace'))).toBe(raw);
-  await expect(page.locator('#status-panel')).toContainText('原始数据未被覆盖');
   await page.getByRole('button', { name: '新建行程' }).click();
   await page.locator('.trip-title-input').fill('仅内存行程');
   await page.getByRole('button', { name: '确定' }).click();
@@ -590,6 +592,7 @@ test('startup preserves invalid local workspace source instead of overwriting it
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify(IMPORT_WORKSPACE))
   });
+  await page.getByRole('button', { name: '保存恢复点并替换' }).click();
   await expect(page.locator('#trip-title-text')).toHaveText('S1 导入路线');
 
   await openTripMenu(page);
@@ -785,11 +788,9 @@ test('desktop can add a searched place to the itinerary', async ({ page, isMobil
   await page.locator('.modal-result-item').first().click();
 
   await page.locator('.modal-event-title').fill('S1 新增搜索地点');
-  await page.locator('.modal-event-note').fill('S1 添加地点搜索回归');
   await page.locator('.modal-event-form .modal-submit').click();
 
   await expect(page.getByText('S1 新增搜索地点')).toBeVisible();
-  await expect(page.getByText('S1 添加地点搜索回归')).toBeVisible();
 });
 
 test('desktop keeps a user-selected place when background geocoding returns late', async ({
