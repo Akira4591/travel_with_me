@@ -187,6 +187,13 @@ function createGeoAssetWorkspace() {
 }
 
 async function installMockAMap(page) {
+  await page.route('**/_config', route =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ amapJsKey: 'e2e-test-key' })
+    })
+  );
   await page.addInitScript(() => {
     const toPair = value => {
       if (Array.isArray(value)) return [Number(value[0]), Number(value[1])];
