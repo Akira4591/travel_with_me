@@ -189,7 +189,9 @@ async function boot() {
 
     // 后台异步校准坐标，完成后重新设置当前选中的日期
     await resolveAllLocations();
-    if (hasActiveTrip()) selectDay(getAppState().activeDayId, { fitView: false, planRoutes: true });
+    if (hasActiveTrip() && !getAppState().selectedTarget) {
+      selectDay(getAppState().activeDayId, { fitView: false, planRoutes: true });
+    }
   } catch (error) {
     log.error('高德地图加载失败', error);
     lastMapError = error?.message || 'AMAP_LOAD_FAILED';
@@ -206,7 +208,9 @@ async function bootFallbackMap() {
   selectDay('all', { fitView: true, planRoutes: false });
   syncEmptyWorkspaceUI();
   await resolveAllLocations();
-  if (hasActiveTrip()) selectDay(getAppState().activeDayId, { fitView: true, planRoutes: true });
+  if (hasActiveTrip() && !getAppState().selectedTarget) {
+    selectDay(getAppState().activeDayId, { fitView: true, planRoutes: true });
+  }
 }
 
 function bindMobileViewSwitch() {
@@ -932,6 +936,10 @@ function handleWorkspaceChanged() {
 
 function handleTripChanged(payload) {
   if (!payload) return;
+  const preservedScrollTop =
+    payload.kind === 'location:updated'
+      ? document.getElementById('itinerary-container')?.scrollTop
+      : null;
   persistWorkspace();
   if (payload.kind === 'route:geometry-cached') return;
   renderWorkspace();
@@ -965,8 +973,17 @@ function handleTripChanged(payload) {
   });
   renderItinerary(getItineraryHandlers());
   const activeId = getNextActiveDayId(payload);
-  selectDay(activeId, { fitView: true, planRoutes: activeId !== 'all' });
+  const preserveSelection =
+    payload.kind === 'location:updated' && getAppState().selectedTarget?.kind === 'place';
+  selectDay(activeId, {
+    fitView: true,
+    planRoutes: activeId !== 'all',
+    preserveSelection
+  });
   syncEmptyWorkspaceUI();
+  if (preservedScrollTop != null) {
+    document.getElementById('itinerary-container').scrollTop = preservedScrollTop;
+  }
 }
 
 function handleTripReplaced() {
@@ -1003,9 +1020,11 @@ function getNextActiveDayId(payload) {
 
 // ─── selectDay：切换日期 ────────────────────────────────
 
-function selectDay(dayId, { fitView = false, planRoutes = false } = {}) {
-  clearSelectedTarget();
-  updateSelectedTargetUI(null);
+function selectDay(dayId, { fitView = false, planRoutes = false, preserveSelection = false } = {}) {
+  if (!preserveSelection) {
+    clearSelectedTarget();
+    updateSelectedTargetUI(null);
+  }
   setActiveDayId(dayId);
   updateActiveTab(dayId);
   updateVisibleDayGroups(dayId);
