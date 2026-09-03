@@ -3,15 +3,6 @@ name: live-provider-smoke
 on:
   workflow_dispatch:
     inputs:
-      provider:
-        description: 'Provider smoke target'
-        required: true
-        default: 'all'
-        type: choice
-        options:
-          - amap
-          - elevation
-          - all
       browser:
         description: 'Browser project'
         required: true
@@ -25,14 +16,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  smoke:
+  amap-smoke:
+    name: AMap LIVE_E2E
     environment: live-provider
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22.22.1
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
@@ -42,4 +34,18 @@ jobs:
           AMAP_JS_KEY: ${{ secrets.AMAP_JS_KEY }}
           AMAP_JSCODE: ${{ secrets.AMAP_JSCODE }}
           AMAP_WEB_SERVICE_KEY: ${{ secrets.AMAP_WEB_SERVICE_KEY }}
+
+  deepseek-smoke:
+    name: DeepSeek LIVE_E2E
+    environment: live-provider
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.1
+          cache: npm
+      - run: npm ci
+      - run: npm run test:live:deepseek
+        env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}

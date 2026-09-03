@@ -15,12 +15,13 @@ import { normalizeLngLat, requestAMapWebService } from './amap-web-service.js';
 const QUERY_TIMEOUT_MS = 6000;
 
 // 创建可复用的 geocoder / placeSearch 服务实例
-export function createGeocodeServices(AMap) {
+export function createGeocodeServices(AMap, city = AppConfig.cityCode) {
   return {
     AMap,
-    geocoder: new AMap.Geocoder({ city: AppConfig.cityCode }),
+    city,
+    geocoder: new AMap.Geocoder({ city }),
     placeSearch: new AMap.PlaceSearch({
-      city: AppConfig.cityCode,
+      city,
       citylimit: true,
       pageSize: 10,
       extensions: 'all'
@@ -31,10 +32,10 @@ export function createGeocodeServices(AMap) {
 // 解析单个地点
 // loc: { name, query, addr, searchTerms?, includeKeywords?, resolveBy? }
 // 返回：{ lnglat: [lng, lat] } 或 null
-export async function resolveLocation(services, loc) {
-  const fromBff = await placeSearchWithBff(loc);
+export async function resolveLocation(services, loc, options = {}) {
+  const fromBff = await placeSearchWithBff(loc, services.city, options.signal);
   if (fromBff) return fromBff;
-  const geocodedByBff = await geocodeWithBff(loc);
+  const geocodedByBff = await geocodeWithBff(loc, services.city, options.signal);
   if (geocodedByBff) return geocodedByBff;
   if (loc.resolveBy === 'poi') return placeSearchWithRetries(services.placeSearch, loc);
   return placeSearchWithRetries(services.placeSearch, loc).then(
@@ -46,13 +47,17 @@ export async function resolveLocation(services, loc) {
 // 关键词命中 0~10 个 POI；调用方让用户挑一个
 // citylimit:false 是软提示，城市外的 POI 也能返回——以后跨城市行程能直接用
 export async function searchPlaces(AMap, keyword, options = {}) {
-  const fromBff = await fetchBffPois('/v3/place/text', {
-    keywords: keyword,
-    city: options.city === false ? '' : options.city || AppConfig.cityCode,
-    citylimit: options.city === false ? 'false' : 'true',
-    offset: options.pageSize || 10,
-    extensions: 'all'
-  });
+  const fromBff = await fetchBffPois(
+    '/v3/place/text',
+    {
+      keywords: keyword,
+      city: options.city === false ? '' : options.city || AppConfig.cityCode,
+      citylimit: options.city === false ? 'false' : 'true',
+      offset: options.pageSize || 10,
+      extensions: 'all'
+    },
+    options.signal
+  );
   if (fromBff.length) return fromBff;
   return new Promise(resolve => {
     if (!AMap || !keyword) {
@@ -83,19 +88,23 @@ export async function searchPlaces(AMap, keyword, options = {}) {
 //
 // types 可选，是高德 POI 大类编码（如餐饮 050000），多个用 | 分隔。
 // 不传 types 时只用 keyword 过滤；传了能进一步收窄结果。
-export async function searchNearBy(AMap, { keyword, center, radius = 1500, types } = {}) {
+export async function searchNearBy(AMap, { keyword, center, radius = 1500, types, signal } = {}) {
   if (!keyword || !Array.isArray(center) || center.length < 2) return [];
   const lng = Number(center[0]);
   const lat = Number(center[1]);
   if (!Number.isFinite(lng) || !Number.isFinite(lat)) return [];
-  const fromBff = await fetchBffPois('/v3/place/around', {
-    keywords: keyword,
-    location: `${lng},${lat}`,
-    radius: Math.max(200, Math.min(5000, Math.round(Number(radius) || 1500))),
-    types: types || '',
-    offset: 10,
-    extensions: 'all'
-  });
+  const fromBff = await fetchBffPois(
+    '/v3/place/around',
+    {
+      keywords: keyword,
+      location: `${lng},${lat}`,
+      radius: Math.max(200, Math.min(5000, Math.round(Number(radius) || 1500))),
+      types: types || '',
+      offset: 10,
+      extensions: 'all'
+    },
+    signal
+  );
   if (fromBff.length || !AMap) return fromBff;
   return new Promise(resolve => {
     const psOptions = {
@@ -204,16 +213,20 @@ function reverseGeocodeWithSdk(AMap, lnglat) {
   });
 }
 
-async function placeSearchWithBff(loc) {
+async function placeSearchWithBff(loc, city = AppConfig.cityCode, signal) {
   const queries = unique((loc.searchTerms || [loc.query, loc.name]).filter(Boolean));
   for (const query of queries) {
-    const pois = await fetchBffPois('/v3/place/text', {
-      keywords: query,
-      city: AppConfig.cityCode,
-      citylimit: 'true',
-      offset: 10,
-      extensions: 'all'
-    });
+    const pois = await fetchBffPois(
+      '/v3/place/text',
+      {
+        keywords: query,
+        city,
+        citylimit: 'true',
+        offset: 10,
+        extensions: 'all'
+      },
+      signal
+    );
     const matched = pois.find(
       poi =>
         !loc.includeKeywords || loc.includeKeywords.every(keyword => poi.name.includes(keyword))
@@ -223,13 +236,17 @@ async function placeSearchWithBff(loc) {
   return null;
 }
 
-async function geocodeWithBff(loc) {
+async function geocodeWithBff(loc, city = AppConfig.cityCode, signal) {
   const queries = unique((loc.searchTerms || [loc.query, loc.name, loc.addr]).filter(Boolean));
   for (const address of queries) {
-    const result = await requestAMapWebService('/v3/geocode/geo', {
-      address,
-      city: AppConfig.cityCode
-    });
+    const result = await requestAMapWebService(
+      '/v3/geocode/geo',
+      {
+        address,
+        city
+      },
+      { signal }
+    );
     const geocode = result.ok ? result.payload?.geocodes?.[0] : null;
     const lnglat = normalizeLngLat(geocode?.location);
     if (lnglat) {
@@ -264,8 +281,8 @@ async function reverseGeocodeWithBff(lnglat) {
   };
 }
 
-async function fetchBffPois(path, params) {
-  const result = await requestAMapWebService(path, params);
+async function fetchBffPois(path, params, signal) {
+  const result = await requestAMapWebService(path, params, { signal });
   return result.ok ? mapPois(result.payload?.pois || []) : [];
 }
 

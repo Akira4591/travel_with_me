@@ -1,44 +1,36 @@
 # Documentation
 
-> **辅助文件** | 权威开发文档: [DEVELOPMENT.md](../DEVELOPMENT.md)
-
-This directory is the maintained project documentation set. Commercial project documents are grouped
-by ownership so each decision has one source of truth. All files here are **auxiliary** — the single
-authoritative development document is [DEVELOPMENT.md](../DEVELOPMENT.md).
+This directory contains current 2D documents and archived 3D references. Current product boundaries are owned by [README](../README.md), [Architecture](../ARCHITECTURE.md), [Roadmap](../TODO.md), and the [3D archive boundary](../archive/3d/README.md). `DEVELOPMENT.md` is a historical 2026-07-20 snapshot.
 
 ## Product
 
-| Document                                                         | Owner scope                                                                      |
-| ---------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| [Product architecture](product/architecture-blueprint.md)        | product definition, 2D/3D truth boundary, delivery stages and document ownership |
-| [Commercialization](product/commercialization.md)                | commercial readiness gaps, monetization gates, non-goals and launch sequencing   |
-| [AI guide import evaluation](product/guide-import-evaluation.md) | guide-import quality methodology, fixtures, metrics and evaluation commands      |
-| [Roadmap](../TODO.md)                                            | active backlog and next executable batch                                         |
+| Document                                                         | Owner scope                                                                    |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| [Product architecture](product/architecture-blueprint.md)        | product definition, 2D truth boundary, delivery stages and document ownership  |
+| [Commercialization](product/commercialization.md)                | commercial readiness gaps, monetization gates, non-goals and launch sequencing |
+| [AI guide import evaluation](product/guide-import-evaluation.md) | guide-import quality methodology, fixtures, metrics and evaluation commands    |
+| [Roadmap](../TODO.md)                                            | active backlog and next executable batch                                       |
 
 ## Architecture
 
-| Document                                                                | Owner scope                                                                    |
-| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| [Architecture overview](../ARCHITECTURE.md)                             | implemented architecture, ADRs and module boundaries                           |
-| [2D data foundation](architecture/2d-data-foundation.md)                | 2D geographic fact contract consumed by 3D                                     |
-| [3D research integration](architecture/3d/deep-research-integration.md) | latest 3D decisions, bounded work area, route projection, state machine and QA |
-| [3D process alignment](architecture/3d/generation-process-alignment.md) | required user-visible 2D-to-3D generation sequence                             |
-| [3D execution roadmap](architecture/3d/top-down-execution-roadmap.md)   | 3D P0-P6 implementation order                                                  |
-| [3D asset pipeline](architecture/3d/assets-landcover-and-landmarks.md)  | geoAssets, building, road, water, bridge, vegetation and landmark provenance   |
-| [3D visual baseline spec](architecture/3d/visual-baseline-spec.md)      | structured 3D QA, scenario fixtures and visual regression contract             |
-| [RAG upgrade plan](architecture/rag-upgrade-plan.md)                    | RAG architecture, phased implementation, embedding/vector store tech choices   |
+| Document                                                 | Owner scope                                                                  |
+| -------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| [Architecture overview](../ARCHITECTURE.md)              | implemented architecture, ADRs and module boundaries                         |
+| [2D data foundation](architecture/2d-data-foundation.md) | active 2D geographic fact contract                                           |
+| [RAG upgrade plan](architecture/rag-upgrade-plan.md)     | RAG architecture, phased implementation, embedding/vector store tech choices |
+
+### Archived 3D references
+
+Files under `architecture/3d/` and `engineering/qa/` describe the frozen 3D implementation. They are not active requirements.
 
 ## Engineering
 
-| Document                                                         | Owner scope                                                         |
-| ---------------------------------------------------------------- | ------------------------------------------------------------------- |
-| [API reference](engineering/api.md)                              | BFF endpoint contracts, response shapes and environment variables   |
-| [Development workflow](engineering/development-workflow.md)      | local tools, environment preparation and engineering workflow       |
-| [Live provider testing](engineering/testing/live-provider.md)    | opt-in live-provider smoke policy and commands                      |
-| [Visual baseline QA](engineering/qa/visual-baseline.md)          | deterministic 3D ROI screenshot baseline plan and failure artifacts |
-| [3D debug contract](engineering/qa/debug-contract.md)            | `window.__threeDebug__.qa` schema, metric ownership and thresholds  |
-| [Gate 50 manual review](engineering/qa/gate50-manual-review.md)  | Gate 50 automated evidence command and manual visual acceptance     |
-| [AI guide extraction prompt](../server/prompts/guide-extract.md) | server-side extraction prompt contract                              |
+| Document                                                         | Owner scope                                                       |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------- |
+| [API reference](engineering/api.md)                              | BFF endpoint contracts, response shapes and environment variables |
+| [Development workflow](engineering/development-workflow.md)      | local tools, environment preparation and engineering workflow     |
+| [Live provider testing](engineering/testing/live-provider.md)    | opt-in live-provider smoke policy and commands                    |
+| [AI guide extraction prompt](../server/prompts/guide-extract.md) | server-side extraction prompt contract                            |
 
 ## Operations
 
@@ -50,9 +42,9 @@ authoritative development document is [DEVELOPMENT.md](../DEVELOPMENT.md).
 
 ## Design
 
-| Document                                                 | Owner scope                                                   |
-| -------------------------------------------------------- | ------------------------------------------------------------- |
-| [UI visual style guide](design/ui-visual-style-guide.md) | visual language, color, layout, icon and 3D style constraints |
+| Document                                                 | Owner scope                                         |
+| -------------------------------------------------------- | --------------------------------------------------- |
+| [UI visual style guide](design/ui-visual-style-guide.md) | visual language, color, layout and icon constraints |
 
 ## Root Documents
 

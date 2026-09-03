@@ -14,7 +14,8 @@ export default defineConfig({
     }
   },
   webServer: {
-    command: 'npm.cmd start',
+    command: 'node server/index.js',
+    env: { RAG_ENABLED: 'false' },
     url: 'http://localhost:8080',
     reuseExistingServer: true,
     timeout: 20_000

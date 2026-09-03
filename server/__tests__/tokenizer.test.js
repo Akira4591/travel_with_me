@@ -22,7 +22,7 @@ describe('tokenizer', () => {
 
   it('filters out pure punctuation and digits', () => {
     const tokens = tokenize('Day 1：北京。Day 2！上海？');
-    expect(tokens.every(t => !/^[\d\s.,;:!?。，；：！？\-]+$/.test(t))).toBe(true);
+    expect(tokens.every(t => !/^[\d\s.,;:!?。，；：！？-]+$/.test(t))).toBe(true);
   });
 
   it('filters single Chinese character tokens', () => {

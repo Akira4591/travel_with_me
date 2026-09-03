@@ -11,7 +11,6 @@ import { AppConfig } from './config.js';
 import { getTransportIcon, getTransportLabel } from './utils.js';
 import { getIconPaths, inferIconId, normalizeIconId } from './render/icons.js';
 import { getTimeSlotLabel, normalizeTimeSlot } from './time-slots.js';
-import { getAnnotationType } from './annotations.js';
 
 // ─── 度量常数 ─────────────────────────────────────────
 // 所有数字以 mockup 的 "logical px" 为基准，最后乘 SCALE 得到画布像素。
@@ -105,9 +104,8 @@ export async function buildTripShareImage(trip, options = {}) {
   // Day 顺序沿用 trip 数组；未排期地点只在用户明确勾选后加入分享图。
   const orderedDays = buildShareDays(trip, shareOptions);
   const locations = collectTripLocations(trip, orderedDays);
-  const annotations = shareOptions.includeAnnotations ? collectTripAnnotations(trip) : [];
   const totalStops = orderedDays.reduce((sum, day) => sum + (day.events?.length || 0), 0);
-  const viewport = getMapViewport([...locations, ...annotations], CONTENT_W, MAP_H);
+  const viewport = getMapViewport(locations, CONTENT_W, MAP_H);
 
   // 测量
   const measureCanvas = document.createElement('canvas');
@@ -128,8 +126,8 @@ export async function buildTripShareImage(trip, options = {}) {
   y = await drawBrandBar(ctx, y);
   y = drawTitleBlock(ctx, trip, orderedDays, y);
   y = drawStats(ctx, locations.length, orderedDays.length, totalStops, y);
-  y = await drawMap(ctx, locations, annotations, viewport, y);
-  y = drawMapStrip(ctx, locations.length, annotations.length, y);
+  y = await drawMap(ctx, locations, viewport, y);
+  y = drawMapStrip(ctx, locations.length, y);
   y = await drawDays(ctx, trip, orderedDays, y, layout, { includeNotes });
   y = drawSummary(ctx, y);
   drawFooter(ctx, y);
@@ -410,7 +408,7 @@ function drawStatCell(ctx, x, y, w, h, value, unit, label) {
 
 // ─── 地图 ─────────────────────────────────────────────
 
-async function drawMap(ctx, locations, annotations, viewport, y) {
+async function drawMap(ctx, locations, viewport, y) {
   const x = CONTENT_X;
   const r = L(14);
 
@@ -438,11 +436,6 @@ async function drawMap(ctx, locations, annotations, viewport, y) {
     const point = projectToMap(loc.lnglat, viewport, x, y);
     drawMapMarker(ctx, point.x, point.y);
   });
-  annotations.forEach(annotation => {
-    const point = projectToMap(annotation.lnglat, viewport, x, y);
-    drawAnnotationMarker(ctx, point.x, point.y, annotation.type);
-  });
-
   ctx.restore();
 
   // 描边
@@ -497,34 +490,11 @@ function drawMapMarker(ctx, x, y) {
   ctx.textBaseline = 'alphabetic';
 }
 
-function drawAnnotationMarker(ctx, x, y, typeId) {
-  const type = getAnnotationType(typeId);
-  const r = L(5.5);
-  ctx.save();
-  ctx.shadowColor = 'rgba(38, 31, 24, 0.2)';
-  ctx.shadowBlur = L(4);
-  ctx.shadowOffsetY = L(2);
-  ctx.beginPath();
-  if (type.id === 'risk') {
-    ctx.rect(x - r, y - r, r * 2, r * 2);
-  } else {
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-  }
-  ctx.fillStyle = type.color;
-  ctx.fill();
-  ctx.shadowColor = 'transparent';
-  ctx.lineWidth = L(1.2);
-  ctx.strokeStyle = '#ffffff';
-  ctx.stroke();
-  ctx.restore();
-}
-
-function drawMapStrip(ctx, count, annotationCount, y) {
+function drawMapStrip(ctx, count, y) {
   ctx.fillStyle = COLORS.ink3;
   ctx.font = `500 ${L(10)}px ${FONT_MONO}`;
   ctx.textAlign = 'center';
-  const annotationText = annotationCount ? ` · ${annotationCount} 个标记` : '';
-  ctx.fillText(`· 共 ${count} 个地点${annotationText} ·`, CONTENT_X + CONTENT_W / 2, y + L(12));
+  ctx.fillText(`· 共 ${count} 个地点 ·`, CONTENT_X + CONTENT_W / 2, y + L(12));
   ctx.textAlign = 'left';
   return y + L(20) + L(12);
 }
@@ -947,8 +917,7 @@ function normalizeShareOptions(options = {}) {
   return {
     includeRoutes: !!options.includeRoutes,
     includeNotes: options.includeNotes !== false,
-    includeUnscheduled: !!options.includeUnscheduled,
-    includeAnnotations: !!options.includeAnnotations
+    includeUnscheduled: !!options.includeUnscheduled
   };
 }
 
@@ -990,15 +959,6 @@ function collectTripLocations(trip, days = trip.days || []) {
         Number.isFinite(Number(loc.lnglat[0])) &&
         Number.isFinite(Number(loc.lnglat[1]))
     );
-}
-
-function collectTripAnnotations(trip) {
-  return (trip.annotations || []).filter(
-    annotation =>
-      Array.isArray(annotation.lnglat) &&
-      Number.isFinite(Number(annotation.lnglat[0])) &&
-      Number.isFinite(Number(annotation.lnglat[1]))
-  );
 }
 
 function normalizeForCanvas(iconId, event, trip) {

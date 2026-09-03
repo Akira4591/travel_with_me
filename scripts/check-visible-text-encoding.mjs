@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { extname, relative } from 'node:path';
-import { readdirSync, statSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { build2DQualityManifest } from './active-2d-quality.mjs';
 
 const ROOT = process.cwd();
 const INCLUDED_EXTENSIONS = new Set([
@@ -12,14 +13,6 @@ const INCLUDED_EXTENSIONS = new Set([
   '.mjs',
   '.ts',
   '.tsx'
-]);
-const SKIP_DIRS = new Set([
-  '.git',
-  '.husky',
-  'coverage',
-  'node_modules',
-  'playwright-report',
-  'test-results'
 ]);
 const SKIP_FILES = new Set(['package-lock.json']);
 
@@ -77,10 +70,13 @@ const MOJIBAKE_PATTERNS = [
   }
 ];
 
-const files = walk(ROOT).filter(file => {
-  if (SKIP_FILES.has(file.split(/[\\/]/).pop())) return false;
-  return INCLUDED_EXTENSIONS.has(extname(file));
-});
+const qualityManifest = await build2DQualityManifest(ROOT);
+const files = qualityManifest.projectPaths
+  .map(file => resolve(ROOT, file))
+  .filter(file => {
+    if (SKIP_FILES.has(file.split(/[\\/]/).pop())) return false;
+    return INCLUDED_EXTENSIONS.has(extname(file));
+  });
 
 const findings = [];
 
@@ -110,16 +106,4 @@ if (findings.length) {
   process.exit(1);
 }
 
-console.log(`Visible text encoding check passed (${files.length} files scanned).`);
-
-function walk(dir) {
-  const entries = [];
-  for (const name of readdirSync(dir)) {
-    if (SKIP_DIRS.has(name)) continue;
-    const fullPath = `${dir}\\${name}`;
-    const stat = statSync(fullPath);
-    if (stat.isDirectory()) entries.push(...walk(fullPath));
-    else if (stat.isFile()) entries.push(fullPath);
-  }
-  return entries;
-}
+console.log(`Visible text encoding check passed (${files.length} active 2D files scanned).`);

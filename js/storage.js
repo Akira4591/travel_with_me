@@ -15,12 +15,14 @@
 //   - 不再静默丢弃旧 schema；加载旧版本时先保存 recovery snapshot，再交给 state 层规范化
 //   - 增加 workspace JSON 导出/导入封装
 //
+// 单 trip 接口（saveTrip/loadTrip）保留，方便以后做"草稿快照"或迁出 BFF；
 // 当前主存储是 saveWorkspace/loadWorkspace。
 
 const STORAGE_PREFIX = 'trip-app:';
 const memoryFallback = new Map();
 
 function safeGet(key) {
+  if (memoryFallback.has(key)) return memoryFallback.get(key);
   try {
     return localStorage.getItem(STORAGE_PREFIX + key);
   } catch {
@@ -31,8 +33,22 @@ function safeGet(key) {
 function safeSet(key, value) {
   try {
     localStorage.setItem(STORAGE_PREFIX + key, value);
+    memoryFallback.delete(key);
+    return true;
   } catch {
     memoryFallback.set(key, value);
+    return false;
+  }
+}
+
+function safeRemove(key) {
+  try {
+    localStorage.removeItem(STORAGE_PREFIX + key);
+    memoryFallback.delete(key);
+    return true;
+  } catch {
+    memoryFallback.set(key, null);
+    return false;
   }
 }
 
@@ -53,8 +69,15 @@ export async function saveWorkspace(workspace) {
     savedAt: Date.now(),
     workspace
   });
-  safeSet(WORKSPACE_KEY, json);
-  return { ok: true };
+  const durable = safeSet(WORKSPACE_KEY, json);
+  return durable
+    ? { ok: true }
+    : {
+        ok: false,
+        error: 'PERSISTENCE_UNAVAILABLE',
+        message: '浏览器本地存储不可用；本次修改仅在当前页面有效。',
+        fallback: 'memory'
+      };
 }
 
 // 返回 workspace 对象；从未保存过返回 null（让调用方走"首次启动"分支）。
@@ -69,9 +92,24 @@ export async function loadWorkspace() {
     const parsed = JSON.parse(raw);
     const version = Number(parsed.version || 0);
     const loadedWorkspace = parsed.workspace ?? null;
-    if (!loadedWorkspace || typeof loadedWorkspace !== 'object') {
+    const validation = validateWorkspaceShape(loadedWorkspace);
+    if (!validation.ok) {
       const recoveryKey = createRecoverySnapshot(raw, 'invalid-workspace-shape');
-      lastWorkspaceLoadInfo = { status: 'invalid', recoveryKey };
+      lastWorkspaceLoadInfo = recoveryKey
+        ? {
+            status: 'invalid',
+            error: validation.error,
+            message: validation.message,
+            recoveryKey,
+            shouldPersist: false
+          }
+        : {
+            status: 'recovery-failed',
+            error: 'RECOVERY_SNAPSHOT_FAILED',
+            sourceError: validation.error,
+            recoveryKey: '',
+            shouldPersist: false
+          };
       return null;
     }
     if (version < SCHEMA_VERSION) {
@@ -79,6 +117,18 @@ export async function loadWorkspace() {
         raw,
         `schema-v${version || 'unknown'}-to-v${SCHEMA_VERSION}`
       );
+      if (!recoveryKey) {
+        lastWorkspaceLoadInfo = {
+          status: 'recovery-failed',
+          error: 'RECOVERY_SNAPSHOT_FAILED',
+          sourceStatus: 'migration',
+          fromVersion: version || null,
+          toVersion: SCHEMA_VERSION,
+          recoveryKey: '',
+          shouldPersist: false
+        };
+        return null;
+      }
       console.warn(
         `[storage] 检测到旧 schema (v${version || '?'})，已保存恢复快照并交给状态层迁移。`
       );
@@ -94,7 +144,15 @@ export async function loadWorkspace() {
     return loadedWorkspace;
   } catch {
     const recoveryKey = createRecoverySnapshot(raw, 'parse-error');
-    lastWorkspaceLoadInfo = { status: 'parse-error', recoveryKey };
+    lastWorkspaceLoadInfo = recoveryKey
+      ? { status: 'parse-error', recoveryKey, shouldPersist: false }
+      : {
+          status: 'recovery-failed',
+          error: 'RECOVERY_SNAPSHOT_FAILED',
+          sourceStatus: 'parse-error',
+          recoveryKey: '',
+          shouldPersist: false
+        };
     console.warn('storage: workspace JSON 解析失败');
     return null;
   }
@@ -102,6 +160,11 @@ export async function loadWorkspace() {
 
 export function getLastWorkspaceLoadInfo() {
   return { ...lastWorkspaceLoadInfo };
+}
+
+export async function clearWorkspace() {
+  const durable = safeRemove(WORKSPACE_KEY);
+  return durable ? { ok: true } : { ok: false, error: 'PERSISTENCE_UNAVAILABLE' };
 }
 
 export function buildWorkspaceExport(workspace) {
@@ -141,11 +204,41 @@ export function parseWorkspaceImport(input) {
   return {
     ok: true,
     workspace,
+    summary: summarizeWorkspace(workspace),
     meta: {
       format: parsed?.format || '',
       schemaVersion: parsed?.schemaVersion || parsed?.version || null,
       exportedAt: parsed?.exportedAt || ''
     }
+  };
+}
+
+function summarizeWorkspace(workspace) {
+  const trips = workspace.trips.map(trip => {
+    const days = trip.days || [];
+    const scheduledEvents = days.flatMap(day => day.events || []);
+    const unscheduledEvents = trip.unscheduled || [];
+    const previewPlaces = [...scheduledEvents, ...unscheduledEvents]
+      .map(event => event.title || trip.locations?.[event.locationId]?.name || '')
+      .filter(Boolean)
+      .slice(0, 5);
+    return {
+      id: String(trip.id || ''),
+      title: String(trip.title || '未命名行程'),
+      dayCount: days.length,
+      scheduledCount: scheduledEvents.length,
+      unscheduledCount: unscheduledEvents.length,
+      locationCount: Object.keys(trip.locations || {}).length,
+      previewPlaces
+    };
+  });
+  return {
+    tripCount: trips.length,
+    dayCount: trips.reduce((total, trip) => total + trip.dayCount, 0),
+    scheduledCount: trips.reduce((total, trip) => total + trip.scheduledCount, 0),
+    unscheduledCount: trips.reduce((total, trip) => total + trip.unscheduledCount, 0),
+    locationCount: trips.reduce((total, trip) => total + trip.locationCount, 0),
+    trips
   };
 }
 
@@ -155,8 +248,45 @@ export async function importWorkspace(workspace) {
 
   const currentRaw = safeGet(WORKSPACE_KEY);
   const recoveryKey = currentRaw ? createRecoverySnapshot(currentRaw, 'before-import') : '';
-  await saveWorkspace(workspace);
-  return { ok: true, recoveryKey };
+  if (currentRaw && !recoveryKey) {
+    return {
+      ok: false,
+      error: 'RECOVERY_SNAPSHOT_FAILED',
+      message: '无法创建恢复快照，导入已取消；原工作区未被覆盖。',
+      recoveryKey: ''
+    };
+  }
+  const saved = await saveWorkspace(workspace);
+  return saved.ok ? { ok: true, recoveryKey } : { ...saved, recoveryKey };
+}
+
+// ─── 单 trip 接口（保留，未在主流程使用） ──────────────
+
+export async function saveTrip(trip, slot = 'draft') {
+  const json = JSON.stringify({
+    version: 1,
+    savedAt: Date.now(),
+    trip
+  });
+  const durable = safeSet(slot, json);
+  return durable ? { ok: true } : { ok: false, error: 'PERSISTENCE_UNAVAILABLE' };
+}
+
+export async function loadTrip(slot = 'draft') {
+  const raw = safeGet(slot);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed.trip ?? null;
+  } catch {
+    console.warn('storage: trip JSON 解析失败');
+    return null;
+  }
+}
+
+export async function clearTrip(slot = 'draft') {
+  const durable = safeRemove(slot);
+  return durable ? { ok: true } : { ok: false, error: 'PERSISTENCE_UNAVAILABLE' };
 }
 
 function createRecoverySnapshot(raw, reason) {
@@ -167,8 +297,7 @@ function createRecoverySnapshot(raw, reason) {
     reason,
     raw
   });
-  safeSet(key, snapshot);
-  return key;
+  return safeSet(key, snapshot) ? key : '';
 }
 
 function extractImportedWorkspace(parsed) {
@@ -188,6 +317,85 @@ function validateWorkspaceShape(workspace) {
   }
   if (workspace.trips.length > 3) {
     return { ok: false, error: 'TOO_MANY_TRIPS', message: '最多只能导入 3 条旅行路线。' };
+  }
+  const tripIds = new Set();
+  for (const trip of workspace.trips) {
+    if (!trip || typeof trip !== 'object' || Array.isArray(trip)) {
+      return { ok: false, error: 'INVALID_TRIP', message: '每条旅行路线必须是对象。' };
+    }
+    const tripId = String(trip.id || '');
+    if (tripId && tripIds.has(tripId)) {
+      return {
+        ok: false,
+        error: 'DUPLICATE_TRIP_ID',
+        message: '导入数据包含重复的行程 ID。'
+      };
+    }
+    if (tripId) tripIds.add(tripId);
+    if (trip.days != null && !Array.isArray(trip.days)) {
+      return { ok: false, error: 'INVALID_DAYS', message: '旅行路线的 days 必须是数组。' };
+    }
+    if (
+      trip.locations != null &&
+      (typeof trip.locations !== 'object' || Array.isArray(trip.locations))
+    ) {
+      return {
+        ok: false,
+        error: 'INVALID_LOCATIONS',
+        message: '旅行路线的 locations 必须是对象。'
+      };
+    }
+    const dayIds = new Set();
+    const eventIds = new Set();
+    for (const day of trip.days || []) {
+      if (!day || typeof day !== 'object' || !Array.isArray(day.events || [])) {
+        return { ok: false, error: 'INVALID_DAY', message: '每个 day 必须包含 events 数组。' };
+      }
+      const dayId = String(day.id || '');
+      if (dayId && dayIds.has(dayId)) {
+        return {
+          ok: false,
+          error: 'DUPLICATE_DAY_ID',
+          message: '导入数据包含重复的日程 ID。'
+        };
+      }
+      if (dayId) dayIds.add(dayId);
+      if ((day.events || []).some(event => !event || typeof event !== 'object')) {
+        return { ok: false, error: 'INVALID_EVENT', message: '每个日程必须是对象。' };
+      }
+      for (const event of day.events || []) {
+        const eventId = String(event.id || '');
+        if (eventId && eventIds.has(eventId)) {
+          return {
+            ok: false,
+            error: 'DUPLICATE_EVENT_ID',
+            message: '导入数据包含重复的日程事件 ID。'
+          };
+        }
+        if (eventId) eventIds.add(eventId);
+      }
+    }
+    if (trip.unscheduled != null && !Array.isArray(trip.unscheduled)) {
+      return {
+        ok: false,
+        error: 'INVALID_UNSCHEDULED',
+        message: '旅行路线的 unscheduled 必须是数组。'
+      };
+    }
+    for (const event of trip.unscheduled || []) {
+      if (!event || typeof event !== 'object' || Array.isArray(event)) {
+        return { ok: false, error: 'INVALID_EVENT', message: '每个日程必须是对象。' };
+      }
+      const eventId = String(event.id || '');
+      if (eventId && eventIds.has(eventId)) {
+        return {
+          ok: false,
+          error: 'DUPLICATE_EVENT_ID',
+          message: '导入数据包含重复的日程事件 ID。'
+        };
+      }
+      if (eventId) eventIds.add(eventId);
+    }
   }
   return { ok: true };
 }

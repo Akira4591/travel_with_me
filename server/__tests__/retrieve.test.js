@@ -35,7 +35,7 @@ describe('retrieve', () => {
       extracted: '{}',
       token_count: 20
     });
-    const id2 = saveGuide({
+    const _id2 = saveGuide({
       city: '上海',
       guide_type: 'recommendation_list',
       source_text: '上海美食推荐，外滩夜景，南京路步行街',

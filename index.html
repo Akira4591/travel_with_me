@@ -10,17 +10,8 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="./css/tokens.css?v=20260510-v10" />
-    <link rel="stylesheet" href="./css/layout.css?v=20260510-v10" />
-    <link rel="stylesheet" href="./css/components.css?v=20260510-v10" />
-
-    <script type="importmap">
-      {
-        "imports": {
-          "three": "/three/build/three.module.js",
-          "three/addons/": "/three/examples/jsm/"
-        }
-      }
-    </script>
+    <link rel="stylesheet" href="./css/layout.css?v=20260901-s5" />
+    <link rel="stylesheet" href="./css/components.css?v=20260901-s5" />
   </head>
 
   <body data-mobile-view="list">
@@ -29,19 +20,39 @@
       <div class="workspace-tabs" id="workspace-tabs"></div>
       <div class="mobile-view-switch" role="tablist" aria-label="移动端视图切换">
         <button
+          id="mobile-list-tab"
           type="button"
           class="mobile-view-btn active"
           data-mobile-view="list"
+          role="tab"
+          aria-controls="itinerary-panel"
           aria-selected="true"
         >
           行程
         </button>
-        <button type="button" class="mobile-view-btn" data-mobile-view="map" aria-selected="false">
+        <button
+          id="mobile-map-tab"
+          type="button"
+          class="mobile-view-btn"
+          data-mobile-view="map"
+          role="tab"
+          aria-controls="map-panel"
+          aria-selected="false"
+        >
           地图
         </button>
       </div>
+      <div
+        class="status-panel"
+        id="status-panel"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        正在加载地图...
+      </div>
       <div class="app-layout">
-        <div class="sidebar">
+        <div class="sidebar" id="itinerary-panel" role="tabpanel" aria-labelledby="mobile-list-tab">
           <div class="header">
             <div class="header-top">
               <div class="title-row">
@@ -59,24 +70,12 @@
           <div class="itinerary-list" id="itinerary-container"></div>
         </div>
 
-        <div class="map-container">
+        <div class="map-container" id="map-panel" role="tabpanel" aria-labelledby="mobile-map-tab">
           <div id="map"></div>
-          <div id="map-3d" hidden></div>
-          <button
-            type="button"
-            class="map-3d-toggle hint"
-            id="map-3d-toggle"
-            hidden
-            aria-label="切换3D视图"
-          >
-            <span class="map-3d-toggle-dot"></span>
-            <span class="map-3d-toggle-label">3D 视图</span>
-          </button>
-          <div class="status-panel" id="status-panel">正在加载地图...</div>
         </div>
       </div>
     </div>
 
-    <script type="module" src="./js/main.js?v=20260623-gate50-visual-v1"></script>
+    <script type="module" src="./js/main.js?v=20260901-s4-s5e"></script>
   </body>
 </html>

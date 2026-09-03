@@ -1,8 +1,8 @@
 # Architecture
 
-> **辅助文件** | 权威开发文档: [DEVELOPMENT.md](DEVELOPMENT.md)
+Travel With Me 是一个中文旅行路线规划 Web App。本文档记录当前 2D 系统架构、关键架构决策和设计原则。
 
-Travel With Me 是一个中文旅行路线规划 Web App。本文档记录当前系统架构、关键架构决策和设计原则。产品方向、阶段口径和 2D/3D 同源边界以 [产品与架构总纲](docs/product/architecture-blueprint.md) 为准。
+> **取代性决策（2026-08-12）**：3D 已封存。`archive/3d/README.md` 是当前边界；本文后部的 3D ADR、依赖图与目录说明仅保留为历史记录，不属于活动架构。2D 启动图不得依赖 3D 模块，服务端不得暴露 3D 专用接口。
 
 文档边界：
 
@@ -10,21 +10,20 @@ Travel With Me 是一个中文旅行路线规划 Web App。本文档记录当前
 - 商业化缺口、方案取舍和阶段路线见 `docs/product/commercialization.md`。
 - 近期执行 backlog 见 `TODO.md`。
 - BFF 接口契约见 `docs/engineering/api.md`。
-- 3D 技术路线、状态机和质量门禁见 `docs/architecture/3d/deep-research-integration.md` 与 `docs/architecture/3d/top-down-execution-roadmap.md`。
+- 3D 历史资料只供追溯，当前封存边界见 `archive/3d/README.md`。
 
 本文档只回答：系统如何组织、为什么这样组织、哪些架构约束必须遵守。
 
 ## 技术栈
 
 ```
-Node.js 18+ / Hono v4
+Node.js 22.22.1+ / Hono v4
   └─ BFF 层：静态托管 + 高德代理 + AI 中转
 
 Browser
   ├─ 原生 ES Modules（无构建工具）
   ├─ 高德 JS API 2.0
   ├─ localStorage 持久化
-  ├─ Three.js 3D planning diorama
   └─ Canvas 分享长图生成
 ```
 
@@ -40,7 +39,7 @@ Trip
   ├─ locations: { [id]: Location }   地点主表
   ├─ days: Day[]                     按序排列
   ├─ unscheduled: Event[]            未排期事件池
-  └─ annotations: Annotation[]       3D/地图功能标记
+  └─ annotations: Annotation[]       封存兼容数据，不参与 2D 运行时
 
 Day
   ├─ id, title
@@ -234,7 +233,7 @@ buildTripShareImage(trip, { includeRoutes })
 ### ADR-6: 3D Diorama 地图 — 2D 事实层驱动的生成式规划沙盘
 
 **日期**: 2026-06-18
-**状态**: 已采纳（按 P0-P6 分批实施）
+**状态**: 已被 2026-08-12 的 3D 封存决策取代，仅保留历史记录
 
 **背景**: 当前项目使用 2D 高德地图、BFF Web Service、Canvas 分享长图和 Three.js 3D 模块。3D 的目标是帮助用户理解路线、地形、水系、桥梁、建筑体块和局部风险，不是替代 2D 地图，也不是复刻真实城市。
 
@@ -254,7 +253,7 @@ buildTripShareImage(trip, { includeRoutes })
 - 2D/3D 切换入口固定在地图右下角控制区，桌面 Web 为当前唯一产品主线
 - 固定生成状态机：`freeze-2d -> derive-scene-envelope -> slab-rise -> terrain-refine -> water-carve -> road-emerge -> bridge-resolve -> route-highlight -> building-massing -> building-dissolve`
 - 先抬升地面基础，再融化出水面/道路/山体/桥梁，最后抬升建筑体块并溶解出近景外轮廓
-- 路线与道路分层：道路是中性地理上下文，行程路线复用当前 2D 页面路线的颜色、宽度、虚线状态和选中态，并投影贴合到 3D 有效表面
+- 路线与道路分层：道路是中性地理上下文，行程路线复用 2D 导引线身份并使用工业安全黄
 - 所有真实世界资产必须有 `source`、`licence`、`attribution`、`updatedAt`
 - 缺失数据失败关闭：不凭空生成真实河道、桥梁、植被、地标或真实建筑外观
 - 所有 3D 对象通过统一 `sampleHeight()` / `TerrainModel.heightAt(x,z)` 贴地
@@ -262,7 +261,7 @@ buildTripShareImage(trip, { includeRoutes })
 
 **权衡**: 放弃把 3D 变成全量城市/全球地图平台。生产 DEM 目标是自托管 Copernicus GLO-30/GLO-90 或兼容 Terrarium/PMTiles 管线；Mapbox Terrain-DEM/RGB 只作为原型加速选项；Overture、Microsoft building footprints、ESA WorldCover、CityGML/CityJSON 和授权 GLB 都必须经 BFF 资产包进入。
 
-**详细设计规范**: `docs/architecture/3d/deep-research-integration.md`、`docs/architecture/3d/generation-process-alignment.md`、`docs/architecture/3d/top-down-execution-roadmap.md`、`docs/architecture/3d/assets-landcover-and-landmarks.md`、`docs/engineering/qa/visual-baseline.md`、`docs/engineering/qa/debug-contract.md`
+**详细设计规范**: `docs/3d-deep-research-integration.md`、`docs/3d-generation-process-alignment.md`、`docs/3d-top-down-execution-roadmap.md`、`docs/3d-assets-landcover-and-landmarks.md`、`docs/qa/visual-baseline.md`、`docs/qa/debug-contract.md`
 
 **当前迭代约束**: 下一阶段先完成 Alpha 视觉证明基础设施，再进入 Beta 的 P2 水/路/桥视觉正确性修复。P3 建筑细化、inspect 摄像机和场景精度 profile 必须建立在 ROI 截图与 `window.__threeDebug__.qa` 指标稳定之后。
 
@@ -287,40 +286,6 @@ buildTripShareImage(trip, { includeRoutes })
 **核心战略判断**: 3D diorama + 地形感知 + 标记放置是视觉化、体验化的付费锚点，比"离线地图"（Wanderlog Pro 锚点）更有说服力。
 
 **竞品分析、市场数据、能力对标、分阶段路线图、技术方案矩阵、权益定价**: 见 `docs/product/commercialization.md`。
-
----
-
-### ADR-8: RAG 知识检索层
-
-**日期**: 2026-07
-**状态**: 已采纳（R0-R1 先行，R2-R5 待排期）
-
-**背景**: AI 导入一次性提取后丢弃原文，无法跨攻略复用知识。当前 `similarityScore()` 是字符重叠启发式，无法语义匹配。
-
-**决策**: BFF 层增加 RAG 检索能力，分阶段实施：
-
-- R0: SQLite 文档持久层（存储攻略原文 + 提取结果）
-- R1: BM25 稀疏检索（`@node-rs/jieba` 中文分词 + 倒排索引）
-- R2: 本地 BGE-M3 ONNX embedding 语义检索（待排期）
-- R3: Self-Reflective 提取（评分 + 重试，待排期）
-- R4: 旅行知识库（待排期）
-- R5: Agentic RAG（待排期）
-
-**核心约束**:
-
-- 检索失败时降级到无 RAG 模式，不阻塞核心提取流程
-- 冷启动保护: 文档数 < `RAG_MIN_DOCS`（默认 3）时不启用检索
-- 软删除: guides 表 `deleted=1` 的文档不参与检索
-- R0-R1 不引入 embedding API，零外部 API 成本
-- R2 选用本地 BGE-M3 ONNX 模型，避免 embedding API 依赖
-
-**新增模块**: `server/rag/`（db.js, store.js, tokenizer.js, bm25.js, retrieve.js）
-
-**新增端点**: `GET /_rag/status`、`POST /_rag/search`、`GET /_rag/guides`、`DELETE /_rag/guides/:id`
-
-**新增依赖**: `better-sqlite3`（文档存储）、`@node-rs/jieba`（中文分词）
-
-**权衡**: better-sqlite3 和 @node-rs/jieba 是服务端首批 native 依赖，Docker 构建从 alpine 切换到 slim + multi-stage。BM25 以整篇文档为检索单元，R2 后按段落分块。
 
 ---
 
@@ -424,10 +389,5 @@ trip-app/
 │       ├── icons.test.js
 │       └── state.test.js
 └── docs/
-    ├── README.md             # 文档索引
-    ├── product/              # 产品与商业化
-    ├── architecture/         # 2D/3D 架构合同
-    ├── engineering/          # API、开发、QA、测试
-    ├── operations/           # 发布与质量门
-    └── design/               # UI 视觉规范
+    └── api.md                # BFF API 文档
 ```

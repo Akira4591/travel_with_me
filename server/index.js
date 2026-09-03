@@ -2,7 +2,7 @@
 // 极简 BFF：托管前端静态文件 + 代理高德 Web 服务接口
 //
 // 它只做两件事：
-//   1) 把项目根目录下的 index.html / css / js 当静态文件托管
+//   1) 托管 index.html，以及由 2D 入口清单批准的 CSS / JS
 //   2) /_AMapService/* → https://restapi.amap.com/* 透明转发，
 //      并在转发时注入服务端持有的 jscode（安全密钥）
 //
@@ -12,13 +12,18 @@
 //   - 上游响应原样回放，仅去掉 content-encoding/length（fetch 已自动解压）
 
 import { readFileSync } from 'node:fs';
-import { fileURLToPath, URLSearchParams } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { secureHeaders } from 'hono/secure-headers';
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
+import {
+  assertExplicit2DRuntimeManifest,
+  build2DRuntimeManifest,
+  projectPathFromRequestURL
+} from '../scripts/active-2d-runtime.mjs';
 import { initDB } from './rag/db.js';
 import { saveGuide, listGuides, softDeleteGuide, getActiveGuideCount } from './rag/store.js';
 import { BM25Index } from './rag/bm25.js';
@@ -33,6 +38,11 @@ const AMAP_JS_KEY = process.env.AMAP_JS_KEY;
 const AMAP_WEB_SERVICE_KEY = process.env.AMAP_WEB_SERVICE_KEY;
 const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY;
 const PORT = Number(process.env.PORT) || 8080;
+const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const RUNTIME_2D_MANIFEST = await build2DRuntimeManifest(PROJECT_ROOT);
+assertExplicit2DRuntimeManifest(RUNTIME_2D_MANIFEST);
+const ACTIVE_2D_JAVASCRIPT_PATHS = RUNTIME_2D_MANIFEST.activeJavaScriptPaths;
+const ACTIVE_2D_STYLESHEET_PATHS = new Set(RUNTIME_2D_MANIFEST.htmlStylesheets);
 const UPSTREAM = 'https://restapi.amap.com';
 const PROXY_PREFIX = '/_AMapService';
 const AMAP_ALLOWED_PATHS = new Set([
@@ -46,10 +56,8 @@ const AMAP_ALLOWED_PATHS = new Set([
   '/v4/direction/bicycling'
 ]);
 const TILE_PREFIX = '/_AMapTile';
-const ELEVATION_PREFIX = '/_elevation';
-const GEO_ASSETS_PREFIX = '/_geo-assets';
 const AI_PREFIX = '/_ai';
-const OVERPASS_ENDPOINT = 'https://overpass-api.de/api/interpreter';
+const RAG_PREFIX = '/_rag';
 const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
 const DEEPSEEK_JSON_ATTEMPTS = 2;
 const DEEPSEEK_TIMEOUT_MS = readPositiveInt(process.env.DEEPSEEK_TIMEOUT_MS, 90000);
@@ -62,48 +70,14 @@ const AMAP_RATE_LIMIT = readPositiveInt(process.env.AMAP_RATE_LIMIT, 600);
 const AMAP_RATE_WINDOW_MS = readPositiveInt(process.env.AMAP_RATE_WINDOW_MS, 60 * 1000);
 const TILE_RATE_LIMIT = readPositiveInt(process.env.TILE_RATE_LIMIT, 1200);
 const TILE_RATE_WINDOW_MS = readPositiveInt(process.env.TILE_RATE_WINDOW_MS, 60 * 1000);
-const ELEVATION_RATE_LIMIT = readPositiveInt(process.env.ELEVATION_RATE_LIMIT, 120);
-const ELEVATION_RATE_WINDOW_MS = readPositiveInt(process.env.ELEVATION_RATE_WINDOW_MS, 60 * 1000);
-const GEO_ASSETS_RATE_LIMIT = readPositiveInt(process.env.GEO_ASSETS_RATE_LIMIT, 24);
-const GEO_ASSETS_RATE_WINDOW_MS = readPositiveInt(
-  process.env.GEO_ASSETS_RATE_WINDOW_MS,
-  60 * 60 * 1000
-);
-const GEO_ASSETS_CACHE_TTL_MS = readPositiveInt(
-  process.env.GEO_ASSETS_CACHE_TTL_MS,
-  24 * 60 * 60 * 1000
-);
-const GEO_ASSETS_CACHE_MAX = readPositiveInt(process.env.GEO_ASSETS_CACHE_MAX, 200);
-const GEO_ASSETS_TIMEOUT_MS = readPositiveInt(process.env.GEO_ASSETS_TIMEOUT_MS, 15000);
-const RAG_PREFIX = '/_rag';
 const RAG_ENABLED = process.env.RAG_ENABLED !== 'false';
-const RAG_DB_PATH =
-  process.env.RAG_DB_PATH ||
-  resolve(dirname(fileURLToPath(import.meta.url)), '..', 'data', 'rag.db');
+const RAG_DB_PATH = process.env.RAG_DB_PATH || resolve(PROJECT_ROOT, 'data', 'rag.db');
 const RAG_TOP_K = readPositiveInt(process.env.RAG_TOP_K, 3);
 const RAG_MAX_CONTEXT_CHARS = readPositiveInt(process.env.RAG_MAX_CONTEXT_CHARS, 1500);
 const RAG_MIN_DOCS = readPositiveInt(process.env.RAG_MIN_DOCS, 3);
 const RAG_SEARCH_RATE_LIMIT = readPositiveInt(process.env.RAG_SEARCH_RATE_LIMIT, 20);
 const RAG_SEARCH_RATE_WINDOW_MS = 60 * 60 * 1000;
 const rateBuckets = new Map();
-const geoAssetCache = new Map();
-
-function evictGeoAssetCacheIfNeeded() {
-  if (geoAssetCache.size <= GEO_ASSETS_CACHE_MAX) return;
-  const now = Date.now();
-  const entries = [...geoAssetCache.entries()].sort(
-    (a, b) => (a[1].expiresAt || 0) - (b[1].expiresAt || 0)
-  );
-  const toRemove = entries.length - GEO_ASSETS_CACHE_MAX;
-  for (let i = 0; i < toRemove; i++) {
-    geoAssetCache.delete(entries[i][0]);
-  }
-  if (geoAssetCache.size > GEO_ASSETS_CACHE_MAX) {
-    const keys = geoAssetCache.keys();
-    for (let i = 0; i < toRemove; i++) geoAssetCache.delete(keys.next().value);
-  }
-  void now;
-}
 
 if (!JSCODE) {
   console.warn(
@@ -122,16 +96,11 @@ if (!DEEPSEEK_KEY) {
 
 let bm25Index = null;
 if (RAG_ENABLED) {
-  try {
-    initDB(RAG_DB_PATH);
-    bm25Index = new BM25Index();
-    const count = bm25Index.rebuildFromDB();
-    console.log(`[trip-app] RAG 已初始化：BM25 索引 ${count} 篇文档`);
-  } catch (e) {
-    console.warn('[trip-app] RAG 初始化失败，RAG 功能将被禁用:', e.message);
-    bm25Index = null;
-  }
+  initDB(RAG_DB_PATH);
+  bm25Index = new BM25Index();
+  bm25Index.rebuildFromDB();
 }
+
 function isRagReady() {
   return bm25Index !== null && bm25Index.docCount >= RAG_MIN_DOCS;
 }
@@ -201,7 +170,6 @@ app.use(
         'https://wprd02.is.autonavi.com',
         'https://wprd03.is.autonavi.com',
         'https://wprd04.is.autonavi.com',
-        'https://api.open-meteo.com',
         'https://api.deepseek.com'
       ],
       workerSrc: ["'self'", 'blob:'],
@@ -293,22 +261,14 @@ app.post(`${AI_PREFIX}/extract-guide`, async c => {
     return c.json({ error: 'TEXT_TOO_LONG', message: '文字过长，请分段处理。' }, 400);
 
   try {
-    let retrievedContextSection = '';
-    if (isRagReady()) {
-      try {
-        const results = retrieveGuides(bm25Index, text, {
-          topK: RAG_TOP_K,
-          maxSnippetLength: Math.floor(RAG_MAX_CONTEXT_CHARS / RAG_TOP_K)
-        });
-        retrievedContextSection = formatRetrievedContext(results);
-        if (results.length) {
-          console.log(`[trip-app] RAG 检索到 ${results.length} 篇相似攻略`);
-        }
-      } catch (e) {
-        console.warn('[trip-app] RAG 检索失败，继续无上下文提取:', e.message);
-      }
-    }
-
+    const retrievedContextSection = isRagReady()
+      ? formatRetrievedContext(
+          retrieveGuides(bm25Index, text, {
+            topK: RAG_TOP_K,
+            maxSnippetLength: Math.floor(RAG_MAX_CONTEXT_CHARS / RAG_TOP_K)
+          })
+        )
+      : '';
     let lastDebug = null;
     for (let attempt = 1; attempt <= DEEPSEEK_JSON_ATTEMPTS; attempt += 1) {
       const upstreamResp = await fetchDeepSeekWithTimeout({
@@ -329,24 +289,17 @@ app.post(`${AI_PREFIX}/extract-guide`, async c => {
       const parsed = parseGuideJSON(content);
       if (parsed) {
         const normalized = normalizeExtractedGuide(parsed);
-
-        if (RAG_ENABLED && bm25Index) {
-          try {
-            const tokens = tokenize(text);
-            const guideId = saveGuide({
-              city: normalized.city || cityHint || null,
-              guide_type: normalized.guide_type || null,
-              source_text: text,
-              extracted: JSON.stringify(normalized),
-              token_count: tokens.length
-            });
-            bm25Index.addDocument(guideId, tokens);
-            console.log(`[trip-app] RAG 文档已保存: ${guideId}, tokens: ${tokens.length}`);
-          } catch (e) {
-            console.warn('[trip-app] RAG 文档保存失败:', e.message);
-          }
+        if (bm25Index) {
+          const tokens = tokenize(text);
+          const guideId = saveGuide({
+            city: normalized.city || cityHint || null,
+            guide_type: normalized.guide_type || null,
+            source_text: text,
+            extracted: JSON.stringify(normalized),
+            token_count: tokens.length
+          });
+          bm25Index.addDocument(guideId, tokens);
         }
-
         return c.json(normalized);
       }
 
@@ -393,10 +346,8 @@ app.post(`${AI_PREFIX}/extract-guide`, async c => {
   }
 });
 
-// ─── RAG 检索 ────────────────────────────────────────────
-
 app.get(`${RAG_PREFIX}/status`, c => {
-  if (!RAG_ENABLED || !bm25Index) {
+  if (!bm25Index) {
     return c.json({ available: false, reason: 'rag_disabled', documentCount: 0 });
   }
   return c.json({
@@ -419,8 +370,7 @@ app.post(`${RAG_PREFIX}/search`, async c => {
     RAG_SEARCH_RATE_WINDOW_MS
   );
   if (limited) return limited;
-
-  if (!RAG_ENABLED || !bm25Index) {
+  if (!bm25Index) {
     return c.json({ error: 'RAG_UNAVAILABLE', message: 'RAG 检索功能未启用。' }, 503);
   }
 
@@ -430,45 +380,33 @@ app.post(`${RAG_PREFIX}/search`, async c => {
   } catch {
     return c.json({ error: 'BAD_REQUEST', message: '请求格式错误。' }, 400);
   }
-
   const query = String(payload?.query || '').trim();
   const topK = Math.min(Math.max(Number(payload?.top_k) || RAG_TOP_K, 1), 20);
   if (query.length < 2) {
     return c.json({ error: 'QUERY_TOO_SHORT', message: '查询文本过短。' }, 400);
   }
-
-  try {
-    const results = retrieveGuides(bm25Index, query, {
-      topK,
-      maxSnippetLength: Math.floor(RAG_MAX_CONTEXT_CHARS / topK)
-    });
-    return c.json({ results, count: results.length });
-  } catch (e) {
-    console.error('[trip-app] RAG 检索失败：', e);
-    return c.json({ error: 'RAG_SEARCH_FAILED', message: '检索失败，请稍后重试。' }, 500);
-  }
+  const results = retrieveGuides(bm25Index, query, {
+    topK,
+    maxSnippetLength: Math.floor(RAG_MAX_CONTEXT_CHARS / topK)
+  });
+  return c.json({ results, count: results.length });
 });
 
 app.get(`${RAG_PREFIX}/guides`, c => {
-  if (!RAG_ENABLED || !bm25Index) {
-    return c.json({ guides: [], total: 0 });
-  }
+  if (!bm25Index) return c.json({ guides: [], total: 0 });
   const limit = Math.min(Math.max(Number(c.req.query('limit')) || 50, 1), 200);
   const offset = Math.max(Number(c.req.query('offset')) || 0, 0);
-  const guides = listGuides({ limit, offset });
-  const total = getActiveGuideCount();
-  return c.json({ guides, total });
+  return c.json({ guides: listGuides({ limit, offset }), total: getActiveGuideCount() });
 });
 
 app.delete(`${RAG_PREFIX}/guides/:id`, c => {
   const sourceRejected = rejectUntrustedSource(c);
   if (sourceRejected) return sourceRejected;
-
   const id = c.req.param('id');
-  const deleted = softDeleteGuide(id);
-  if (!deleted) {
+  if (!softDeleteGuide(id)) {
     return c.json({ error: 'NOT_FOUND', message: '文档不存在。' }, 404);
   }
+  bm25Index?.rebuildFromDB();
   return c.json({ deleted: id });
 });
 
@@ -626,180 +564,26 @@ app.get(TILE_PREFIX, async c => {
   return new Response(body, { status: upstreamResp.status, headers });
 });
 
-// Open-Meteo elevation is public, but proxying keeps browser behavior deterministic and
-// centralizes rate limits, retries, and cache policy for terrain generation.
-app.get(ELEVATION_PREFIX, async c => {
-  const sourceRejected = rejectUntrustedSource(c);
-  if (sourceRejected) return sourceRejected;
-  const limited = enforceRateLimit(c, 'elevation', ELEVATION_RATE_LIMIT, ELEVATION_RATE_WINDOW_MS);
-  if (limited) return limited;
-
-  const latitudes = parseCoordinateList(c.req.query('latitude'));
-  const longitudes = parseCoordinateList(c.req.query('longitude'));
-  if (!latitudes.length || latitudes.length !== longitudes.length || latitudes.length > 100) {
-    return c.json(
-      { error: 'INVALID_ELEVATION_COORDINATES', message: '高程请求必须包含最多 100 个成对坐标。' },
-      400
-    );
-  }
-
-  const upstream = new URL('https://api.open-meteo.com/v1/elevation');
-  upstream.searchParams.set('latitude', latitudes.join(','));
-  upstream.searchParams.set('longitude', longitudes.join(','));
-
-  let upstreamResp;
-  try {
-    upstreamResp = await fetchWithRetry(
-      upstream,
-      {
-        headers: {
-          accept: 'application/json',
-          'user-agent': 'travel-with-me/0.1 (elevation)'
-        }
-      },
-      { attempts: 2, label: '高程服务' }
-    );
-  } catch (err) {
-    console.error('[trip-app] 高程请求失败：', err);
-    return c.json({ error: 'ELEVATION_UPSTREAM_FAILED', message: '高程服务暂不可用。' }, 502);
-  }
-
-  if (upstreamResp.status === 429 || upstreamResp.status >= 500) {
-    const fallbackElevations = await fetchOpenElevationFallback(latitudes, longitudes);
-    if (fallbackElevations) {
-      return c.json({ elevation: fallbackElevations }, 200, {
-        'cache-control': 'public, max-age=86400',
-        'x-elevation-source': 'open-elevation-fallback'
-      });
-    }
-  }
-
-  const body = await upstreamResp.arrayBuffer();
-  const headers = new Headers();
-  upstreamResp.headers.forEach((value, key) => {
-    const normalizedKey = key.toLowerCase();
-    if (normalizedKey === 'content-encoding' || normalizedKey === 'content-length') return;
-    headers.set(key, value);
-  });
-  headers.set('cache-control', upstreamResp.ok ? 'public, max-age=86400' : 'no-store');
-  return new Response(body, { status: upstreamResp.status, headers });
-});
-
-// Fetch a small, attributable OSM context around the itinerary. The response is deliberately
-// bounded so a broad trip cannot turn the public Overpass API into a map-tile replacement.
-app.get(GEO_ASSETS_PREFIX, async c => {
-  const sourceRejected = rejectUntrustedSource(c);
-  if (sourceRejected) return sourceRejected;
-  const limited = enforceRateLimit(
-    c,
-    'geo-assets',
-    GEO_ASSETS_RATE_LIMIT,
-    GEO_ASSETS_RATE_WINDOW_MS
-  );
-  if (limited) return limited;
-
-  const anchors = parseLngLatList(c.req.query('points'));
-  if (!anchors.length || anchors.length > 8) {
-    return c.json(
-      { error: 'INVALID_GEO_ASSET_POINTS', message: '地理要素请求必须包含 1 至 8 个有效地点。' },
-      400
-    );
-  }
-
-  const cacheKey = anchors.map(([lng, lat]) => `${lng.toFixed(4)},${lat.toFixed(4)}`).join('|');
-  const cached = geoAssetCache.get(cacheKey);
-  if (cached && cached.expiresAt > Date.now()) return c.json(cached.payload);
-
-  let upstreamResp;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), GEO_ASSETS_TIMEOUT_MS);
-  try {
-    upstreamResp = await fetch(OVERPASS_ENDPOINT, {
-      method: 'POST',
-      signal: controller.signal,
-      headers: {
-        accept: 'application/json',
-        'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
-        'user-agent': 'travel-with-me/0.1 (geo-assets; ODbL attribution included)'
-      },
-      body: new URLSearchParams({ data: buildOverpassQuery(anchors) }).toString()
-    });
-  } catch (err) {
-    console.error('[trip-app] OSM 地理要素请求失败：', err);
-    const isTimeout = err?.name === 'AbortError';
-    return c.json(
-      {
-        error: isTimeout ? 'GEO_ASSETS_UPSTREAM_TIMEOUT' : 'GEO_ASSETS_UPSTREAM_FAILED',
-        status: 'degraded',
-        message: isTimeout ? '周边地理要素请求超时。' : '周边地理要素暂不可用。'
-      },
-      isTimeout ? 504 : 502
-    );
-  } finally {
-    clearTimeout(timer);
-  }
-
-  if (!upstreamResp.ok) {
-    return c.json(
-      {
-        error:
-          upstreamResp.status === 429
-            ? 'GEO_ASSETS_UPSTREAM_RATE_LIMITED'
-            : 'GEO_ASSETS_UPSTREAM_FAILED',
-        status: 'degraded',
-        message: '周边地理要素暂不可用。'
-      },
-      upstreamResp.status === 429 ? 429 : 502
-    );
-  }
-
-  const upstreamData = await upstreamResp.json().catch(() => null);
-  if (!upstreamData || !Array.isArray(upstreamData.elements)) {
-    return c.json(
-      {
-        error: 'GEO_ASSETS_NORMALIZATION_FAILED',
-        status: 'degraded',
-        message: '周边地理要素解析失败。'
-      },
-      502
-    );
-  }
-  const geoAssets = mapOsmGeoAssets(upstreamData.elements);
-  const empty = Object.values(geoAssets).every(
-    layer => !Array.isArray(layer) || layer.length === 0
-  );
-  const payload = {
-    status: empty ? 'empty' : 'ok',
-    geoAssets,
-    attribution: '© OpenStreetMap contributors',
-    licence: 'ODbL 1.0'
-  };
-  geoAssetCache.set(cacheKey, { payload, expiresAt: Date.now() + GEO_ASSETS_CACHE_TTL_MS });
-  evictGeoAssetCacheIfNeeded();
-  return c.json(payload, 200, { 'cache-control': 'private, max-age=86400' });
-});
-
 // ─── 静态文件托管 ─────────────────────────────────────────
-// 只暴露前端实际需要的目录/文件，避免把 server/、node_modules/、.env 也意外暴露。
+// 只暴露 2D HTML 入口解析得到、且显式清单批准的运行时文件。
 app.get('/', serveStatic({ path: './index.html' }));
 app.get('/index.html', serveStatic({ path: './index.html' }));
-app.use('/css/*', serveStatic({ root: './' }));
-app.use('/js/*', serveStatic({ root: './' }));
-app.use('/three/*', serveStatic({ root: './node_modules' }));
-
+const serveActive2DStylesheet = serveStatic({ root: './' });
+app.use('/css/*', (c, next) => {
+  const projectPath = projectPathFromRequestURL(c.req.url, 'css');
+  if (!ACTIVE_2D_STYLESHEET_PATHS.has(projectPath)) return c.notFound();
+  return serveActive2DStylesheet(c, next);
+});
+const serveActive2DJavaScript = serveStatic({ root: './' });
+app.use('/js/*', (c, next) => {
+  const projectPath = projectPathFromRequestURL(c.req.url);
+  if (!ACTIVE_2D_JAVASCRIPT_PATHS.has(projectPath)) return c.notFound();
+  return serveActive2DJavaScript(c, next);
+});
 const isMainModule = process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1]);
-
 if (isMainModule) {
   serve({ fetch: app.fetch, port: PORT }, info => {
     console.log(`[trip-app] 已启动：http://localhost:${info.port}`);
-  });
-
-  process.on('uncaughtException', err => {
-    console.error('[trip-app] uncaughtException:', err);
-  });
-
-  process.on('unhandledRejection', reason => {
-    console.error('[trip-app] unhandledRejection:', reason);
   });
 }
 
@@ -995,192 +779,6 @@ function isValidTileCoord(x, y, z) {
   if (z < 3 || z > 18) return false;
   const max = 2 ** z;
   return x >= 0 && y >= 0 && x < max && y < max;
-}
-
-function parseCoordinateList(value) {
-  const values = String(value || '')
-    .split(',')
-    .map(item => Number(item.trim()));
-  if (!values.length || values.some(item => !Number.isFinite(item))) return [];
-  return values;
-}
-
-function parseLngLatList(value) {
-  const seen = new Set();
-  return String(value || '')
-    .split('|')
-    .map(pair => pair.split(',').map(item => Number(item.trim())))
-    .filter(([lng, lat]) => Number.isFinite(lng) && Number.isFinite(lat))
-    .filter(([lng, lat]) => {
-      const key = `${lng.toFixed(5)},${lat.toFixed(5)}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-}
-
-function buildOverpassQuery(anchors) {
-  const around = selector =>
-    anchors
-      .map(([lng, lat]) => `way(around:240,${lat.toFixed(6)},${lng.toFixed(6)})${selector};`)
-      .join('');
-  return `[out:json][timeout:25];(${around('["building"]')}${around('["highway"]')}${around('["waterway"]')}${around('["natural"="water"]')}${around('["bridge"]')}${around('["landuse"~"forest|grass|meadow"]')}${around('["natural"~"wood|scrub"]')});out tags geom;`;
-}
-
-function mapOsmGeoAssets(elements) {
-  const provenance = {
-    source: 'OpenStreetMap via Overpass API',
-    licence: 'ODbL 1.0',
-    attribution: '© OpenStreetMap contributors',
-    updatedAt: new Date().toISOString()
-  };
-  const buildings = [];
-  const roads = [];
-  const waterways = [];
-  const bridges = [];
-  const landcover = [];
-
-  for (const element of elements) {
-    const geometry = normalizeOsmGeometry(element?.geometry);
-    const tags = element?.tags || {};
-    if (geometry.length < 2) continue;
-    const id = `osm-${element?.type || 'way'}-${element?.id || buildings.length + waterways.length + bridges.length}`;
-
-    if (tags.building && geometry.length >= 3 && buildings.length < 120) {
-      buildings.push({
-        id,
-        footprint: closeOsmPolygon(geometry),
-        heightMeters: inferOsmBuildingHeight(tags),
-        roof: inferOsmRoof(tags),
-        provenance
-      });
-    }
-    if (tags.highway && roads.length < 180) {
-      roads.push({
-        id,
-        centerline: geometry,
-        kind: inferOsmRoadKind(tags.highway),
-        widthMeters: inferOsmRoadWidth(tags),
-        provenance
-      });
-    }
-    if ((tags.waterway || tags.natural === 'water') && waterways.length < 48) {
-      const polygon =
-        tags.natural === 'water' && geometry.length >= 3 ? closeOsmPolygon(geometry) : [];
-      waterways.push({
-        id,
-        polygon,
-        centerline: polygon.length ? [] : geometry,
-        widthMeters: inferOsmWaterWidth(tags),
-        provenance
-      });
-    }
-    if (tags.bridge && bridges.length < 48) {
-      bridges.push({
-        id,
-        centerline: geometry,
-        widthMeters: inferOsmBridgeWidth(tags),
-        deckHeightMeters: 5,
-        provenance
-      });
-    }
-    const cover = inferOsmLandcover(tags);
-    if (cover && geometry.length >= 3 && landcover.length < 48) {
-      landcover.push({ id, polygon: closeOsmPolygon(geometry), cover, licensed: true, provenance });
-    }
-  }
-
-  return { buildings, roads, waterways, bridges, landcover, landmarks: [] };
-}
-
-function normalizeOsmGeometry(geometry) {
-  return (Array.isArray(geometry) ? geometry : [])
-    .map(point => [Number(point?.lon), Number(point?.lat)])
-    .filter(([lng, lat]) => Number.isFinite(lng) && Number.isFinite(lat));
-}
-
-function closeOsmPolygon(points) {
-  if (points.length < 3) return [];
-  const first = points[0];
-  const last = points[points.length - 1];
-  return first[0] === last[0] && first[1] === last[1] ? points.slice(0, -1) : points;
-}
-
-function inferOsmBuildingHeight(tags) {
-  const explicit = Number.parseFloat(String(tags.height || '').replace(/[^0-9.]/g, ''));
-  if (Number.isFinite(explicit) && explicit > 0) return Math.min(explicit, 300);
-  const levels = Number.parseFloat(tags['building:levels']);
-  return Number.isFinite(levels) && levels > 0 ? Math.min(levels * 3.2, 300) : 10;
-}
-
-function inferOsmRoof(tags) {
-  const shape = String(tags['roof:shape'] || '').toLowerCase();
-  return shape.includes('gabled') ? 'gable' : shape.includes('pyramid') ? 'pyramid' : 'flat';
-}
-
-function inferOsmWaterWidth(tags) {
-  const explicit = Number.parseFloat(String(tags.width || '').replace(/[^0-9.]/g, ''));
-  if (Number.isFinite(explicit) && explicit > 0) return Math.min(explicit, 800);
-  return tags.waterway === 'river' ? 36 : tags.waterway === 'canal' ? 16 : 7;
-}
-
-function inferOsmBridgeWidth(tags) {
-  const explicit = Number.parseFloat(String(tags.width || '').replace(/[^0-9.]/g, ''));
-  if (Number.isFinite(explicit) && explicit > 0) return Math.min(explicit, 80);
-  const lanes = Number.parseInt(tags.lanes, 10);
-  return Number.isFinite(lanes) && lanes > 0 ? Math.min(lanes * 3.2, 80) : 8;
-}
-
-function inferOsmRoadKind(highway) {
-  return ['motorway', 'trunk', 'primary', 'secondary', 'tertiary'].includes(highway)
-    ? 'major'
-    : ['footway', 'path', 'pedestrian', 'steps', 'cycleway'].includes(highway)
-      ? 'path'
-      : 'local';
-}
-
-function inferOsmRoadWidth(tags) {
-  const explicit = Number.parseFloat(String(tags.width || '').replace(/[^0-9.]/g, ''));
-  if (Number.isFinite(explicit) && explicit > 0) return Math.min(explicit, 80);
-  const lanes = Number.parseInt(tags.lanes, 10);
-  if (Number.isFinite(lanes) && lanes > 0) return Math.min(lanes * 3.2, 80);
-  return inferOsmRoadKind(tags.highway) === 'major'
-    ? 12
-    : inferOsmRoadKind(tags.highway) === 'path'
-      ? 2.4
-      : 6;
-}
-
-function inferOsmLandcover(tags) {
-  if (tags.landuse === 'forest' || tags.natural === 'wood') return 'forest';
-  if (tags.natural === 'scrub') return 'scrub';
-  if (tags.landuse === 'grass' || tags.landuse === 'meadow') return 'grass';
-  return '';
-}
-
-async function fetchOpenElevationFallback(latitudes, longitudes) {
-  const upstream = new URL('https://api.open-elevation.com/api/v1/lookup');
-  upstream.searchParams.set(
-    'locations',
-    latitudes.map((latitude, index) => `${latitude},${longitudes[index]}`).join('|')
-  );
-  try {
-    const response = await fetch(upstream, {
-      headers: {
-        accept: 'application/json',
-        'user-agent': 'travel-with-me/0.1 (elevation-fallback)'
-      }
-    });
-    if (!response.ok) return null;
-    const payload = await response.json();
-    const results = Array.isArray(payload?.results) ? payload.results : [];
-    if (results.length !== latitudes.length) return null;
-    const elevations = results.map(item => Number(item?.elevation));
-    return elevations.every(Number.isFinite) ? elevations : null;
-  } catch (err) {
-    console.warn('[trip-app] Open-Elevation fallback failed', err);
-    return null;
-  }
 }
 
 function parseGuideJSON(content) {

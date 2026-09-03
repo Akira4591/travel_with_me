@@ -6,27 +6,20 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
-    "lint": "eslint js/ server/",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "check": "npm run format:check && npm run lint && npm run check:architecture && npm run check:provenance && npm run check:landmarks && npm run check:ledger",
-    "check:architecture": "node scripts/audit-render-imports.mjs",
-    "check:landmarks": "node scripts/check-landmark-assets.mjs",
-    "check:ledger": "node scripts/check-quality-ledger.mjs",
-    "check:provenance": "node scripts/check-provenance.mjs",
-    "check:gate50-evidence": "node scripts/check-gate50-evidence.mjs",
+    "lint": "node scripts/run-active-2d-quality.mjs lint",
+    "format": "node scripts/run-active-2d-quality.mjs format",
+    "format:check": "node scripts/run-active-2d-quality.mjs format-check",
+    "check": "npm run format:check && npm run lint && npm run check:architecture && npm run check:encoding",
+    "check:architecture": "node scripts/audit-render-imports.mjs && node scripts/check-2d-runtime-boundary.mjs",
     "check:encoding": "node scripts/check-visible-text-encoding.mjs",
-    "check:duplicates": "jscpd",
-    "check:deadcode": "knip --no-progress",
     "test": "vitest run",
     "test:e2e": "node scripts/run-e2e-smoke.mjs",
-    "test:e2e:visual": "playwright test tests/e2e/visual-baseline.spec.js --project=chromium",
-    "test:e2e:visual:stability": "node scripts/run-visual-stability.mjs",
     "test:e2e:live-provider": "node scripts/run-live-provider-smoke.mjs",
-    "gate50:review": "node scripts/run-gate50-review.mjs",
-    "gate50:packet": "node scripts/create-gate50-review-packet.mjs",
-    "gate50:live-review": "node scripts/run-gate50-live-review.mjs",
+    "test:live:deepseek": "node scripts/run-live-deepseek-smoke.mjs",
     "test:guide-import": "node scripts/evaluate-guide-import.mjs",
+    "release:evidence:check": "node scripts/check-release-evidence.mjs",
+    "release:review": "node scripts/create-release-review.mjs",
+    "release:review:serve": "node scripts/serve-release-review.mjs",
     "test:watch": "vitest",
     "prepare": "husky"
   },
@@ -35,16 +28,13 @@
     "@node-rs/jieba": "^2.0.0",
     "better-sqlite3": "^11.0.0",
     "console-log-json": "^6.4.1",
-    "hono": "^4.12.26",
-    "three": "0.162.0"
+    "hono": "^4.12.26"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
     "@playwright/test": "^1.61.0",
     "eslint": "^9.39.1",
     "husky": "^9.1.7",
-    "jscpd": "^5.0.12",
-    "knip": "^6.27.0",
     "lint-staged": "^17.0.7",
     "prettier": "^3.7.4",
     "vitest": "^4.1.9"
@@ -68,7 +58,7 @@
     ]
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22.22.1"
   },
   "allowScripts": {
     "better-sqlite3@11.10.0": true

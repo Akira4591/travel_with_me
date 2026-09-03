@@ -6,6 +6,7 @@ const MAX_TEXT_LENGTH = 5000;
 
 export const openGuideImportModal = modalSingleton(
   ({ initialText = '', initialCity = '', handlers }) => {
+    const controller = new AbortController();
     const root = document.createElement('div');
     root.className = 'modal-overlay';
     root.innerHTML = `
@@ -108,7 +109,8 @@ export const openGuideImportModal = modalSingleton(
         const ok = await handlers.onSubmit?.({
           text,
           cityHint: cityInput.value.trim(),
-          onProgress: setProgressStep
+          onProgress: setProgressStep,
+          signal: controller.signal
         });
         if (ok !== false) openGuideImportModal.close();
       } catch (err) {
@@ -120,7 +122,8 @@ export const openGuideImportModal = modalSingleton(
     });
 
     document.body.appendChild(root);
-    requestAnimationFrame(() => root.querySelector('.guide-import-textarea')?.focus());
+    requestAnimationFrame(() => root.querySelector('.guide-import-city')?.focus());
+    return () => controller.abort();
   }
 );
 

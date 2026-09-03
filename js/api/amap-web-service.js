@@ -1,6 +1,6 @@
 const BFF_PREFIX = '/_AMapService';
 
-export async function requestAMapWebService(path, params = {}) {
+export async function requestAMapWebService(path, params = {}, options = {}) {
   const query = Object.entries(params)
     .filter(([, value]) => value !== null && value !== undefined && value !== '')
     .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
@@ -8,7 +8,10 @@ export async function requestAMapWebService(path, params = {}) {
   const url = `${BFF_PREFIX}${path}${query ? `?${query}` : ''}`;
 
   try {
-    const response = await fetch(url, { headers: { accept: 'application/json' } });
+    const response = await fetch(url, {
+      headers: { accept: 'application/json' },
+      signal: options.signal
+    });
     const payload = await response.json().catch(() => null);
     if (!response.ok) {
       return {
@@ -25,7 +28,8 @@ export async function requestAMapWebService(path, params = {}) {
       code: String(payload?.info || payload?.errmsg || 'AMAP_REQUEST_FAILED'),
       payload
     };
-  } catch {
+  } catch (error) {
+    if (options.signal?.aborted) throw error;
     return { ok: false, code: 'BFF_NETWORK_FAILED', payload: null };
   }
 }
@@ -33,14 +37,25 @@ export async function requestAMapWebService(path, params = {}) {
 export function normalizeLngLat(value) {
   if (typeof value === 'string') {
     const [lng, lat] = value.split(',').map(item => Number(item.trim()));
-    return Number.isFinite(lng) && Number.isFinite(lat) ? [lng, lat] : null;
+    return isGeographicLngLat(lng, lat) ? [lng, lat] : null;
   }
   if (Array.isArray(value) && value.length >= 2) {
     const lng = Number(value[0]);
     const lat = Number(value[1]);
-    return Number.isFinite(lng) && Number.isFinite(lat) ? [lng, lat] : null;
+    return isGeographicLngLat(lng, lat) ? [lng, lat] : null;
   }
   const lng = Number(value?.lng ?? value?.Lng);
   const lat = Number(value?.lat ?? value?.Lat);
-  return Number.isFinite(lng) && Number.isFinite(lat) ? [lng, lat] : null;
+  return isGeographicLngLat(lng, lat) ? [lng, lat] : null;
+}
+
+function isGeographicLngLat(lng, lat) {
+  return (
+    Number.isFinite(lng) &&
+    Number.isFinite(lat) &&
+    lng >= -180 &&
+    lng <= 180 &&
+    lat >= -90 &&
+    lat <= 90
+  );
 }

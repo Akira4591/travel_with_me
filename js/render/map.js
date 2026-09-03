@@ -6,20 +6,16 @@
 
 import { createLogger } from '../logger.js';
 import { AppConfig } from '../config.js';
-import {
-  getAnnotations,
-  getAppState,
-  getTrip,
-  getLocation,
-  getMarker,
-  setMap,
-  setInfoWindow
-} from '../state.js';
-import { getAnnotationType } from '../annotations.js';
+import { getAppState, getTrip, getLocation, getMarker, setMap, setInfoWindow } from '../state.js';
 import { ROUTE_GUIDANCE } from '../route-guidance.js';
 import { escapeHTML, unique } from '../utils.js';
 
 const log = createLogger('map');
+let markerSelectHandler = null;
+
+export function setMarkerSelectHandler(handler) {
+  markerSelectHandler = handler;
+}
 
 // ─── 初始化 ─────────────────────────────────────────────
 
@@ -62,45 +58,6 @@ export function createAllMarkers() {
   });
 }
 
-export function renderAnnotationMarkers() {
-  const state = getAppState();
-  if (!state.AMap || !state.map) return [];
-  clearAnnotationMarkers();
-  getAnnotations().forEach(annotation => {
-    if (!Array.isArray(annotation.lnglat) || annotation.lnglat.length < 2) return;
-    const type = getAnnotationType(annotation.type);
-    const content = document.createElement('div');
-    content.className = `annotation-marker annotation-marker-${type.id}`;
-    content.style.setProperty('--annotation-color', type.color);
-    content.innerHTML = '<span></span>';
-    const marker = new state.AMap.Marker({
-      position: annotation.lnglat,
-      content,
-      offset: new state.AMap.Pixel(-11, -11),
-      zIndex: 260
-    });
-    marker._contentEl = content;
-    marker.on('click', () => openAnnotationInfoWindow(annotation.id));
-    state.annotationMarkers.set(annotation.id, marker);
-    state.annotationMarkerList.push(marker);
-    state.map.add(marker);
-  });
-  return state.annotationMarkerList;
-}
-
-export function clearAnnotationMarkers() {
-  const state = getAppState();
-  state.annotationMarkerList.forEach(marker => {
-    try {
-      state.map?.remove(marker);
-    } catch (err) {
-      log.warn('移除标记失败：', err);
-    }
-  });
-  state.annotationMarkers.clear();
-  state.annotationMarkerList = [];
-}
-
 export function createOrUpdateMarker(locationId, lnglat) {
   // 防御：lnglat 缺失时不创建 marker，避免给 AMap 喂 undefined
   if (!Array.isArray(lnglat) || lnglat.length < 2) return null;
@@ -128,25 +85,14 @@ export function createOrUpdateMarker(locationId, lnglat) {
   // 缓存 content 元素，方便后续给 marker 加 CSS 动画 class（脉冲效果）
   marker._contentEl = content;
   marker.on('click', () => {
-    if (handle3DMarkerSelection(lnglat)) return;
     openInfoWindow(locationId);
+    markerSelectHandler?.(locationId);
   });
 
   state.markers.set(locationId, marker);
   state.markerList.push(marker);
   state.map.add(marker);
   return marker;
-}
-
-function handle3DMarkerSelection(lnglat) {
-  const mapElement = document.getElementById('map');
-  if (!mapElement?.classList?.contains('selecting-3d-center')) return false;
-  mapElement.dispatchEvent(
-    new CustomEvent('travel:marker-3d-select', {
-      detail: { lnglat: [Number(lnglat[0]), Number(lnglat[1])] }
-    })
-  );
-  return true;
 }
 
 export function removeMarker(locationId) {
@@ -169,6 +115,43 @@ export function removeMarker(locationId) {
   state.markerList = state.markerList.filter(item => item !== marker);
 }
 
+export function showCandidatePreview(place, anchorLocation = null) {
+  clearCandidatePreview();
+  const state = getAppState();
+  if (!Array.isArray(place?.lnglat) || !state.AMap || !state.map) return;
+  const content = document.createElement('div');
+  content.className = 'custom-marker candidate-preview-marker';
+  content.innerHTML = '<span></span>';
+  const marker = new state.AMap.Marker({
+    position: place.lnglat,
+    content,
+    offset: new state.AMap.Pixel(-14, -14)
+  });
+  const overlays = [marker];
+  const anchor = anchorLocation?.lnglat;
+  if (Array.isArray(anchor)) {
+    overlays.push(
+      new state.AMap.Polyline({
+        path: [anchor, place.lnglat],
+        strokeColor: ROUTE_GUIDANCE.line,
+        strokeOpacity: 0.72,
+        strokeWeight: 3,
+        strokeStyle: 'dashed'
+      })
+    );
+  }
+  state.candidatePreview = overlays;
+  state.map.add(overlays);
+  fitMarkers([marker]);
+}
+
+export function clearCandidatePreview() {
+  const state = getAppState();
+  if (!state.candidatePreview?.length) return;
+  state.map?.remove(state.candidatePreview);
+  state.candidatePreview = null;
+}
+
 export function clearAllMarkers() {
   const state = getAppState();
   state.markerList.forEach(marker => {
@@ -180,7 +163,6 @@ export function clearAllMarkers() {
   });
   state.markers.clear();
   state.markerList = [];
-  clearAnnotationMarkers();
 }
 
 export function pruneMarkersToLocationIds(locationIds) {
@@ -340,21 +322,6 @@ export function openInfoWindow(locationId) {
     <div class="info-window-content">
       <h3 class="info-window-title">${escapeHTML(loc.name)}</h3>
       <p class="info-window-addr">${escapeHTML(loc.addr || loc.query || loc.name)}</p>
-    </div>
-  `);
-  state.infoWindow.open(state.map, marker.getPosition());
-}
-
-export function openAnnotationInfoWindow(annotationId) {
-  const state = getAppState();
-  const annotation = getAnnotations().find(item => item.id === annotationId);
-  const marker = state.annotationMarkers.get(annotationId);
-  if (!annotation || !marker) return;
-  const type = getAnnotationType(annotation.type);
-  state.infoWindow.setContent(`
-    <div class="info-window-content">
-      <h3 class="info-window-title">${escapeHTML(annotation.title || type.label)}</h3>
-      <p class="info-window-addr">${escapeHTML(type.label)}${annotation.note ? ` · ${escapeHTML(annotation.note)}` : ''}</p>
     </div>
   `);
   state.infoWindow.open(state.map, marker.getPosition());

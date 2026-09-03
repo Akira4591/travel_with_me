@@ -1,11 +1,45 @@
 // js/__tests__/geocode.test.js
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 // geocode.js exports are indirectly testable via their public API.
 // The mapPois function and buildDisplayAddress are pure logic.
 
 describe('geocode (POI mapping and address display)', () => {
+  it('rejects coordinates outside the geographic longitude and latitude ranges', async () => {
+    const { normalizeLngLat } = await import('../api/amap-web-service.js');
+
+    expect(normalizeLngLat('180,90')).toEqual([180, 90]);
+    expect(normalizeLngLat('-180,-90')).toEqual([-180, -90]);
+    expect(normalizeLngLat('181,39')).toBeNull();
+    expect(normalizeLngLat([116, 91])).toBeNull();
+    expect(normalizeLngLat({ lng: -181, lat: 39 })).toBeNull();
+  });
+
+  it('creates geocode services for the active trip city', async () => {
+    const geocoderOptions = [];
+    const placeOptions = [];
+    const AMap = {
+      Geocoder: class {
+        constructor(options) {
+          geocoderOptions.push(options);
+        }
+      },
+      PlaceSearch: class {
+        constructor(options) {
+          placeOptions.push(options);
+        }
+      }
+    };
+    const { createGeocodeServices } = await import('../api/geocode.js');
+
+    const services = createGeocodeServices(AMap, '上海市');
+
+    expect(services.city).toBe('上海市');
+    expect(geocoderOptions[0].city).toBe('上海市');
+    expect(placeOptions[0].city).toBe('上海市');
+  });
+
   it('buildDisplayAddress prefers formatted address', async () => {
     const { buildDisplayAddress } = await import('../api/geocode.js');
     expect(buildDisplayAddress({ formatted: '北京市朝阳区建国路1号' })).toBe(

@@ -192,7 +192,7 @@ async function seedWorkspace(page) {
   }, SEEDED_WORKSPACE);
 }
 
-test.describe('3D mode toggle', () => {
+test.describe('@archived-3d 3D mode toggle', () => {
   test('toggle button appears after map loads on desktop', async ({ page, isMobile }) => {
     test.skip(isMobile, 'desktop-only');
     await installMockAMap(page);

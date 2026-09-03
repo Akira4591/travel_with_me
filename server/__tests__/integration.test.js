@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { mkdirSync, rmSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { closeDB } from '../rag/db.js';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
-const TMP_DIR = resolve(process.cwd(), 'test-tmp-integration');
-const TMP_DB = resolve(TMP_DIR, 'test-integration.db');
+let testDirectory = '';
+let testDatabase = '';
+let closeCurrentDatabase = () => {};
 
 const originalEnv = { ...process.env };
 
@@ -27,25 +28,24 @@ async function getApp(overrides = {}) {
   vi.resetModules();
   setTestEnv(overrides);
   const mod = await import('../index.js');
+  closeCurrentDatabase = (await import('../rag/db.js')).closeDB;
   return mod.app;
 }
 
 function cleanupTmp() {
-  try {
-    rmSync(TMP_DIR, { recursive: true, force: true });
-  } catch {
-    // Windows EPERM on locked files - ignore, will be cleaned on next run
-  }
+  if (testDirectory) rmSync(testDirectory, { recursive: true, force: true });
+  testDirectory = '';
+  testDatabase = '';
 }
 
 describe('server integration', () => {
   beforeEach(() => {
-    cleanupTmp();
-    mkdirSync(TMP_DIR, { recursive: true });
+    testDirectory = mkdtempSync(join(tmpdir(), 'travel-with-me-rag-'));
+    testDatabase = join(testDirectory, 'integration.db');
   });
 
   afterEach(() => {
-    closeDB();
+    closeCurrentDatabase();
     cleanupTmp();
     process.env = { ...originalEnv };
     vi.restoreAllMocks();
@@ -267,7 +267,7 @@ describe('server integration', () => {
     });
 
     it('soft-deletes an existing guide', async () => {
-      const app = await getApp({ RAG_DB_PATH: TMP_DB });
+      const app = await getApp({ RAG_DB_PATH: testDatabase });
       // Use the app's own DB connection to save a guide via the store module
       const { saveGuide } = await import('../rag/store.js');
       const id = saveGuide({
@@ -345,46 +345,6 @@ describe('server integration', () => {
     it('returns 400 for zoom out of range', async () => {
       const app = await getApp();
       const res = await app.request('/_AMapTile?x=1&y=1&z=2');
-      expect(res.status).toBe(400);
-    });
-  });
-
-  describe('GET /_elevation', () => {
-    it('returns 400 for non-numeric coordinates', async () => {
-      const app = await getApp();
-      const res = await app.request('/_elevation?latitude=abc&longitude=def');
-      expect(res.status).toBe(400);
-      const body = await res.json();
-      expect(body.error).toBe('INVALID_ELEVATION_COORDINATES');
-    });
-
-    it('returns 400 for mismatched coordinate arrays', async () => {
-      const app = await getApp();
-      const res = await app.request('/_elevation?latitude=39.9,116.4&longitude=116.4');
-      expect(res.status).toBe(400);
-    });
-
-    it('returns 400 for too many coordinates', async () => {
-      const app = await getApp();
-      const coords = Array.from({ length: 101 }, (_, i) => (39 + i * 0.01).toFixed(4)).join(',');
-      const res = await app.request(`/_elevation?latitude=${coords}&longitude=${coords}`);
-      expect(res.status).toBe(400);
-    });
-  });
-
-  describe('GET /_geo-assets', () => {
-    it('returns 400 for missing points', async () => {
-      const app = await getApp();
-      const res = await app.request('/_geo-assets');
-      expect(res.status).toBe(400);
-      const body = await res.json();
-      expect(body.error).toBe('INVALID_GEO_ASSET_POINTS');
-    });
-
-    it('returns 400 for too many points', async () => {
-      const app = await getApp();
-      const points = Array.from({ length: 9 }, (_, i) => `116.${i},39.${i}`).join('|');
-      const res = await app.request(`/_geo-assets?points=${points}`);
       expect(res.status).toBe(400);
     });
   });

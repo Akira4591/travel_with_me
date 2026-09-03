@@ -32,7 +32,7 @@ describe('BM25Index', () => {
     index.addDocument('doc1', ['故宫', '北京', '天安门', '天安门', '天安门']);
     index.addDocument('doc2', ['故宫', '北京', '颐和园']);
     const results = index.search(['颐和园', '天安门']);
-    const yheyuanScore = results.find(r => true)?.score;
+    const yheyuanScore = results[0]?.score;
     expect(yheyuanScore).toBeGreaterThan(0);
     expect(results.length).toBeGreaterThan(0);
   });

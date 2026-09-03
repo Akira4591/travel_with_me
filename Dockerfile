@@ -1,13 +1,19 @@
-FROM node:22-slim AS build
-RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-
-FROM node:22-slim AS runtime
-WORKDIR /app
-COPY --from=build /app/node_modules ./node_modules
+FROM node:22-slim AS runtime-source
+WORKDIR /source
 COPY . .
+RUN node scripts/assemble-2d-runtime.mjs /runtime
+
+FROM node:22-slim AS dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ \
+  && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY --from=runtime-source /runtime/package*.json ./
+RUN npm pkg delete scripts.prepare && npm ci --omit=dev
+
+FROM node:22-slim
+WORKDIR /app
+COPY --from=dependencies /app/node_modules ./node_modules
+COPY --from=runtime-source /runtime ./
 RUN mkdir -p data && chown -R node:node /app
 USER node
 EXPOSE 8080

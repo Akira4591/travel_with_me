@@ -1,6 +1,6 @@
 # Contributing
 
-> **辅助文件** | 权威开发文档: [DEVELOPMENT.md](DEVELOPMENT.md)
+当前贡献范围是 2D 产品。3D 文件与下方 3D QA 资料只作为封存历史保留，不得接回默认入口、依赖、服务或测试。
 
 ## 本地开发
 
@@ -19,15 +19,15 @@ npm run dev
 # http://localhost:8080
 ```
 
-## 3D Visual QA Documents
+## Archived 3D Visual QA Documents
 
-Any change that affects 3D visual output, camera behavior, terrain, water, roads, bridges, buildings, or scene profiles must check these documents before implementation:
+Any explicitly approved future 3D revival must first check these historical documents:
 
 - `docs/engineering/qa/visual-baseline.md`
 - `docs/engineering/qa/debug-contract.md`
 - `docs/architecture/3d/visual-baseline-spec.md`
 
-The next active development order is:
+The former development order was:
 
 ```text
 Alpha visual proof infrastructure

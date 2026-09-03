@@ -25,6 +25,7 @@ export const openSearchModal = modalSingleton(handlers => {
   requestAnimationFrame(() => {
     root.querySelector('.modal-search-input')?.focus();
   });
+  return () => handlers?.onDismiss?.();
 });
 
 // ─── 内部 ──────────────────────────────────────────────
@@ -61,7 +62,11 @@ function createModal(handlers) {
         <div class="modal-results" data-state="idle">
           <div class="modal-hint">输入关键词后点击"搜索"，从下方结果中选一个地点</div>
         </div>
-        <form class="modal-event-form" hidden>
+        <form class="modal-event-form map-confirmation-sheet" hidden>
+          <div class="map-confirmation-context">
+            <span><strong class="map-confirmation-place"></strong><small class="map-confirmation-address"></small></span>
+            <span class="map-confirmation-position">${escapeHTML(handlers?.insertionLabel || '添加到当前行程')}</span>
+          </div>
           <div class="modal-form-row">
             <label>标题</label>
             <input type="text" class="modal-event-title" placeholder="在这里做什么" required />
@@ -108,6 +113,7 @@ function bindEvents(root, handlers) {
 
   let searchMode = 'keyword'; // 'keyword' | 'nearby'
   let selected = null;
+  let searchRequestId = 0;
 
   const doSearch = async () => {
     const keyword = input.value.trim();
@@ -115,6 +121,7 @@ function bindEvents(root, handlers) {
     const isNearby = searchMode === 'nearby';
     const runner = isNearby ? handlers?.onNearbySearch : handlers?.onSearch;
     if (!runner) return;
+    const requestId = ++searchRequestId;
 
     selected = null;
     form.hidden = true;
@@ -122,6 +129,7 @@ function bindEvents(root, handlers) {
 
     try {
       const places = await runner(keyword);
+      if (requestId !== searchRequestId || !root.isConnected) return;
       if (!places || !places.length) {
         const emptyHTML = isNearby
           ? '<div class="modal-hint">附近没找到相关地点，换个关键词试试</div>'
@@ -131,6 +139,12 @@ function bindEvents(root, handlers) {
       }
       renderResults(resultsEl, places, place => {
         selected = place;
+        root.classList.add('candidate-confirming');
+        root.querySelector('.modal-header h2').textContent = '确认加入行程';
+        form.querySelector('.map-confirmation-place').textContent = place.name || '候选地点';
+        form.querySelector('.map-confirmation-address').textContent =
+          place.addr || place.district || place.city || '地址未提供';
+        handlers?.onPreview?.(place);
         // 自动用地点名做标题，降低用户输入负担；用户仍可在保存前改。
         titleInput.value = place.name || '';
         iconPicker.setValue(
@@ -146,6 +160,7 @@ function bindEvents(root, handlers) {
         titleInput.select();
       });
     } catch (err) {
+      if (requestId !== searchRequestId || !root.isConnected) return;
       log.error('搜索地点失败：', err);
       setResultsState(resultsEl, 'error', '<div class="modal-hint">搜索失败，请重试</div>');
     }
@@ -155,6 +170,7 @@ function bindEvents(root, handlers) {
   const tabs = root.querySelectorAll('.editor-search-tab');
   const switchMode = mode => {
     if (searchMode === mode) return;
+    searchRequestId += 1;
     searchMode = mode;
     tabs.forEach(t => {
       const active = t.dataset.searchMode === mode;
@@ -171,6 +187,9 @@ function bindEvents(root, handlers) {
     }
     input.value = '';
     selected = null;
+    root.classList.remove('candidate-confirming');
+    root.querySelector('.modal-header h2').textContent = '搜索并添加地点';
+    handlers?.onPreview?.(null);
     form.hidden = true;
     setResultsState(
       resultsEl,

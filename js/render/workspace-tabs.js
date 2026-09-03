@@ -16,6 +16,7 @@ export function renderWorkspaceTabs(handlers = {}) {
     <div class="workspace-tabs-track" role="tablist" aria-label="旅行路线">
       ${workspace.trips.map((trip, index) => renderTripTab(trip, index, trip.id === workspace.activeTripId)).join('')}
       ${workspace.trips.length < MAX_TRIPS ? renderCreateTab(workspace.trips.length) : ''}
+      ${renderImportTab(workspace.trips.length)}
     </div>
   `;
 
@@ -29,6 +30,13 @@ export function renderWorkspaceTabs(handlers = {}) {
 
   root.querySelector('[data-import-guide]')?.addEventListener('click', () => {
     handlers.onImportGuide?.();
+  });
+
+  requestAnimationFrame(() => {
+    root.querySelector('[role="tab"][aria-selected="true"]')?.scrollIntoView({
+      block: 'nearest',
+      inline: 'nearest'
+    });
   });
 
   root.querySelector('[data-trip-menu]')?.addEventListener('click', e => {
@@ -54,8 +62,8 @@ function renderTripTab(trip, index, active) {
   const slot = index + 1;
   return `
     <div class="workspace-tab-wrap ${active ? 'active' : ''}" style="--slot: ${slot};">
-      <div class="workspace-tab ${active ? 'active' : ''}" role="tab" aria-selected="${active}" title="${escapeHTML(trip.title)}">
-        <button type="button" class="workspace-tab-title-btn" data-trip-id="${escapeHTML(trip.id)}">
+      <div class="workspace-tab ${active ? 'active' : ''}" title="${escapeHTML(trip.title)}">
+        <button type="button" class="workspace-tab-title-btn" data-trip-id="${escapeHTML(trip.id)}" role="tab" aria-selected="${active}" tabindex="${active ? '0' : '-1'}">
           <span class="workspace-tab-title">${escapeHTML(trip.title || '未命名行程')}</span>
         </button>
         ${
@@ -77,7 +85,12 @@ function renderCreateTab(index) {
         <button type="button" class="workspace-tab-create-btn" data-create-trip aria-label="新建行程" title="新建行程">+</button>
       </div>
     </div>
-    <div class="workspace-tab-wrap workspace-tab-ai-wrap" style="--slot: ${index + 1};">
+  `;
+}
+
+function renderImportTab(index) {
+  return `
+    <div class="workspace-tab-wrap workspace-tab-ai-wrap" style="--slot: ${index + 2};">
       <button type="button" class="workspace-tab workspace-tab-ai-import" data-import-guide aria-label="从攻略导入" title="从攻略导入">AI 导入</button>
     </div>
   `;
